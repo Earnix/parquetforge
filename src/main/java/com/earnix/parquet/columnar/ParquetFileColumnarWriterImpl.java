@@ -1,26 +1,56 @@
 package com.earnix.parquet.columnar;
 
+import com.earnix.parquet.columnar.rowgroup.ColumnChunkInfo;
+import com.earnix.parquet.columnar.rowgroup.FileRowGroupWriterImpl;
+import com.earnix.parquet.columnar.rowgroup.RowGroupInfo;
+import com.earnix.parquet.columnar.rowgroup.RowGroupWriter;
+import org.apache.commons.io.output.CountingOutputStream;
+import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.ParquetProperties;
+import org.apache.parquet.format.ColumnChunk;
+import org.apache.parquet.format.ColumnMetaData;
+import org.apache.parquet.format.CompressionCodec;
+import org.apache.parquet.format.Encoding;
+import org.apache.parquet.format.FieldRepetitionType;
+import org.apache.parquet.format.FileMetaData;
+import org.apache.parquet.format.RowGroup;
+import org.apache.parquet.format.SchemaElement;
+import org.apache.parquet.format.Util;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
 
+import java.io.Closeable;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.parquet.schema.Type.Repetition.REQUIRED;
 
-public class ParquetFileColumnarWriterImpl implements ParquetFileColumnarWriter
+public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Closeable
 {
+	private static final byte[] magicBytes = "PAR1".getBytes(StandardCharsets.US_ASCII);
+
 	private final MessageType messageType;
 	private final ParquetProperties parquetProperties;
+	private final FileChannel fileChannel;
+	private RowGroupWriter lastWriter = null;
+	private final List<RowGroupInfo> rowGroupInfos = new ArrayList<>();
 
 	/**
 	 * Constructor for flat file.
 	 * 
 	 * @param primitiveTypeList the types of columns
 	 */
-	public ParquetFileColumnarWriterImpl(List<PrimitiveType> primitiveTypeList)
+	public ParquetFileColumnarWriterImpl(Path outputFile, List<PrimitiveType> primitiveTypeList) throws IOException
 	{
 		for (PrimitiveType type : primitiveTypeList)
 		{
@@ -31,23 +61,140 @@ public class ParquetFileColumnarWriterImpl implements ParquetFileColumnarWriter
 
 		// this probably should be a constructor param
 		parquetProperties = ParquetProperties.builder().build();
+		fileChannel = FileChannel.open(outputFile, //
+				StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE, StandardOpenOption.CREATE);
 	}
 
 	@Override
-	public RowGroupColumnarWriter startNewRowGroup(int numRows)
+	public RowGroupWriter startNewRowGroup(int numRows) throws IOException
 	{
-		return new RowGroupColumnarWriterImpl(messageType, parquetProperties, numRows);
+		if (lastWriter == null)
+		{
+			writeMagicBytes();
+		}
+		else
+		{
+			finishLastRowGroup();
+		}
+		lastWriter = new FileRowGroupWriterImpl(messageType, parquetProperties, numRows, fileChannel);
+		return lastWriter;
+	}
+
+	private void writeMagicBytes() throws IOException
+	{
+		int bytesWritten = fileChannel.write(ByteBuffer.wrap(magicBytes));
+		if (bytesWritten != magicBytes.length)
+			throw new IllegalStateException();
 	}
 
 	@Override
-	public void finishAndWriteFooterMetadata()
+	public void finishAndWriteFooterMetadata() throws IOException
 	{
+		if (lastWriter == null)
+			throw new IllegalStateException("No groups written");
+		finishLastRowGroup();
+		lastWriter = null;
 
+		FileMetaData fileMetaData = new FileMetaData();
+
+		List<SchemaElement> schemaElementList = getSchemaElements();
+		fileMetaData.setSchema(schemaElementList);
+
+		long totalNumRows = this.rowGroupInfos.stream().mapToLong(RowGroupInfo::getNumRows).sum();
+		fileMetaData.setNum_rows(totalNumRows);
+		// TODO: what version are we actually??
+		fileMetaData.setVersion(1);
+
+		List<RowGroup> rowGroups = new ArrayList<>(rowGroupInfos.size());
+		for (RowGroupInfo rowGroupInfo : rowGroupInfos)
+		{
+			RowGroup rowGroup = new RowGroup();
+			rowGroup.setNum_rows(totalNumRows);
+			List<ColumnChunk> chunks = new ArrayList<>(rowGroupInfo.getCols().size());
+			for (ColumnChunkInfo chunkInfo : rowGroupInfo.getCols())
+			{
+				ColumnChunk columnChunk = new ColumnChunk();
+				columnChunk.setFile_offset(0);
+
+				ColumnMetaData columnMetaData = new ColumnMetaData();
+				columnMetaData.setData_page_offset(chunkInfo.getStartPos());
+				columnMetaData.setTotal_compressed_size(chunkInfo.getCompressedLen());
+				columnMetaData.setTotal_uncompressed_size(chunkInfo.getUncompressedLen());
+
+				columnMetaData.setNum_values(totalNumRows);
+
+				columnMetaData.setPath_in_schema(Arrays.asList(chunkInfo.getDescriptor().getPath()));
+				columnMetaData.setType(convert(chunkInfo.getDescriptor().getPrimitiveType().getPrimitiveTypeName()));
+
+				// the set of all encodings
+				columnMetaData.setEncodings(new ArrayList<>(chunkInfo.getUsedEncodings()));
+
+				// TODO: nothing is compressed yet.
+				columnMetaData.setCodec(CompressionCodec.UNCOMPRESSED);
+				columnChunk.setMeta_data(columnMetaData);
+				chunks.add(columnChunk);
+			}
+			rowGroup.setColumns(chunks);
+			rowGroup.setTotal_compressed_size(rowGroupInfo.getCompressedSize());
+			rowGroup.setTotal_byte_size(rowGroupInfo.getUncompressedSize());
+			rowGroups.add(rowGroup);
+		}
+		fileMetaData.setRow_groups(rowGroups);
+
+		CountingOutputStream os = new CountingOutputStream(Channels.newOutputStream(fileChannel));
+		Util.writeFileMetaData(fileMetaData, os);
+		os.getByteCount();
+		byte[] toWrite = new byte[Integer.BYTES];
+		ByteBuffer.wrap(toWrite).order(ByteOrder.LITTLE_ENDIAN).putInt(Math.toIntExact(os.getCount()));
+		os.write(toWrite);
+		writeMagicBytes();
+	}
+
+	private List<SchemaElement> getSchemaElements()
+	{
+		List<SchemaElement> schemaElementList = new ArrayList<>(1 + this.messageType.getColumns().size());
+
+		SchemaElement root = new SchemaElement();
+		root.setName("root");
+		root.setType(null);
+		root.setNum_children(messageType.getColumns().size());
+		schemaElementList.add(root);
+
+		for (ColumnDescriptor descriptor : messageType.getColumns())
+		{
+			SchemaElement schemaElement = new SchemaElement();
+			String colName = descriptor.getPath()[descriptor.getPath().length - 1];
+			schemaElement.setName(colName);
+			schemaElement.setType(convert(descriptor.getPrimitiveType().getPrimitiveTypeName()));
+			schemaElement.setRepetition_type(convert(descriptor.getPrimitiveType().getRepetition()));
+			schemaElementList.add(schemaElement);
+		}
+		return schemaElementList;
+	}
+
+	private static Encoding convert(org.apache.parquet.column.Encoding encoding)
+	{
+		return Encoding.valueOf(encoding.name());
+	}
+
+	private static org.apache.parquet.format.Type convert(PrimitiveType.PrimitiveTypeName primitiveTypeName)
+	{
+		return org.apache.parquet.format.Type.valueOf(primitiveTypeName.name());
+	}
+
+	private static FieldRepetitionType convert(Type.Repetition repetition)
+	{
+		return FieldRepetitionType.valueOf(repetition.name());
+	}
+
+	private void finishLastRowGroup() throws IOException
+	{
+		rowGroupInfos.add(lastWriter.closeAndValidateAllColumnsWritten());
 	}
 
 	@Override
 	public void close() throws IOException
 	{
-
+		fileChannel.close();
 	}
 }

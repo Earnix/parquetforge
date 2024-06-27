@@ -42,6 +42,11 @@ public class InMemPageWriter implements PageWriter
 		}
 		memSize += bytesInput.size();
 		//todo - the bytes input needs to be compressed with the specified compression codec.
+		/*
+		byte[] toCompress = col.getParquetBytes();
+		byte[] compressed = new byte[compressor.maxCompressedLength(toCompress.length)];
+		int compressedLen = compressor.compress(toCompress, compressed);
+		 */
 		pages.add(new DataPageV1(BytesInput.copy(bytesInput), valueCount, (int) bytesInput.size(), statistics,
 				rlEncoding, dlEncoding, valuesEncoding));
 		totalValueCount += valueCount;
