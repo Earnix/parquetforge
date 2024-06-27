@@ -21,7 +21,8 @@ public class ParquetFileWriterTest
 		Path out = Paths.get("/Users/andrewp/test2.parquet");
 		List<PrimitiveType> cols = Arrays.asList(
 				new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.DOUBLE, "Chicken"),
-				new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.DOUBLE, "taco"));
+				new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.DOUBLE, "taco"),
+				new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.INT32, "potato"));
 		try (ParquetColumnarWriter writer = new ParquetFileColumnarWriterImpl(out, cols);)
 		{
 			RowGroupWriter groupWriter;
@@ -31,12 +32,16 @@ public class ParquetFileWriterTest
 					columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(0).getName(), new double[] { 1, }));
 			groupWriter.writeColumn(
 					columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(1).getName(), new double[] { 4, }));
+			groupWriter.writeColumn(
+					columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(2).getName(), new int[] { 4, }));
 
 			groupWriter = writer.startNewRowGroup(1);
 			groupWriter.writeColumn(
 					columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(0).getName(), new double[] { 30, }));
 			groupWriter.writeColumn(
 					columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(1).getName(), new double[] { 4, }));
+			groupWriter.writeColumn(
+					columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(2).getName(), new int[] { 4, }));
 
 			int lotsOfRows = 10_000;
 			groupWriter = writer.startNewRowGroup(lotsOfRows);
@@ -44,6 +49,8 @@ public class ParquetFileWriterTest
 					IntStream.range(0, 10_000).mapToDouble(Double::valueOf).toArray()));
 			groupWriter.writeColumn(columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(1).getName(),
 					IntStream.range(0, 10_000).map(i -> i % 10).mapToDouble(Double::valueOf).toArray()));
+			groupWriter.writeColumn(columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(2).getName(),
+					IntStream.range(0, 10_000).toArray()));
 
 			writer.finishAndWriteFooterMetadata();
 		}
