@@ -109,7 +109,8 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 		for (RowGroupInfo rowGroupInfo : rowGroupInfos)
 		{
 			RowGroup rowGroup = new RowGroup();
-			rowGroup.setNum_rows(totalNumRows);
+			rowGroup.setNum_rows(rowGroupInfo.getNumRows());
+
 			List<ColumnChunk> chunks = new ArrayList<>(rowGroupInfo.getCols().size());
 			for (ColumnChunkInfo chunkInfo : rowGroupInfo.getCols())
 			{
@@ -121,7 +122,7 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 				columnMetaData.setTotal_compressed_size(chunkInfo.getCompressedLen());
 				columnMetaData.setTotal_uncompressed_size(chunkInfo.getUncompressedLen());
 
-				columnMetaData.setNum_values(totalNumRows);
+				columnMetaData.setNum_values(chunkInfo.getNumValues());
 
 				columnMetaData.setPath_in_schema(Arrays.asList(chunkInfo.getDescriptor().getPath()));
 				columnMetaData.setType(convert(chunkInfo.getDescriptor().getPrimitiveType().getPrimitiveTypeName()));

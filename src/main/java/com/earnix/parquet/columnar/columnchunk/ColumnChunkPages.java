@@ -32,6 +32,7 @@ public class ColumnChunkPages
 	private final ColumnDescriptor columnDescriptor;
 	private final Set<Encoding> encodingSet = EnumSet.noneOf(Encoding.class);
 	private final List<byte[]> headersAndPages;
+	private final long numValues;
 	private final long uncompressedBytes;
 	private final long compressedBytes;
 
@@ -63,11 +64,13 @@ public class ColumnChunkPages
 			addBytes(dictionaryPage.getBytes());
 		}
 
+		long numValues = 0;
 		for (DataPage abstractDataPage : dataPages)
 		{
 			if (abstractDataPage instanceof DataPageV2)
 			{
 				uncompressedBytes += addPage((DataPageV2) abstractDataPage);
+				numValues += abstractDataPage.getValueCount();
 			}
 			else
 			{
@@ -77,6 +80,7 @@ public class ColumnChunkPages
 		}
 		this.uncompressedBytes = uncompressedBytes;
 		this.compressedBytes = this.headersAndPages.stream().mapToLong(Array::getLength).sum();
+		this.numValues = numValues;
 	}
 
 	public long compressedBytes()
@@ -87,6 +91,11 @@ public class ColumnChunkPages
 	public long getUncompressedBytes()
 	{
 		return uncompressedBytes;
+	}
+
+	public long getNumValues()
+	{
+		return numValues;
 	}
 
 	public void writeToOutputStream(FileChannel fc, long startingOffset) throws IOException
@@ -123,8 +132,8 @@ public class ColumnChunkPages
 
 		PageHeader pageHeader = new PageHeader();
 
-		pageHeader.setCompressed_page_size(dataPage.getCompressedSize());
 		pageHeader.setUncompressed_page_size(dataPage.getUncompressedSize());
+		pageHeader.setCompressed_page_size(dataPage.getCompressedSize());
 
 		pageHeader.setType(PageType.DATA_PAGE_V2);
 		pageHeader.setData_page_header_v2(dataPageHeader);

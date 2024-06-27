@@ -49,8 +49,8 @@ public class FileRowGroupWriterImpl implements RowGroupWriter
 		long compressedBytes = pages.compressedBytes();
 		long startingOffset = this.currOffset.getAndAdd(compressedBytes);
 		pages.writeToOutputStream(output, startingOffset);
-		chunkInfo.add(new ColumnChunkInfo(pages.getColumnDescriptor(), pages.getEncodingSet(), startingOffset,
-				compressedBytes, pages.getUncompressedBytes()));
+		chunkInfo.add(new ColumnChunkInfo(pages.getColumnDescriptor(), pages.getEncodingSet(),
+				pages.getNumValues(), startingOffset, compressedBytes, pages.getUncompressedBytes()));
 		assertNotClosed();
 	}
 
