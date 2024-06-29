@@ -4,8 +4,12 @@ import static org.apache.parquet.bytes.BytesInput.copy;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
+import com.earnix.parquet.columnar.compressors.Compressor;
+import com.earnix.parquet.columnar.compressors.CompressorSnappyImpl;
+import com.earnix.parquet.columnar.compressors.CompressorZstdImpl;
 import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.column.Encoding;
 import org.apache.parquet.column.page.DataPage;
@@ -15,6 +19,7 @@ import org.apache.parquet.column.page.DictionaryPage;
 import org.apache.parquet.column.page.PageWriter;
 import org.apache.parquet.column.statistics.SizeStatistics;
 import org.apache.parquet.column.statistics.Statistics;
+import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.io.ParquetEncodingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +36,32 @@ public class InMemPageWriter implements PageWriter
 	private DictionaryPage dictionaryPage;
 	private long memSize = 0;
 	private long totalValueCount = 0;
+	private final Compressor compressor;
+	private final CompressionCodec compressionCodec;
+
+	public InMemPageWriter()
+	{
+		this(CompressionCodec.UNCOMPRESSED);
+	}
+
+	public InMemPageWriter(CompressionCodec compressionCodec)
+	{
+		this.compressionCodec = compressionCodec;
+		switch (compressionCodec)
+		{
+			case SNAPPY:
+				this.compressor = new CompressorSnappyImpl();
+				break;
+			case ZSTD:
+				this.compressor = new CompressorZstdImpl();
+				break;
+			case UNCOMPRESSED:
+				this.compressor = null;
+				break;
+			default:
+				throw new IllegalArgumentException("Unsupported compression: " + compressionCodec);
+		}
+	}
 
 	@Override
 	public void writePage(BytesInput bytesInput, int valueCount, Statistics statistics, Encoding rlEncoding,
@@ -40,17 +71,27 @@ public class InMemPageWriter implements PageWriter
 		{
 			throw new ParquetEncodingException("illegal page of 0 values");
 		}
+
+		// TODO: should this measure compressed size or uncompressed?? what is it for??
 		memSize += bytesInput.size();
-		//todo - the bytes input needs to be compressed with the specified compression codec.
-		/*
-		byte[] toCompress = col.getParquetBytes();
+
+		byte[] toCompress = bytesInput.toByteArray();
 		byte[] compressed = new byte[compressor.maxCompressedLength(toCompress.length)];
 		int compressedLen = compressor.compress(toCompress, compressed);
-		 */
-		pages.add(new DataPageV1(BytesInput.copy(bytesInput), valueCount, (int) bytesInput.size(), statistics,
-				rlEncoding, dlEncoding, valuesEncoding));
+		BytesInput compressedInput = buildCompressedInput(compressedLen, compressed);
+		pages.add(new DataPageV1(compressedInput, valueCount, toCompress.length, statistics, rlEncoding, dlEncoding,
+				valuesEncoding));
 		totalValueCount += valueCount;
 		LOG.debug("page written for {} bytes and {} records", bytesInput.size(), valueCount);
+	}
+
+	private static BytesInput buildCompressedInput(int compressedLen, byte[] compressed)
+	{
+		if (compressedLen < compressed.length / 2)
+			compressed = Arrays.copyOf(compressed, compressedLen);
+
+		BytesInput compressedInput = BytesInput.from(compressed, 0, compressedLen);
+		return compressedInput;
 	}
 
 	@Override
@@ -78,9 +119,25 @@ public class InMemPageWriter implements PageWriter
 			throw new ParquetEncodingException("illegal page of 0 values");
 		}
 		long size = repetitionLevels.size() + definitionLevels.size() + data.size();
+		// TODO: should this measure compressed size or uncompressed?? what is it for??
 		memSize += size;
-		pages.add(DataPageV2.uncompressed(rowCount, nullCount, valueCount, copy(repetitionLevels),
-				copy(definitionLevels), dataEncoding, copy(data), statistics));
+
+		BytesInput dataInput;
+		if (compressor != null)
+		{
+			byte[] toCompress = data.toByteArray();
+			byte[] compressed = new byte[compressor.maxCompressedLength(toCompress.length)];
+			int compressedLen = compressor.compress(toCompress, compressed);
+			dataInput = buildCompressedInput(compressedLen, compressed);
+			pages.add(DataPageV2.compressed(rowCount, nullCount, valueCount, copy(repetitionLevels),
+					copy(definitionLevels), dataEncoding, dataInput, toCompress.length, statistics));
+		}
+		else
+		{
+			pages.add(DataPageV2.uncompressed(rowCount, nullCount, valueCount, copy(repetitionLevels),
+					copy(definitionLevels), dataEncoding, copy(data), statistics));
+		}
+
 		totalValueCount += valueCount;
 		LOG.debug("page written for {} bytes and {} records", size, valueCount);
 	}
@@ -130,7 +187,22 @@ public class InMemPageWriter implements PageWriter
 			throw new ParquetEncodingException("Only one dictionary page per block");
 		}
 		this.memSize += dictionaryPage.getBytes().size();
-		this.dictionaryPage = dictionaryPage.copy();
+		if (compressor != null)
+		{
+			if (dictionaryPage.getCompressedSize() != dictionaryPage.getUncompressedSize())
+				throw new IllegalStateException("Dictionary should not be compressed at this point..");
+
+			byte[] toCompress = dictionaryPage.getBytes().toByteArray();
+			byte[] compressed = new byte[compressor.maxCompressedLength(toCompress.length)];
+			int compressedLen = compressor.compress(toCompress, compressed);
+			this.dictionaryPage = new DictionaryPage(buildCompressedInput(compressedLen, compressed),
+					dictionaryPage.getUncompressedSize(), dictionaryPage.getDictionarySize(),
+					dictionaryPage.getEncoding());
+		}
+		else
+		{
+			this.dictionaryPage = dictionaryPage.copy();
+		}
 		LOG.debug("dictionary page written for {} bytes and {} records", dictionaryPage.getBytes().size(),
 				dictionaryPage.getDictionarySize());
 	}

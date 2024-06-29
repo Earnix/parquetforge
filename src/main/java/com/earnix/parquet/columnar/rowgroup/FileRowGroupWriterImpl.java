@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.ParquetProperties;
+import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.schema.MessageType;
 
 import com.earnix.parquet.columnar.columnchunk.ColumnChunkPages;
@@ -22,6 +23,7 @@ import com.earnix.parquet.columnar.columnchunk.ColumnChunkWriterImpl;
 public class FileRowGroupWriterImpl implements RowGroupWriter
 {
 	private final MessageType messageType;
+	private final CompressionCodec compressionCodec;
 	private final ColumnChunkWriter columnChunkWriter;
 	private final FileChannel output;
 	private final long numRows;
@@ -30,12 +32,13 @@ public class FileRowGroupWriterImpl implements RowGroupWriter
 	private final List<ColumnChunkInfo> chunkInfo;
 	private volatile boolean closed = false;
 
-	public FileRowGroupWriterImpl(MessageType messageType, ParquetProperties parquetProperties, long numRows,
-			FileChannel output) throws IOException
+	public FileRowGroupWriterImpl(MessageType messageType, CompressionCodec compressionCodec,
+			ParquetProperties parquetProperties, long numRows, FileChannel output) throws IOException
 	{
 		this.messageType = messageType;
+		this.compressionCodec = compressionCodec;
 		this.output = output;
-		this.columnChunkWriter = new ColumnChunkWriterImpl(messageType, parquetProperties, numRows);
+		this.columnChunkWriter = new ColumnChunkWriterImpl(messageType, compressionCodec, parquetProperties, numRows);
 		this.numRows = numRows;
 		this.startingOffset = output.position();
 		this.currOffset = new AtomicLong(startingOffset);
@@ -49,8 +52,8 @@ public class FileRowGroupWriterImpl implements RowGroupWriter
 		long compressedBytes = pages.compressedBytes();
 		long startingOffset = this.currOffset.getAndAdd(compressedBytes);
 		pages.writeToOutputStream(output, startingOffset);
-		chunkInfo.add(new ColumnChunkInfo(pages.getColumnDescriptor(), pages.getEncodingSet(),
-				pages.getNumValues(), startingOffset, compressedBytes, pages.getUncompressedBytes()));
+		chunkInfo.add(new ColumnChunkInfo(pages.getColumnDescriptor(), pages.getEncodingSet(), pages.getNumValues(),
+				startingOffset, compressedBytes, pages.getUncompressedBytes()));
 		assertNotClosed();
 	}
 

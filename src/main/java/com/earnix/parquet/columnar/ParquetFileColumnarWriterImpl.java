@@ -4,6 +4,7 @@ import com.earnix.parquet.columnar.rowgroup.ColumnChunkInfo;
 import com.earnix.parquet.columnar.rowgroup.FileRowGroupWriterImpl;
 import com.earnix.parquet.columnar.rowgroup.RowGroupInfo;
 import com.earnix.parquet.columnar.rowgroup.RowGroupWriter;
+import com.github.luben.zstd.Zstd;
 import org.apache.commons.io.output.CountingOutputStream;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.ParquetProperties;
@@ -42,16 +43,24 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 	private final MessageType messageType;
 	private final ParquetProperties parquetProperties;
 	private final FileChannel fileChannel;
+	private final CompressionCodec compressionCodec;
 	private RowGroupWriter lastWriter = null;
 	private final List<RowGroupInfo> rowGroupInfos = new ArrayList<>();
+
+	public ParquetFileColumnarWriterImpl(Path outputFile, List<PrimitiveType> primitiveTypeList) throws IOException
+	{
+		this(outputFile, primitiveTypeList, CompressionCodec.ZSTD);
+	}
 
 	/**
 	 * Constructor for flat file.
 	 * 
 	 * @param primitiveTypeList the types of columns
 	 */
-	public ParquetFileColumnarWriterImpl(Path outputFile, List<PrimitiveType> primitiveTypeList) throws IOException
+	public ParquetFileColumnarWriterImpl(Path outputFile, List<PrimitiveType> primitiveTypeList,
+			CompressionCodec compressionCodec) throws IOException
 	{
+		this.compressionCodec = compressionCodec;
 		for (PrimitiveType type : primitiveTypeList)
 		{
 			if (type.getRepetition() != REQUIRED)
@@ -76,7 +85,7 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 		{
 			finishLastRowGroup();
 		}
-		lastWriter = new FileRowGroupWriterImpl(messageType, parquetProperties, numRows, fileChannel);
+		lastWriter = new FileRowGroupWriterImpl(messageType, compressionCodec, parquetProperties, numRows, fileChannel);
 		return lastWriter;
 	}
 
@@ -130,8 +139,7 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 				// the set of all encodings
 				columnMetaData.setEncodings(new ArrayList<>(chunkInfo.getUsedEncodings()));
 
-				// TODO: nothing is compressed yet.
-				columnMetaData.setCodec(CompressionCodec.UNCOMPRESSED);
+				columnMetaData.setCodec(compressionCodec);
 				columnChunk.setMeta_data(columnMetaData);
 				chunks.add(columnChunk);
 			}

@@ -15,12 +15,11 @@ import org.apache.parquet.column.ColumnWriter;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.column.impl.ColumnWriteStoreV2;
 import org.apache.parquet.column.page.PageWriteStore;
-import org.apache.parquet.compression.CompressionCodecFactory;
+import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
 
-import com.earnix.parquet.columnar.compressors.CompressorZstdImpl;
 import com.earnix.parquet.columnar.page.InMemPageWriter;
 
 public class ColumnChunkWriterImpl implements ColumnChunkWriter
@@ -33,13 +32,15 @@ public class ColumnChunkWriterImpl implements ColumnChunkWriter
 	 */
 	private final long numRows;
 	private final AtomicLong totalBytes = new AtomicLong();
+	private final CompressionCodec compressionCodec;
 
-	public ColumnChunkWriterImpl(MessageType messageType, ParquetProperties parquetProperties, long numRows)
+	public ColumnChunkWriterImpl(MessageType messageType, CompressionCodec compressionCodec,
+			ParquetProperties parquetProperties, long numRows)
 	{
 		this.messageType = messageType;
+		this.compressionCodec = compressionCodec;
 		this.parquetProperties = parquetProperties;
 		this.numRows = numRows;
-		CompressionCodecFactory.BytesInputCompressor compressor = new CompressorZstdImpl();
 	}
 
 	@Override
@@ -66,7 +67,7 @@ public class ColumnChunkWriterImpl implements ColumnChunkWriter
 	private <T, I extends Iterator<T>> ColumnChunkPages internalWriteColumn(String columnName, I primitiveIterator,
 			BiConsumer<ColumnWriter, I> recordCallback)
 	{
-		try (InMemPageWriter writer = new InMemPageWriter())
+		try (InMemPageWriter writer = new InMemPageWriter(compressionCodec))
 		{
 			PrimitiveType type = (PrimitiveType) messageType.getType(columnName);
 			ColumnDescriptor path = new ColumnDescriptor(new String[] { columnName }, type, 0, 0);
