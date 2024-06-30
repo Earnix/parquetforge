@@ -49,11 +49,11 @@ public class FileRowGroupWriterImpl implements RowGroupWriter
 	public void writeColumn(Function<ColumnChunkWriter, ColumnChunkPages> writer) throws IOException
 	{
 		ColumnChunkPages pages = writer.apply(columnChunkWriter);
-		long compressedBytes = pages.compressedBytes();
-		long startingOffset = this.currOffset.getAndAdd(compressedBytes);
+		long totalBytes = pages.totalBytesForStorage();
+		long startingOffset = this.currOffset.getAndAdd(totalBytes);
 		pages.writeToOutputStream(output, startingOffset);
 		chunkInfo.add(new ColumnChunkInfo(pages.getColumnDescriptor(), pages.getEncodingSet(), pages.getNumValues(),
-				startingOffset, compressedBytes, pages.getUncompressedBytes()));
+				startingOffset, totalBytes, pages.getUncompressedBytes()));
 		assertNotClosed();
 	}
 

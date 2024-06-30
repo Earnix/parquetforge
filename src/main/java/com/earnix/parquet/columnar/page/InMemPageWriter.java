@@ -122,17 +122,23 @@ public class InMemPageWriter implements PageWriter
 		// TODO: should this measure compressed size or uncompressed?? what is it for??
 		memSize += size;
 
-		BytesInput dataInput;
+		BytesInput dataInput = null;
 		if (compressor != null)
 		{
 			byte[] toCompress = data.toByteArray();
 			byte[] compressed = new byte[compressor.maxCompressedLength(toCompress.length)];
 			int compressedLen = compressor.compress(toCompress, compressed);
-			dataInput = buildCompressedInput(compressedLen, compressed);
-			pages.add(DataPageV2.compressed(rowCount, nullCount, valueCount, copy(repetitionLevels),
-					copy(definitionLevels), dataEncoding, dataInput, toCompress.length, statistics));
+
+			// if the compressed length is greater than the uncompressed size, don't compress!
+			if (compressedLen < toCompress.length)
+			{
+				dataInput = buildCompressedInput(compressedLen, compressed);
+				pages.add(DataPageV2.compressed(rowCount, nullCount, valueCount, copy(repetitionLevels),
+						copy(definitionLevels), dataEncoding, dataInput, toCompress.length, statistics));
+			}
 		}
-		else
+
+		if (dataInput == null)
 		{
 			pages.add(DataPageV2.uncompressed(rowCount, nullCount, valueCount, copy(repetitionLevels),
 					copy(definitionLevels), dataEncoding, copy(data), statistics));

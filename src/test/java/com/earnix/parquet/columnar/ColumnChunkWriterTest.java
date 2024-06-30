@@ -20,6 +20,6 @@ public class ColumnChunkWriterTest
 		ParquetProperties properties = ParquetProperties.builder().build();
 		ColumnChunkWriter writer = new ColumnChunkWriterImpl(messageType, CompressionCodec.UNCOMPRESSED, properties, 3);
 		ColumnChunkPages pages = writer.writeColumn("testDouble", new double[] { 1.0, 2.0, 3.0 });
-		System.out.println("Bytes to write: " + pages.compressedBytes());
+		System.out.println("Bytes to write: " + pages.totalBytesForStorage());
 	}
 }

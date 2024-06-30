@@ -25,7 +25,7 @@ import org.apache.parquet.format.PageType;
 import org.apache.parquet.format.Util;
 
 /**
- * This class stores all the pages for a specific column chunk.
+ * This class stores all the serialized pages for a specific column chunk within a row group.
  */
 public class ColumnChunkPages
 {
@@ -83,7 +83,7 @@ public class ColumnChunkPages
 		this.numValues = numValues;
 	}
 
-	public long compressedBytes()
+	public long totalBytesForStorage()
 	{
 		return compressedBytes;
 	}
@@ -129,6 +129,7 @@ public class ColumnChunkPages
 
 		dataPageHeader.setDefinition_levels_byte_length(Math.toIntExact(dataPage.getDefinitionLevels().size()));
 		dataPageHeader.setRepetition_levels_byte_length(Math.toIntExact(dataPage.getRepetitionLevels().size()));
+		dataPageHeader.setIs_compressed(dataPage.isCompressed());
 
 		PageHeader pageHeader = new PageHeader();
 

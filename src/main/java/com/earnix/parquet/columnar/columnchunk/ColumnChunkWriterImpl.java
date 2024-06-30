@@ -53,7 +53,7 @@ public class ColumnChunkWriterImpl implements ColumnChunkWriter
 
 	private ColumnChunkPages trackBytesWritten(ColumnChunkPages pages)
 	{
-		this.totalBytes.addAndGet(pages.compressedBytes());
+		this.totalBytes.addAndGet(pages.totalBytesForStorage());
 		return pages;
 	}
 
@@ -70,7 +70,7 @@ public class ColumnChunkWriterImpl implements ColumnChunkWriter
 		try (InMemPageWriter writer = new InMemPageWriter(compressionCodec))
 		{
 			PrimitiveType type = (PrimitiveType) messageType.getType(columnName);
-			ColumnDescriptor path = new ColumnDescriptor(new String[] { columnName }, type, 0, 0);
+			ColumnDescriptor path = new ColumnDescriptor(new String[] { columnName }, type, 1, 0);
 
 			PageWriteStore pageWriteStore = descriptor -> {
 				if (!path.equals(descriptor))
@@ -80,10 +80,11 @@ public class ColumnChunkWriterImpl implements ColumnChunkWriter
 				return writer;
 			};
 
-			MessageType dummyMessageType = new MessageType(messageType.getName(), type);
 			// A hacky way to use the page limit/flush logic without changing the column writer impl
+			MessageType dummyMessageType = new MessageType(messageType.getName(), type);
 			try (ColumnWriteStore writeStore = new ColumnWriteStoreV2(dummyMessageType, pageWriteStore,
-					parquetProperties); ColumnWriter columnWriter = writeStore.getColumnWriter(path);)
+					parquetProperties); //
+					ColumnWriter columnWriter = writeStore.getColumnWriter(path);)
 			{
 				for (long i = 0; i < numRows; i++)
 				{
