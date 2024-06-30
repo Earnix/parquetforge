@@ -188,6 +188,10 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 
 	private static org.apache.parquet.format.Type convert(PrimitiveType.PrimitiveTypeName primitiveTypeName)
 	{
+		if (PrimitiveType.PrimitiveTypeName.BINARY.equals(primitiveTypeName))
+		{
+			return org.apache.parquet.format.Type.BYTE_ARRAY;
+		}
 		return org.apache.parquet.format.Type.valueOf(primitiveTypeName.name());
 	}
 
