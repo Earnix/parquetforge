@@ -60,12 +60,12 @@ public class ColumnChunkWriterImpl implements ColumnChunkWriter
 	@Override
 	public ColumnChunkPages writeColumn(String columnName, PrimitiveIterator.OfDouble doubleIterator)
 	{
-		return internalWriteColumn(columnName, doubleIterator,
-				(colwriter, it) -> colwriter.write(it.nextDouble(), 0, 0));
+		return internalWriteColumn(columnName, NullableIterators.wrapDoubleIterator(doubleIterator),
+				(colwriter, it) -> colwriter.write(it.getValue(), 0, 0));
 	}
 
-	private <T, I extends Iterator<T>> ColumnChunkPages internalWriteColumn(String columnName, I primitiveIterator,
-			BiConsumer<ColumnWriter, I> recordCallback)
+	private <I extends NullableIterators.NullableIterator> ColumnChunkPages internalWriteColumn(String columnName,
+			I primitiveIterator, BiConsumer<ColumnWriter, I> recordCallback)
 	{
 		try (InMemPageWriter writer = new InMemPageWriter(compressionCodec))
 		{
@@ -88,9 +88,16 @@ public class ColumnChunkWriterImpl implements ColumnChunkWriter
 			{
 				for (long i = 0; i < numRows; i++)
 				{
-					if (!primitiveIterator.hasNext())
+					if (!primitiveIterator.next())
 						throw new IllegalArgumentException("too few values for " + columnName);
-					recordCallback.accept(columnWriter, primitiveIterator);
+					if (!primitiveIterator.isNull())
+					{
+						recordCallback.accept(columnWriter, primitiveIterator);
+					}
+					else
+					{
+						columnWriter.writeNull(0, 0);
+					}
 					writeStore.endRecord();
 				}
 				writeStore.flush();
@@ -108,7 +115,8 @@ public class ColumnChunkWriterImpl implements ColumnChunkWriter
 	@Override
 	public ColumnChunkPages writeColumn(String columnName, PrimitiveIterator.OfInt iterator)
 	{
-		return internalWriteColumn(columnName, iterator, (colwriter, it) -> colwriter.write(it.nextInt(), 0, 0));
+		return internalWriteColumn(columnName, NullableIterators.wrapIntegerIterator(iterator),
+				(colwriter, it) -> colwriter.write(it.getValue(), 0, 0));
 	}
 
 	@Override
@@ -120,7 +128,8 @@ public class ColumnChunkWriterImpl implements ColumnChunkWriter
 	@Override
 	public ColumnChunkPages writeColumn(String columnName, PrimitiveIterator.OfLong iterator)
 	{
-		return internalWriteColumn(columnName, iterator, (colwriter, it) -> colwriter.write(it.nextLong(), 0, 0));
+		return internalWriteColumn(columnName, NullableIterators.wrapLongIterator(iterator),
+				(colwriter, it) -> colwriter.write(it.getValue(), 0, 0));
 	}
 
 	@Override
@@ -132,8 +141,9 @@ public class ColumnChunkWriterImpl implements ColumnChunkWriter
 	@Override
 	public ColumnChunkPages writeColumn(String columnName, Iterator<String> vals)
 	{
-		return internalWriteColumn(columnName, vals,
-				(columnWriter, stringIterator) -> columnWriter.write(Binary.fromString(stringIterator.next()), 0, 0));
+		return internalWriteColumn(columnName, NullableIterators.wrapStringIterator(vals),
+				(columnWriter, stringIterator) -> //
+				columnWriter.write(Binary.fromString(stringIterator.getValue()), 0, 0));
 	}
 
 	@Override
