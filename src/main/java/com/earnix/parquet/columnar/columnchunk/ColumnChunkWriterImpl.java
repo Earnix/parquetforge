@@ -21,6 +21,7 @@ import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
 
 import com.earnix.parquet.columnar.page.InMemPageWriter;
+import org.apache.parquet.schema.Type;
 
 public class ColumnChunkWriterImpl implements ColumnChunkWriter
 {
@@ -61,16 +62,15 @@ public class ColumnChunkWriterImpl implements ColumnChunkWriter
 	public ColumnChunkPages writeColumn(String columnName, PrimitiveIterator.OfDouble doubleIterator)
 	{
 		return internalWriteColumn(columnName, NullableIterators.wrapDoubleIterator(doubleIterator),
-				(colwriter, it) -> colwriter.write(it.getValue(), 0, 0));
+				(colwriter, it, defLevel) -> colwriter.write(it.getValue(), 0, defLevel));
 	}
 
 	private <I extends NullableIterators.NullableIterator> ColumnChunkPages internalWriteColumn(String columnName,
-			I primitiveIterator, BiConsumer<ColumnWriter, I> recordCallback)
+			I primitiveIterator, RecordConsumer<I> recordCallback)
 	{
 		try (InMemPageWriter writer = new InMemPageWriter(compressionCodec))
 		{
-			PrimitiveType type = (PrimitiveType) messageType.getType(columnName);
-			ColumnDescriptor path = new ColumnDescriptor(new String[] { columnName }, type, 1, 0);
+			ColumnDescriptor path = messageType.getColumnDescription(new String[] { columnName });
 
 			PageWriteStore pageWriteStore = descriptor -> {
 				if (!path.equals(descriptor))
@@ -81,7 +81,7 @@ public class ColumnChunkWriterImpl implements ColumnChunkWriter
 			};
 
 			// A hacky way to use the page limit/flush logic without changing the column writer impl
-			MessageType dummyMessageType = new MessageType(messageType.getName(), type);
+			MessageType dummyMessageType = new MessageType(messageType.getName(), path.getPrimitiveType());
 			try (ColumnWriteStore writeStore = new ColumnWriteStoreV2(dummyMessageType, pageWriteStore,
 					parquetProperties); //
 					ColumnWriter columnWriter = writeStore.getColumnWriter(path);)
@@ -92,10 +92,14 @@ public class ColumnChunkWriterImpl implements ColumnChunkWriter
 						throw new IllegalArgumentException("too few values for " + columnName);
 					if (!primitiveIterator.isNull())
 					{
-						recordCallback.accept(columnWriter, primitiveIterator);
+						recordCallback.recordCallback(columnWriter, primitiveIterator, path.getMaxDefinitionLevel());
 					}
 					else
 					{
+						if (!primitiveIterator.mightBeNull())
+							throw new IllegalStateException();
+						if (path.getPrimitiveType().getRepetition() == Type.Repetition.REQUIRED)
+							throw new IllegalStateException("Field is required!");
 						columnWriter.writeNull(0, 0);
 					}
 					writeStore.endRecord();
@@ -116,7 +120,7 @@ public class ColumnChunkWriterImpl implements ColumnChunkWriter
 	public ColumnChunkPages writeColumn(String columnName, PrimitiveIterator.OfInt iterator)
 	{
 		return internalWriteColumn(columnName, NullableIterators.wrapIntegerIterator(iterator),
-				(colwriter, it) -> colwriter.write(it.getValue(), 0, 0));
+				(colwriter, it, defLevel) -> colwriter.write(it.getValue(), 0, defLevel));
 	}
 
 	@Override
@@ -128,8 +132,14 @@ public class ColumnChunkWriterImpl implements ColumnChunkWriter
 	@Override
 	public ColumnChunkPages writeColumn(String columnName, PrimitiveIterator.OfLong iterator)
 	{
-		return internalWriteColumn(columnName, NullableIterators.wrapLongIterator(iterator),
-				(colwriter, it) -> colwriter.write(it.getValue(), 0, 0));
+		return writeColumn(columnName, NullableIterators.wrapLongIterator(iterator));
+	}
+
+	@Override
+	public ColumnChunkPages writeColumn(String columnName, NullableIterators.NullableLongIterator iterator)
+	{
+		return internalWriteColumn(columnName, iterator,
+				(colwriter, it, defLevel) -> colwriter.write(it.getValue(), 0, defLevel));
 	}
 
 	@Override
@@ -142,13 +152,18 @@ public class ColumnChunkWriterImpl implements ColumnChunkWriter
 	public ColumnChunkPages writeColumn(String columnName, Iterator<String> vals)
 	{
 		return internalWriteColumn(columnName, NullableIterators.wrapStringIterator(vals),
-				(columnWriter, stringIterator) -> //
-				columnWriter.write(Binary.fromString(stringIterator.getValue()), 0, 0));
+				(columnWriter, stringIterator, defLevel) -> //
+				columnWriter.write(Binary.fromString(stringIterator.getValue()), 0, defLevel));
 	}
 
 	@Override
 	public long totalBytesInRowGroup()
 	{
 		return totalBytes.get();
+	}
+
+	interface RecordConsumer<I extends NullableIterators.NullableIterator>
+	{
+		void recordCallback(ColumnWriter columnWriter, I iterator, int definitionLevel);
 	}
 }

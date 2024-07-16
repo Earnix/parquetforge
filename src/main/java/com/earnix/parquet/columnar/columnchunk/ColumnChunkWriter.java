@@ -16,6 +16,7 @@ public interface ColumnChunkWriter
 	ColumnChunkPages writeColumn(String columnName, long[] vals);
 
 	ColumnChunkPages writeColumn(String columnName, PrimitiveIterator.OfLong iterator);
+	ColumnChunkPages writeColumn(String columnName, NullableIterators.NullableLongIterator iterator);
 
 	ColumnChunkPages writeColumn(String columnName, String[] vals);
 

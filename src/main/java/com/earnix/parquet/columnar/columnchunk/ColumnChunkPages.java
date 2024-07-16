@@ -116,9 +116,8 @@ public class ColumnChunkPages
 		}
 	}
 
-	private int addPage(DataPageV2 abstractDataPage)
+	private int addPage(DataPageV2 dataPage)
 	{
-		DataPageV2 dataPage = abstractDataPage;
 		DataPageHeaderV2 dataPageHeader = new DataPageHeaderV2();
 		dataPageHeader.setNum_values(dataPage.getValueCount());
 		dataPageHeader.setNum_nulls(dataPage.getNullCount());
@@ -139,16 +138,17 @@ public class ColumnChunkPages
 		pageHeader.setType(PageType.DATA_PAGE_V2);
 		pageHeader.setData_page_header_v2(dataPageHeader);
 
-		int ret = 0;
-		ret += storeHeaderBytes(pageHeader);
-		ret += dataPage.getUncompressedSize();
+		final int headerSizeInBytes = storeHeaderBytes(pageHeader);
+
+		dataPage.getUncompressedSize();
 		addBytes(dataPage.getDefinitionLevels());
 		addBytes(dataPage.getRepetitionLevels());
+
 		addBytes(dataPage.getData());
-		return ret;
+		return headerSizeInBytes + dataPage.getUncompressedSize();
 	}
 
-	private int addBytes(BytesInput input)
+	private void addBytes(BytesInput input)
 	{
 		try
 		{
@@ -156,9 +156,7 @@ public class ColumnChunkPages
 			{
 				byte[] written = input.toByteArray();
 				headersAndPages.add(written);
-				return written.length;
 			}
-			return 0;
 		}
 		catch (IOException ex)
 		{

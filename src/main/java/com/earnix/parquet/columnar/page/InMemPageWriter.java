@@ -133,8 +133,10 @@ public class InMemPageWriter implements PageWriter
 			if (compressedLen < toCompress.length)
 			{
 				dataInput = buildCompressedInput(compressedLen, compressed);
+				int uncompressedLen = Math
+						.toIntExact(repetitionLevels.size() + definitionLevels.size() + toCompress.length);
 				pages.add(DataPageV2.compressed(rowCount, nullCount, valueCount, copy(repetitionLevels),
-						copy(definitionLevels), dataEncoding, dataInput, toCompress.length, statistics));
+						copy(definitionLevels), dataEncoding, dataInput, uncompressedLen, statistics));
 			}
 		}
 

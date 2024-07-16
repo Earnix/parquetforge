@@ -32,12 +32,16 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
+import static org.apache.parquet.schema.Type.Repetition.OPTIONAL;
 import static org.apache.parquet.schema.Type.Repetition.REQUIRED;
 
 public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Closeable
 {
+	private static final Set<Type.Repetition> supportedRepetition = EnumSet.of(REQUIRED, OPTIONAL);
 	private static final byte[] magicBytes = "PAR1".getBytes(StandardCharsets.US_ASCII);
 
 	private final MessageType messageType;
@@ -63,8 +67,8 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 		this.compressionCodec = compressionCodec;
 		for (PrimitiveType type : primitiveTypeList)
 		{
-			if (type.getRepetition() != REQUIRED)
-				throw new IllegalStateException("Only required is supported for now");
+			if (!supportedRepetition.contains(type.getRepetition()))
+				throw new IllegalStateException("Only required is supported for now " + type);
 		}
 		messageType = new MessageType("root", primitiveTypeList.toArray(new Type[0]));
 

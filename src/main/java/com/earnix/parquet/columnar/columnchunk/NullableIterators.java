@@ -191,7 +191,7 @@ public class NullableIterators
 		int getValue();
 	}
 
-	interface NullableLongIterator extends NullableIterator
+	public interface NullableLongIterator extends NullableIterator
 	{
 		long getValue();
 	}
