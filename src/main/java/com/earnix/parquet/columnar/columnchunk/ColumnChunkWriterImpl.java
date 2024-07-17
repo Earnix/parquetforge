@@ -1,10 +1,9 @@
 package com.earnix.parquet.columnar.columnchunk;
 
+import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.PrimitiveIterator;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.BiConsumer;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
@@ -18,10 +17,9 @@ import org.apache.parquet.column.page.PageWriteStore;
 import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.schema.MessageType;
-import org.apache.parquet.schema.PrimitiveType;
+import org.apache.parquet.schema.Type;
 
 import com.earnix.parquet.columnar.page.InMemPageWriter;
-import org.apache.parquet.schema.Type;
 
 public class ColumnChunkWriterImpl implements ColumnChunkWriter
 {
@@ -32,9 +30,17 @@ public class ColumnChunkWriterImpl implements ColumnChunkWriter
 	 * Number of rows in this row group
 	 */
 	private final long numRows;
-	private final AtomicLong totalBytes = new AtomicLong();
 	private final CompressionCodec compressionCodec;
 
+	/**
+	 * Create a new chunk writer impl. This is an abstraction for writing a row group
+	 * 
+	 * @param messageType the schema of the message (note that only one level is supported - no structured data.
+	 *            optional is supported)
+	 * @param compressionCodec the compression codec to compress the data with
+	 * @param parquetProperties the properties for parquet encoding
+	 * @param numRows the number of rows that are in this row group
+	 */
 	public ColumnChunkWriterImpl(MessageType messageType, CompressionCodec compressionCodec,
 			ParquetProperties parquetProperties, long numRows)
 	{
@@ -47,21 +53,26 @@ public class ColumnChunkWriterImpl implements ColumnChunkWriter
 	@Override
 	public ColumnChunkPages writeColumn(String columnName, double[] vals)
 	{
-		if (vals.length != numRows)
-			throw new IllegalArgumentException();
-		return trackBytesWritten(writeColumn(columnName, DoubleStream.of(vals).iterator()));
+		validateArrLen(vals);
+		return writeColumn(columnName, DoubleStream.of(vals).iterator());
 	}
 
-	private ColumnChunkPages trackBytesWritten(ColumnChunkPages pages)
+	private void validateArrLen(Object vals)
 	{
-		this.totalBytes.addAndGet(pages.totalBytesForStorage());
-		return pages;
+		if (Array.getLength(vals) != numRows)
+			throw new IllegalArgumentException();
 	}
 
 	@Override
 	public ColumnChunkPages writeColumn(String columnName, PrimitiveIterator.OfDouble doubleIterator)
 	{
-		return internalWriteColumn(columnName, NullableIterators.wrapDoubleIterator(doubleIterator),
+		return writeColumn(columnName, NullableIterators.wrapDoubleIterator(doubleIterator));
+	}
+
+	@Override
+	public ColumnChunkPages writeColumn(String columnName, NullableIterators.NullableDoubleIterator iterator)
+	{
+		return internalWriteColumn(columnName, iterator,
 				(colwriter, it, defLevel) -> colwriter.write(it.getValue(), 0, defLevel));
 	}
 
@@ -113,19 +124,27 @@ public class ColumnChunkWriterImpl implements ColumnChunkWriter
 	@Override
 	public ColumnChunkPages writeColumn(String columnName, int[] vals)
 	{
+		validateArrLen(vals);
 		return writeColumn(columnName, IntStream.of(vals).iterator());
 	}
 
 	@Override
 	public ColumnChunkPages writeColumn(String columnName, PrimitiveIterator.OfInt iterator)
 	{
-		return internalWriteColumn(columnName, NullableIterators.wrapIntegerIterator(iterator),
+		return writeColumn(columnName, NullableIterators.wrapIntegerIterator(iterator));
+	}
+
+	@Override
+	public ColumnChunkPages writeColumn(String columnName, NullableIterators.NullableIntegerIterator iterator)
+	{
+		return internalWriteColumn(columnName, iterator,
 				(colwriter, it, defLevel) -> colwriter.write(it.getValue(), 0, defLevel));
 	}
 
 	@Override
 	public ColumnChunkPages writeColumn(String columnName, long[] vals)
 	{
+		validateArrLen(vals);
 		return writeColumn(columnName, LongStream.of(vals).iterator());
 	}
 
@@ -145,11 +164,12 @@ public class ColumnChunkWriterImpl implements ColumnChunkWriter
 	@Override
 	public ColumnChunkPages writeColumn(String columnName, String[] vals)
 	{
-		return writeColumn(columnName, Arrays.asList(vals).iterator());
+		validateArrLen(vals);
+		return writeStringColumn(columnName, Arrays.asList(vals).iterator());
 	}
 
 	@Override
-	public ColumnChunkPages writeColumn(String columnName, Iterator<String> vals)
+	public ColumnChunkPages writeStringColumn(String columnName, Iterator<String> vals)
 	{
 		return internalWriteColumn(columnName, NullableIterators.wrapStringIterator(vals),
 				(columnWriter, stringIterator, defLevel) -> //
@@ -157,9 +177,31 @@ public class ColumnChunkWriterImpl implements ColumnChunkWriter
 	}
 
 	@Override
-	public long totalBytesInRowGroup()
+	public ColumnChunkPages writeColumn(String columnName, boolean[] vals)
 	{
-		return totalBytes.get();
+		return writeColumn(columnName, new Iterator<Boolean>()
+		{
+			private int i = 0;
+
+			@Override
+			public boolean hasNext()
+			{
+				return i < vals.length;
+			}
+
+			@Override
+			public Boolean next()
+			{
+				return vals[i++];
+			}
+		});
+	}
+
+	public ColumnChunkPages writeColumn(String columnName, Iterator<Boolean> iterator)
+	{
+		return internalWriteColumn(columnName, NullableIterators.wrapBooleanIterator(iterator),
+				(columnWriter, stringIterator, defLevel) -> //
+				columnWriter.write(stringIterator.getValue(), 0, defLevel));
 	}
 
 	interface RecordConsumer<I extends NullableIterators.NullableIterator>

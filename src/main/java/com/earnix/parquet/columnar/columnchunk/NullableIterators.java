@@ -15,7 +15,7 @@ public class NullableIterators
 		return new ObjectIteratorWrapper<>(it);
 	}
 
-	static class ObjectIteratorWrapper<T> extends BaseIteratorWrapper implements NullableObjectIterator<T>
+	static class ObjectIteratorWrapper<T> implements NullableObjectIterator<T>
 	{
 		private final Iterator<T> it;
 		private T val;
@@ -40,6 +40,18 @@ public class NullableIterators
 				return true;
 			}
 			return false;
+		}
+
+		@Override
+		public boolean mightBeNull()
+		{
+			return true;
+		}
+
+		@Override
+		public boolean isNull()
+		{
+			return val == null;
 		}
 	}
 
@@ -181,12 +193,12 @@ public class NullableIterators
 		boolean next();
 	}
 
-	interface NullableDoubleIterator extends NullableIterator
+	public interface NullableDoubleIterator extends NullableIterator
 	{
 		double getValue();
 	}
 
-	interface NullableIntegerIterator extends NullableIterator
+	public interface NullableIntegerIterator extends NullableIterator
 	{
 		int getValue();
 	}
@@ -196,12 +208,7 @@ public class NullableIterators
 		long getValue();
 	}
 
-	interface NullableBooleanIterator extends NullableIterator
-	{
-		boolean getValue();
-	}
-
-	interface NullableObjectIterator<T> extends NullableIterator
+	public interface NullableObjectIterator<T> extends NullableIterator
 	{
 		T getValue();
 	}

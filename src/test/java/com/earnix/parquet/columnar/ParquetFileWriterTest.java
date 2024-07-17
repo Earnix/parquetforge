@@ -7,7 +7,6 @@ import org.apache.parquet.schema.Type;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -36,7 +35,7 @@ public class ParquetFileWriterTest
 	{
 		List<PrimitiveType> cols = Arrays.asList(
 				new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.DOUBLE, "Chicken"),
-				new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.DOUBLE, "taco"),
+				new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.BOOLEAN, "taco"),
 				new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.INT32, "potato"),
 				new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT64, "foobar"),
 				new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.BINARY, "testStr"));
@@ -46,8 +45,8 @@ public class ParquetFileWriterTest
 			groupWriter = writer.startNewRowGroup(2);
 			groupWriter.writeColumn(
 					columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(0).getName(), new double[] { 1, 2.0 }));
-			groupWriter.writeColumn(
-					columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(1).getName(), new double[] { 4, 3 }));
+			groupWriter.writeColumn(columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(1).getName(),
+					Arrays.asList(false, null).iterator()));
 			groupWriter.writeColumn(
 					columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(2).getName(), new int[] { 4, 6 }));
 
@@ -87,8 +86,8 @@ public class ParquetFileWriterTest
 			groupWriter = writer.startNewRowGroup(1);
 			groupWriter.writeColumn(
 					columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(0).getName(), new double[] { 30, }));
-			groupWriter.writeColumn(
-					columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(1).getName(), new double[] { 4, }));
+			groupWriter.writeColumn(columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(1).getName(),
+					Arrays.asList(Boolean.FALSE).iterator()));
 			groupWriter.writeColumn(
 					columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(2).getName(), new int[] { 4, }));
 			groupWriter.writeColumn(
@@ -101,12 +100,12 @@ public class ParquetFileWriterTest
 			groupWriter.writeColumn(columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(0).getName(),
 					IntStream.range(0, lotsOfRows).mapToDouble(Double::valueOf).toArray()));
 			groupWriter.writeColumn(columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(1).getName(),
-					IntStream.range(0, lotsOfRows).map(i -> i % 10).mapToDouble(Double::valueOf).toArray()));
+					IntStream.range(0, lotsOfRows).mapToObj(i -> i % 2 == 0).iterator()));
 			groupWriter.writeColumn(columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(2).getName(),
 					IntStream.range(0, lotsOfRows).toArray()));
 			groupWriter.writeColumn(columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(3).getName(),
 					LongStream.range(0, lotsOfRows).toArray()));
-			groupWriter.writeColumn(columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(4).getName(),
+			groupWriter.writeColumn(columnChunkWriter -> columnChunkWriter.writeStringColumn(cols.get(4).getName(),
 					IntStream.range(0, lotsOfRows).mapToObj(i -> "Cheeseburger" + i % 10).iterator()));
 			writer.finishAndWriteFooterMetadata();
 		}
