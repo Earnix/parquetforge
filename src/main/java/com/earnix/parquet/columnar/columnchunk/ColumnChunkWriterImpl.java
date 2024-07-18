@@ -107,8 +107,6 @@ public class ColumnChunkWriterImpl implements ColumnChunkWriter
 					}
 					else
 					{
-						if (!primitiveIterator.mightBeNull())
-							throw new IllegalStateException();
 						if (path.getPrimitiveType().getRepetition() == Type.Repetition.REQUIRED)
 							throw new IllegalStateException("Field is required!");
 						columnWriter.writeNull(0, 0);

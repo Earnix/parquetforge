@@ -48,7 +48,7 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 	private final ParquetProperties parquetProperties;
 	private final FileChannel fileChannel;
 	private final CompressionCodec compressionCodec;
-	private RowGroupWriter lastWriter = null;
+	private FileRowGroupWriterImpl lastWriter = null;
 	private final List<RowGroupInfo> rowGroupInfos = new ArrayList<>();
 
 	public ParquetFileColumnarWriterImpl(Path outputFile, List<PrimitiveType> primitiveTypeList) throws IOException
@@ -61,7 +61,7 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 	 * 
 	 * @param primitiveTypeList the types of columns
 	 */
-	public ParquetFileColumnarWriterImpl(Path outputFile, List<PrimitiveType> primitiveTypeList,
+	ParquetFileColumnarWriterImpl(Path outputFile, List<PrimitiveType> primitiveTypeList,
 			CompressionCodec compressionCodec) throws IOException
 	{
 		this.compressionCodec = compressionCodec;
@@ -79,18 +79,24 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 	}
 
 	@Override
-	public RowGroupWriter startNewRowGroup(int numRows) throws IOException
+	public RowGroupWriter startNewRowGroup(long numRows) throws IOException
 	{
-		if (lastWriter == null)
+		if (lastWriter != null)
+		{
+			throw new IllegalStateException("Last writer was not closed");
+		}
+		if (rowGroupInfos.isEmpty())
 		{
 			writeMagicBytes();
 		}
-		else
-		{
-			finishLastRowGroup();
-		}
 		lastWriter = new FileRowGroupWriterImpl(messageType, compressionCodec, parquetProperties, numRows, fileChannel);
 		return lastWriter;
+	}
+
+	public void finishRowGroup() throws IOException
+	{
+		this.rowGroupInfos.add(lastWriter.closeAndValidateAllColumnsWritten());
+		lastWriter = null;
 	}
 
 	private void writeMagicBytes() throws IOException
@@ -103,10 +109,10 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 	@Override
 	public void finishAndWriteFooterMetadata() throws IOException
 	{
-		if (lastWriter == null)
+		if (lastWriter != null)
+			throw new IllegalStateException("Last writer was not closed");
+		if (rowGroupInfos.isEmpty())
 			throw new IllegalStateException("No groups written");
-		finishLastRowGroup();
-		lastWriter = null;
 
 		FileMetaData fileMetaData = new FileMetaData();
 
@@ -207,6 +213,7 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 	private void finishLastRowGroup() throws IOException
 	{
 		rowGroupInfos.add(lastWriter.closeAndValidateAllColumnsWritten());
+		lastWriter = null;
 	}
 
 	@Override

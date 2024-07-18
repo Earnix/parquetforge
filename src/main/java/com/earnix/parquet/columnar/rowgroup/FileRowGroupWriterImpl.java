@@ -23,7 +23,6 @@ import com.earnix.parquet.columnar.columnchunk.ColumnChunkWriterImpl;
 public class FileRowGroupWriterImpl implements RowGroupWriter
 {
 	private final MessageType messageType;
-	private final CompressionCodec compressionCodec;
 	private final ColumnChunkWriter columnChunkWriter;
 	private final FileChannel output;
 	private final long numRows;
@@ -36,7 +35,6 @@ public class FileRowGroupWriterImpl implements RowGroupWriter
 			ParquetProperties parquetProperties, long numRows, FileChannel output) throws IOException
 	{
 		this.messageType = messageType;
-		this.compressionCodec = compressionCodec;
 		this.output = output;
 		this.columnChunkWriter = new ColumnChunkWriterImpl(messageType, compressionCodec, parquetProperties, numRows);
 		this.numRows = numRows;
@@ -63,7 +61,6 @@ public class FileRowGroupWriterImpl implements RowGroupWriter
 			throw new IllegalStateException("Closed");
 	}
 
-	@Override
 	public RowGroupInfo closeAndValidateAllColumnsWritten() throws IOException
 	{
 		assertNotClosed();

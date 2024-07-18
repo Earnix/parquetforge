@@ -43,12 +43,6 @@ public class NullableIterators
 		}
 
 		@Override
-		public boolean mightBeNull()
-		{
-			return true;
-		}
-
-		@Override
 		public boolean isNull()
 		{
 			return val == null;
@@ -157,12 +151,6 @@ public class NullableIterators
 	static abstract class BaseIteratorWrapper implements NullableIterator
 	{
 		@Override
-		public boolean mightBeNull()
-		{
-			return false;
-		}
-
-		@Override
 		public boolean isNull()
 		{
 			return false;
@@ -171,13 +159,6 @@ public class NullableIterators
 
 	interface NullableIterator
 	{
-		/**
-		 * Returns whether this iterator may sometimes return null
-		 * 
-		 * @return whether this iterator may sometimes return null
-		 */
-		boolean mightBeNull();
-
 		/**
 		 * Returns whether the current value is null
 		 *

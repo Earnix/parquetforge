@@ -7,7 +7,9 @@ import com.earnix.parquet.columnar.rowgroup.RowGroupWriter;
 
 public interface ParquetColumnarWriter extends Closeable
 {
-	RowGroupWriter startNewRowGroup(int numRows) throws IOException;
+	RowGroupWriter startNewRowGroup(long numRows) throws IOException;
+
+	void finishRowGroup() throws IOException;
 
 	void finishAndWriteFooterMetadata() throws IOException;
 }

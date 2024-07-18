@@ -9,9 +9,4 @@ import com.earnix.parquet.columnar.columnchunk.ColumnChunkWriter;
 public interface RowGroupWriter
 {
 	void writeColumn(Function<ColumnChunkWriter, ColumnChunkPages> writer) throws IOException;
-
-	/**
-	 * @return number of bytes written in this row.
-	 */
-	RowGroupInfo closeAndValidateAllColumnsWritten() throws IOException;
 }

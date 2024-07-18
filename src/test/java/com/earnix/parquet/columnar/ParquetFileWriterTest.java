@@ -61,12 +61,6 @@ public class ParquetFileWriterTest
 				}
 
 				@Override
-				public boolean mightBeNull()
-				{
-					return true;
-				}
-
-				@Override
 				public boolean isNull()
 				{
 					return element % 2 == 0;
@@ -82,6 +76,7 @@ public class ParquetFileWriterTest
 					columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(3).getName(), nullableLongIterator));
 			groupWriter.writeColumn(columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(4).getName(),
 					new String[] { "burrito", "taco" }));
+			writer.finishRowGroup();
 
 			groupWriter = writer.startNewRowGroup(1);
 			groupWriter.writeColumn(
@@ -94,6 +89,7 @@ public class ParquetFileWriterTest
 					columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(3).getName(), new long[] { 4, }));
 			groupWriter.writeColumn(columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(4).getName(),
 					new String[] { "cheezburger", }));
+			writer.finishRowGroup();
 
 			int lotsOfRows = 10_000;
 			groupWriter = writer.startNewRowGroup(lotsOfRows);
@@ -107,6 +103,7 @@ public class ParquetFileWriterTest
 					LongStream.range(0, lotsOfRows).toArray()));
 			groupWriter.writeColumn(columnChunkWriter -> columnChunkWriter.writeStringColumn(cols.get(4).getName(),
 					IntStream.range(0, lotsOfRows).mapToObj(i -> "Cheeseburger" + i % 10).iterator()));
+			writer.finishRowGroup();
 			writer.finishAndWriteFooterMetadata();
 		}
 	}
