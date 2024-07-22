@@ -100,15 +100,15 @@ public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer
 				{
 					if (!primitiveIterator.next())
 						throw new IllegalArgumentException("too few values for " + columnName);
-					if (!primitiveIterator.isNull())
-					{
-						recordCallback.recordCallback(columnWriter, primitiveIterator, path.getMaxDefinitionLevel());
-					}
-					else
+					if (primitiveIterator.isNull())
 					{
 						if (path.getPrimitiveType().getRepetition() == Type.Repetition.REQUIRED)
 							throw new IllegalStateException("Field is required!");
 						columnWriter.writeNull(0, 0);
+					}
+					else
+					{
+						recordCallback.recordCallback(columnWriter, primitiveIterator, path.getMaxDefinitionLevel());
 					}
 					writeStore.endRecord();
 				}
