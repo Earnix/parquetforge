@@ -1,10 +1,9 @@
-package com.earnix.parquet.columnar;
+package com.earnix.parquet.columnar.writer;
 
-import com.earnix.parquet.columnar.rowgroup.ColumnChunkInfo;
-import com.earnix.parquet.columnar.rowgroup.FileRowGroupWriterImpl;
-import com.earnix.parquet.columnar.rowgroup.RowGroupInfo;
-import com.earnix.parquet.columnar.rowgroup.RowGroupWriter;
-import com.github.luben.zstd.Zstd;
+import com.earnix.parquet.columnar.writer.rowgroup.ColumnChunkInfo;
+import com.earnix.parquet.columnar.writer.rowgroup.FileRowGroupWriterImpl;
+import com.earnix.parquet.columnar.writer.rowgroup.RowGroupInfo;
+import com.earnix.parquet.columnar.writer.rowgroup.RowGroupWriter;
 import org.apache.commons.io.output.CountingOutputStream;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.ParquetProperties;

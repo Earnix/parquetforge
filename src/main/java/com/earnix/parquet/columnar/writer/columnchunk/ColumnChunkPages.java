@@ -1,4 +1,4 @@
-package com.earnix.parquet.columnar.columnchunk;
+package com.earnix.parquet.columnar.writer.columnchunk;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

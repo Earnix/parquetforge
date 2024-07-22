@@ -1,4 +1,4 @@
-package com.earnix.parquet.columnar.compressors;
+package com.earnix.parquet.columnar.writer.compressors;
 
 import java.io.IOException;
 

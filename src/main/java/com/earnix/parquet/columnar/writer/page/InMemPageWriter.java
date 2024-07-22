@@ -1,4 +1,4 @@
-package com.earnix.parquet.columnar.page;
+package com.earnix.parquet.columnar.writer.page;
 
 import static org.apache.parquet.bytes.BytesInput.copy;
 
@@ -7,9 +7,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import com.earnix.parquet.columnar.compressors.Compressor;
-import com.earnix.parquet.columnar.compressors.CompressorSnappyImpl;
-import com.earnix.parquet.columnar.compressors.CompressorZstdImpl;
+import com.earnix.parquet.columnar.writer.compressors.Compressor;
+import com.earnix.parquet.columnar.writer.compressors.CompressorSnappyImpl;
+import com.earnix.parquet.columnar.writer.compressors.CompressorZstdImpl;
 import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.column.Encoding;
 import org.apache.parquet.column.page.DataPage;

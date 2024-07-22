@@ -1,9 +1,9 @@
-package com.earnix.parquet.columnar;
+package com.earnix.parquet.columnar.writer;
 
 import java.io.Closeable;
 import java.io.IOException;
 
-import com.earnix.parquet.columnar.rowgroup.RowGroupWriter;
+import com.earnix.parquet.columnar.writer.rowgroup.RowGroupWriter;
 
 public interface ParquetColumnarWriter extends Closeable
 {

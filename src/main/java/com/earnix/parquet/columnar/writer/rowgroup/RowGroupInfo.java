@@ -1,4 +1,4 @@
-package com.earnix.parquet.columnar.rowgroup;
+package com.earnix.parquet.columnar.writer.rowgroup;
 
 import java.util.List;
 

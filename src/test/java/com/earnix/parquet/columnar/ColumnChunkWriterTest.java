@@ -1,8 +1,8 @@
 package com.earnix.parquet.columnar;
 
-import com.earnix.parquet.columnar.columnchunk.ColumnChunkPages;
-import com.earnix.parquet.columnar.columnchunk.ColumnChunkWriter;
-import com.earnix.parquet.columnar.columnchunk.ColumnChunkWriterImpl;
+import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages;
+import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkWriter;
+import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkWriterImpl;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.schema.MessageType;

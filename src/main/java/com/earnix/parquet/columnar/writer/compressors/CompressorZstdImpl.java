@@ -1,4 +1,4 @@
-package com.earnix.parquet.columnar.compressors;
+package com.earnix.parquet.columnar.writer.compressors;
 
 import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.compression.CompressionCodecFactory;
@@ -9,7 +9,7 @@ import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import java.io.IOException;
 import java.util.Arrays;
 
-public class CompressorZstdImpl implements CompressionCodecFactory.BytesInputCompressor, Compressor
+public class CompressorZstdImpl implements CompressionCodecFactory.BytesInputCompressor, com.earnix.parquet.columnar.writer.compressors.Compressor
 {
 	public static final String COMPRESSION_LEVEL_PROPERTY = "com.earnix.datatable.compression.zstdlevel";
 

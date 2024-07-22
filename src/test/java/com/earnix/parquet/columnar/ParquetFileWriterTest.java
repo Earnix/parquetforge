@@ -1,7 +1,9 @@
 package com.earnix.parquet.columnar;
 
-import com.earnix.parquet.columnar.columnchunk.NullableIterators;
-import com.earnix.parquet.columnar.rowgroup.RowGroupWriter;
+import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
+import com.earnix.parquet.columnar.writer.ParquetFileColumnarWriterImpl;
+import com.earnix.parquet.columnar.writer.columnchunk.NullableIterators;
+import com.earnix.parquet.columnar.writer.rowgroup.RowGroupWriter;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
 import org.junit.Test;

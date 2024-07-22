@@ -1,4 +1,4 @@
-package com.earnix.parquet.columnar.config;
+package com.earnix.parquet.columnar.writer.config;
 
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.format.CompressionCodec;
