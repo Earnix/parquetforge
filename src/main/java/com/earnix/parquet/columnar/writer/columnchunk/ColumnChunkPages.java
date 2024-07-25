@@ -12,6 +12,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
+import com.earnix.parquet.columnar.utils.ParquetEnumUtils;
 import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.page.DataPage;
@@ -46,7 +47,7 @@ public class ColumnChunkPages
 		if (dictionaryPage != null)
 		{
 			DictionaryPageHeader dictionaryPageHeader = new DictionaryPageHeader();
-			Encoding enc = convert(dictionaryPage.getEncoding());
+			Encoding enc = ParquetEnumUtils.convert(dictionaryPage.getEncoding());
 			dictionaryPageHeader.setEncoding(enc);
 			encodingSet.add(enc);
 			dictionaryPageHeader.setIs_sorted(false); // maybe it sorts it ?? Who knows, but lets not assume
@@ -122,7 +123,7 @@ public class ColumnChunkPages
 		dataPageHeader.setNum_values(dataPage.getValueCount());
 		dataPageHeader.setNum_nulls(dataPage.getNullCount());
 		dataPageHeader.setNum_rows(dataPage.getRowCount());
-		Encoding enc = convert(dataPage.getDataEncoding());
+		Encoding enc = ParquetEnumUtils.convert(dataPage.getDataEncoding());
 		encodingSet.add(enc);
 		dataPageHeader.setEncoding(enc);
 
@@ -179,11 +180,6 @@ public class ColumnChunkPages
 		byte[] written = baos.toByteArray();
 		headersAndPages.add(written);
 		return written.length;
-	}
-
-	private static Encoding convert(org.apache.parquet.column.Encoding encoding)
-	{
-		return Encoding.valueOf(encoding.name());
 	}
 
 	public ColumnDescriptor getColumnDescriptor()
