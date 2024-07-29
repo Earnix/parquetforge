@@ -1,18 +1,15 @@
 package com.earnix.parquet.columnar.reader;
 
-import org.apache.parquet.bytes.ByteBufferInputStream;
+import static com.earnix.parquet.columnar.utils.ParquetEnumUtils.convert;
+
+import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.Dictionary;
 import org.apache.parquet.column.Encoding;
-import org.apache.parquet.column.ValuesType;
-import org.apache.parquet.column.values.ValuesReader;
+import org.apache.parquet.column.page.DataPageV2;
+import org.apache.parquet.column.statistics.Statistics;
+import org.apache.parquet.format.DataPageHeaderV2;
 import org.apache.parquet.format.PageHeader;
-
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.ByteBuffer;
-
-import static com.earnix.parquet.columnar.utils.ParquetEnumUtils.convert;
 
 class ReadableDataPage
 {
@@ -50,67 +47,23 @@ class ReadableDataPage
 			return pageHeader.getData_page_header().getNum_values();
 		throw new IllegalStateException("Invalid page header: " + pageHeader);
 	}
-	/**
-	 * Get the number of values in this column (including nulls)
-	 *
-	 * @return the number of values in this column
-	 */
-	public int numNonNullValues()
+
+	public ColumnChunkReader buildValuesReader()
 	{
 		if (pageHeader.isSetData_page_header_v2())
-			return pageHeader.getData_page_header_v2().getNum_values()
-					- pageHeader.getData_page_header_v2().getNum_nulls();
-		if (pageHeader.isSetData_page_header())
-			return pageHeader.getData_page_header().getNum_values();
-		throw new IllegalStateException("Invalid page header: " + pageHeader);
-	}
-
-
-	public ValuesReader buildValuesReader()
-	{
-		ValuesReader reader = buildUninitializedValuesReader();
-
-		try
 		{
-			// init values reader
-			reader.initFromPage(numValues(),
-					ByteBufferInputStream.wrap(ByteBuffer.wrap(this.dataPageBytesUncompressed).asReadOnlyBuffer()));
-			return reader;
+			DataPageHeaderV2 dataPageHeaderV2 = pageHeader.getData_page_header_v2();
+			// note - statistics are not supported.
+			Statistics<?> statistics = null;
+			DataPageV2 dataPageV2 = new DataPageV2(dataPageHeaderV2.getNum_rows(), dataPageHeaderV2.getNum_nulls(),
+					dataPageHeaderV2.getNum_values(), BytesInput.from(repetitionBytesUncompressed),
+					BytesInput.from(definitionBytesUncompressed), getEncoding(),
+					BytesInput.from(dataPageBytesUncompressed), pageHeader.getUncompressed_page_size(), statistics,
+					false);
+			ColumnChunkReader reader = new ColumnChunkReader(columnDescriptor, dictionary, pageHeader,
+					repetitionBytesUncompressed, definitionBytesUncompressed, dataPageBytesUncompressed);
 		}
-		catch (IOException ex)
-		{
-			throw new UncheckedIOException(ex);
-		}
-	}
-
-	public ValuesReader buildDefinitionLevelValuesReader()
-	{
-		// if the definition level is always zero, parquet omits it.
-		if (columnDescriptor.getMaxDefinitionLevel() == 0)
-		{
-			return null;
-		}
-		//TODO
-		return null;
-	}
-
-	private ValuesReader buildUninitializedValuesReader()
-	{
-		ValuesReader reader;
-		Encoding encoding = getEncoding();
-		if (encoding.usesDictionary())
-		{
-			if (dictionary == null)
-			{
-				throw new IllegalStateException("Dictionary cannot be null for " + encoding);
-			}
-			reader = encoding.getDictionaryBasedValuesReader(columnDescriptor, ValuesType.VALUES, dictionary);
-		}
-		else
-		{
-			reader = encoding.getValuesReader(columnDescriptor, ValuesType.VALUES);
-		}
-		return reader;
+		throw new IllegalStateException();
 	}
 
 	private Encoding getEncoding()

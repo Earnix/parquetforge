@@ -2,6 +2,7 @@ package com.earnix.parquet.columnar.writer.columnchunk;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
@@ -99,6 +100,12 @@ public class ColumnChunkPages
 		return numValues;
 	}
 
+	public void writeToOutputStream(OutputStream os) throws IOException
+	{
+		for (byte[] toWrite : headersAndPages)
+			os.write(toWrite);
+	}
+
 	public void writeToOutputStream(FileChannel fc, long startingOffset) throws IOException
 	{
 		long offset = startingOffset;
@@ -142,8 +149,8 @@ public class ColumnChunkPages
 		final int headerSizeInBytes = storeHeaderBytes(pageHeader);
 
 		dataPage.getUncompressedSize();
-		addBytes(dataPage.getDefinitionLevels());
 		addBytes(dataPage.getRepetitionLevels());
+		addBytes(dataPage.getDefinitionLevels());
 
 		addBytes(dataPage.getData());
 		return headerSizeInBytes + dataPage.getUncompressedSize();

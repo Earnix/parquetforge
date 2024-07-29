@@ -50,7 +50,7 @@ public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer
 	}
 
 	@Override
-	public com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages writeColumn(String columnName, double[] vals)
+	public ColumnChunkPages writeColumn(String columnName, double[] vals)
 	{
 		validateArrLen(vals);
 		return writeColumn(columnName, DoubleStream.of(vals).iterator());
@@ -63,20 +63,20 @@ public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer
 	}
 
 	@Override
-	public com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages writeColumn(String columnName, PrimitiveIterator.OfDouble doubleIterator)
+	public ColumnChunkPages writeColumn(String columnName, PrimitiveIterator.OfDouble doubleIterator)
 	{
 		return writeColumn(columnName, NullableIterators.wrapDoubleIterator(doubleIterator));
 	}
 
 	@Override
-	public com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages writeColumn(String columnName, NullableIterators.NullableDoubleIterator iterator)
+	public ColumnChunkPages writeColumn(String columnName, NullableIterators.NullableDoubleIterator iterator)
 	{
 		return internalWriteColumn(columnName, iterator,
 				(colwriter, it, defLevel) -> colwriter.write(it.getValue(), 0, defLevel));
 	}
 
-	private <I extends NullableIterators.NullableIterator> com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages internalWriteColumn(String columnName,
-																																			   I primitiveIterator, RecordConsumer<I> recordCallback)
+	private <I extends NullableIterators.NullableIterator> ColumnChunkPages internalWriteColumn(String columnName,
+			I primitiveIterator, RecordConsumer<I> recordCallback)
 	{
 		try (InMemPageWriter writer = new InMemPageWriter(compressionCodec))
 		{
@@ -114,59 +114,59 @@ public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer
 				}
 				writeStore.flush();
 			}
-			return new com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages(path, writer.getDictionaryPage(), writer.getPages());
+			return new ColumnChunkPages(path, writer.getDictionaryPage(), writer.getPages());
 		}
 	}
 
 	@Override
-	public com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages writeColumn(String columnName, int[] vals)
+	public ColumnChunkPages writeColumn(String columnName, int[] vals)
 	{
 		validateArrLen(vals);
 		return writeColumn(columnName, IntStream.of(vals).iterator());
 	}
 
 	@Override
-	public com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages writeColumn(String columnName, PrimitiveIterator.OfInt iterator)
+	public ColumnChunkPages writeColumn(String columnName, PrimitiveIterator.OfInt iterator)
 	{
 		return writeColumn(columnName, NullableIterators.wrapIntegerIterator(iterator));
 	}
 
 	@Override
-	public com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages writeColumn(String columnName, NullableIterators.NullableIntegerIterator iterator)
+	public ColumnChunkPages writeColumn(String columnName, NullableIterators.NullableIntegerIterator iterator)
 	{
 		return internalWriteColumn(columnName, iterator,
 				(colwriter, it, defLevel) -> colwriter.write(it.getValue(), 0, defLevel));
 	}
 
 	@Override
-	public com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages writeColumn(String columnName, long[] vals)
+	public ColumnChunkPages writeColumn(String columnName, long[] vals)
 	{
 		validateArrLen(vals);
 		return writeColumn(columnName, LongStream.of(vals).iterator());
 	}
 
 	@Override
-	public com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages writeColumn(String columnName, PrimitiveIterator.OfLong iterator)
+	public ColumnChunkPages writeColumn(String columnName, PrimitiveIterator.OfLong iterator)
 	{
 		return writeColumn(columnName, NullableIterators.wrapLongIterator(iterator));
 	}
 
 	@Override
-	public com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages writeColumn(String columnName, NullableIterators.NullableLongIterator iterator)
+	public ColumnChunkPages writeColumn(String columnName, NullableIterators.NullableLongIterator iterator)
 	{
 		return internalWriteColumn(columnName, iterator,
 				(colwriter, it, defLevel) -> colwriter.write(it.getValue(), 0, defLevel));
 	}
 
 	@Override
-	public com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages writeColumn(String columnName, String[] vals)
+	public ColumnChunkPages writeColumn(String columnName, String[] vals)
 	{
 		validateArrLen(vals);
 		return writeStringColumn(columnName, Arrays.asList(vals).iterator());
 	}
 
 	@Override
-	public com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages writeStringColumn(String columnName, Iterator<String> vals)
+	public ColumnChunkPages writeStringColumn(String columnName, Iterator<String> vals)
 	{
 		return internalWriteColumn(columnName, NullableIterators.wrapStringIterator(vals),
 				(columnWriter, stringIterator, defLevel) -> //
@@ -174,7 +174,7 @@ public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer
 	}
 
 	@Override
-	public com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages writeColumn(String columnName, boolean[] vals)
+	public ColumnChunkPages writeColumn(String columnName, boolean[] vals)
 	{
 		return writeColumn(columnName, new Iterator<Boolean>()
 		{
@@ -194,7 +194,7 @@ public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer
 		});
 	}
 
-	public com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages writeColumn(String columnName, Iterator<Boolean> iterator)
+	public ColumnChunkPages writeColumn(String columnName, Iterator<Boolean> iterator)
 	{
 		return internalWriteColumn(columnName, NullableIterators.wrapBooleanIterator(iterator),
 				(columnWriter, stringIterator, defLevel) -> //

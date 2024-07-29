@@ -9,16 +9,10 @@ import org.apache.parquet.format.DictionaryPageHeader;
  */
 public class UncompressedColumn
 {
-	private final DictionaryPageHeader dictionaryPageHeader;
-	private final byte[] dictBytes;
-
 	private final List<ReadableDataPage> dataPageHeaderList;
 
-	public UncompressedColumn(DictionaryPageHeader dictionaryPageHeader, byte[] dictBytes,
-			List<ReadableDataPage> dataPageHeaderList)
+	public UncompressedColumn(List<ReadableDataPage> dataPageHeaderList)
 	{
-		this.dictionaryPageHeader = dictionaryPageHeader;
-		this.dictBytes = dictBytes;
 		this.dataPageHeaderList = dataPageHeaderList;
 	}
 
