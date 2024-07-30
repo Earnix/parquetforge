@@ -16,4 +16,8 @@ public class UncompressedColumn
 		this.dataPageHeaderList = dataPageHeaderList;
 	}
 
+	public List<ReadableDataPage> getDataPageHeaderList()
+	{
+		return dataPageHeaderList;
+	}
 }

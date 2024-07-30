@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.commons.io.IOUtils;
@@ -37,21 +38,26 @@ public class UncompressedColumnFactory
 
 	public UncompressedColumn build(ColumnMetaData columnMetaData, InputStream columnChunk) throws IOException
 	{
+		long bytesToRead = columnMetaData.getTotal_compressed_size();
+		final CompressionCodec codec = columnMetaData.getCodec();
+		return build(columnChunk, bytesToRead, codec);
+	}
+
+	public UncompressedColumn build(InputStream columnChunk, long bytesToRead, CompressionCodec codec)
+			throws IOException
+	{
 		CountingInputStream wrappedIs = new CountingInputStream(columnChunk);
 
-		long bytesToRead = columnMetaData.getTotal_compressed_size();
 		if (bytesToRead <= 0)
 			throw new IllegalArgumentException(bytesToRead + " must be greater than zero");
 
-
 		List<ReadableDataPage> pages = new ArrayList<>();
 
-		final CompressionCodec codec = columnMetaData.getCodec();
 		boolean isFirstPage = true;
+		Dictionary dictionary = null;
 		while (wrappedIs.getByteCount() < bytesToRead)
 		{
-			Dictionary dictionary = null;
-			PageHeader pageHeader = Util.readPageHeader(columnChunk);
+			PageHeader pageHeader = Util.readPageHeader(wrappedIs);
 			if (pageHeader.isSetDictionary_page_header())
 			{
 				if (!isFirstPage)
@@ -59,7 +65,7 @@ public class UncompressedColumnFactory
 					throw new IllegalStateException("Dict page only possible at beginning");
 				}
 				DictionaryPageHeader dictionaryPageHeader = pageHeader.getDictionary_page_header();
-				byte[] compressedBytes = readPageFully(columnChunk, pageHeader.getCompressed_page_size());
+				byte[] compressedBytes = readPageFully(wrappedIs, pageHeader.getCompressed_page_size());
 				int uncompressedPageSize = pageHeader.getUncompressed_page_size();
 				byte[] dictBytes = decompress(codec, compressedBytes, uncompressedPageSize);
 				// decode dictionary!
@@ -69,13 +75,13 @@ public class UncompressedColumnFactory
 			}
 			else if (pageHeader.isSetData_page_header_v2())
 			{
-				handleDatapageV2(columnChunk, dictionary, pageHeader, codec, pages);
+				handleDatapageV2(wrappedIs, dictionary, pageHeader, codec, pages);
 			}
 
 			isFirstPage = false;
 		}
 
-		return new UncompressedColumn(pages);
+		return new UncompressedColumn(Collections.unmodifiableList(pages));
 	}
 
 	private void handleDatapageV2(InputStream columnChunk, Dictionary dictionary, PageHeader pageHeader,
@@ -83,8 +89,8 @@ public class UncompressedColumnFactory
 	{
 		DataPageHeaderV2 dataPageHeaderV2 = pageHeader.getData_page_header_v2();
 
-		byte[] defLevelBytes = readPageFully(columnChunk, dataPageHeaderV2.getDefinition_levels_byte_length());
 		byte[] repetitionLevelBytes = readPageFully(columnChunk, dataPageHeaderV2.getRepetition_levels_byte_length());
+		byte[] defLevelBytes = readPageFully(columnChunk, dataPageHeaderV2.getDefinition_levels_byte_length());
 
 		CompressionCodec usedCodec = dataPageHeaderV2.isIs_compressed() ? codec : CompressionCodec.UNCOMPRESSED;
 		int defAndRepLen = dataPageHeaderV2.getDefinition_levels_byte_length()
@@ -94,8 +100,8 @@ public class UncompressedColumnFactory
 		byte[] dataBytesCompressed = readPageFully(columnChunk, dataBytesCompressedLen);
 		byte[] dataBytesUncompressed = decompress(usedCodec, dataBytesCompressed, dataBytesUncompressedLen);
 
-		ReadableDataPage readableDataPage = new ReadableDataPage(descriptor, dictionary, pageHeader, defLevelBytes,
-				repetitionLevelBytes, dataBytesUncompressed);
+		ReadableDataPage readableDataPage = new ReadableDataPage(descriptor, dictionary, pageHeader,
+				repetitionLevelBytes, defLevelBytes, dataBytesUncompressed);
 		pages.add(readableDataPage);
 	}
 

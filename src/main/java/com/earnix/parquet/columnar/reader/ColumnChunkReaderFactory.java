@@ -1,14 +1,14 @@
 package com.earnix.parquet.columnar.reader;
 
+import java.io.IOException;
+import java.io.InputStream;
+
 import org.apache.commons.io.IOUtils;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.Dictionary;
 import org.apache.parquet.format.DataPageHeaderV2;
 import org.apache.parquet.format.PageHeader;
 import org.apache.parquet.format.Util;
-
-import java.io.IOException;
-import java.io.InputStream;
 
 public class ColumnChunkReaderFactory
 {
@@ -25,7 +25,6 @@ public class ColumnChunkReaderFactory
 		int pageSize = pageHeader.getCompressed_page_size();
 		if (pageHeader.isSetData_page_header_v2())
 		{
-
 			DataPageHeaderV2 dataPageHeaderV2 = pageHeader.getData_page_header_v2();
 
 			int chicken = dataPageHeaderV2.getRepetition_levels_byte_length();
