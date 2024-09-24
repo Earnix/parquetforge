@@ -3,6 +3,9 @@ package com.earnix.parquet.columnar.writer.columnchunk;
 import java.util.Iterator;
 import java.util.PrimitiveIterator;
 
+/**
+ * An interface to write parquet files by column.
+ */
 public interface ColumnChunkWriter
 {
 	ColumnChunkPages writeColumn(String columnName, double[] vals);

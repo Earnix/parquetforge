@@ -55,6 +55,7 @@ public class HackyParquetExtendedColumnReader extends ColumnReaderImpl
 			Field field = baseClass.getDeclaredField("dictionary");
 			field.setAccessible(true);
 
+			// TODO: this does NOT work with Java 17/21. FIX THIS and find a better way (which stinks because it's hard)
 			Field modifiersField = Field.class.getDeclaredField("modifiers");
 			modifiersField.setAccessible(true);
 			modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);

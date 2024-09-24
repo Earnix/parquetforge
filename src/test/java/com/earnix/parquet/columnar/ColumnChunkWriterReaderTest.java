@@ -30,9 +30,15 @@ public class ColumnChunkWriterReaderTest
 	private static void validateWriteRead(double[] vals) throws Exception
 	{
 		CompressionCodec codec = CompressionCodec.UNCOMPRESSED;
+
+		// make the schema of this dummy column. In this case, we simply have a root message which contains one sub
+		// column.
 		MessageType messageType = new MessageType("root",
 				new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.DOUBLE, "testDouble"));
+
+		// Parquet writing properties - default is fine for this case.
 		ParquetProperties properties = ParquetProperties.builder().build();
+
 		ColumnChunkWriter writer = new ColumnChunkWriterImpl(messageType, codec, properties, 3);
 		ColumnChunkPages pages = writer.writeColumn("testDouble", vals);
 		System.out.println("Bytes to write: " + pages.totalBytesForStorage());
