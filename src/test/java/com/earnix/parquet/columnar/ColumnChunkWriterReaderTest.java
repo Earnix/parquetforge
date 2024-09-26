@@ -2,6 +2,7 @@ package com.earnix.parquet.columnar;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.util.Random;
 
 import com.earnix.parquet.columnar.reader.chunk.ChunkReader;
 import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
@@ -27,6 +28,19 @@ public class ColumnChunkWriterReaderTest
 		validateWriteRead(vals);
 	}
 
+	@Test
+	public void testWriteReadWithDictScenario() throws Exception
+	{
+		double[] vals = new double[1_000_000];
+		Random r = new Random();
+		for (int i = 0; i < vals.length; i++)
+		{
+			vals[i] = r.nextInt(100);
+		}
+
+		validateWriteRead(vals);
+	}
+
 	private static void validateWriteRead(double[] vals) throws Exception
 	{
 		CompressionCodec codec = CompressionCodec.UNCOMPRESSED;
@@ -39,7 +53,7 @@ public class ColumnChunkWriterReaderTest
 		// Parquet writing properties - default is fine for this case.
 		ParquetProperties properties = ParquetProperties.builder().build();
 
-		ColumnChunkWriter writer = new ColumnChunkWriterImpl(messageType, codec, properties, 3);
+		ColumnChunkWriter writer = new ColumnChunkWriterImpl(messageType, codec, properties, vals.length);
 		ColumnChunkPages pages = writer.writeColumn("testDouble", vals);
 		System.out.println("Bytes to write: " + pages.totalBytesForStorage());
 

@@ -1,5 +1,6 @@
 package com.earnix.parquet.columnar.reader.chunk.internal;
 
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.parquet.VersionParser;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.Dictionary;
@@ -49,18 +50,13 @@ public class HackyParquetExtendedColumnReader extends ColumnReaderImpl
 
 	private void setDictionary(Dictionary dictionary)
 	{
+		// set dictionary field via reflection as it is final. This is not ideal, but seems better than forking the
+		// parquet-column project.
 		try
 		{
 			Class<? super ColumnReaderImpl> baseClass = ColumnReaderImpl.class.getSuperclass();
 			Field field = baseClass.getDeclaredField("dictionary");
-			field.setAccessible(true);
-
-			// TODO: this does NOT work with Java 17/21. FIX THIS and find a better way (which stinks because it's hard)
-			Field modifiersField = Field.class.getDeclaredField("modifiers");
-			modifiersField.setAccessible(true);
-			modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
-
-			field.set(this, dictionary);
+			FieldUtils.writeField(field, this, dictionary, true);
 		}
 		catch (Exception ex)
 		{
