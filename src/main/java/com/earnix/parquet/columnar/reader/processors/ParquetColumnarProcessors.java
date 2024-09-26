@@ -8,20 +8,23 @@ import org.apache.parquet.format.CompressionCodec;
 import java.io.InputStream;
 
 /**
- * A callback to process a parquet file chunk by chunk
+ * A callback to process a parquet file column chunk by column chunk
  */
-public class ParquetFileProcessors
+public class ParquetColumnarProcessors
 {
+	@FunctionalInterface
 	public interface ProcessPerChunk
 	{
 		void processChunk(InMemChunk chunk);
 	}
 
+	@FunctionalInterface
 	public interface ProcessPerRowGroup
 	{
 		void processChunk(InMemRowGroup rowGroup);
 	}
 
+	@FunctionalInterface
 	public interface ProcessRawChunkBytes
 	{
 		void processChunk(ColumnDescriptor descriptor, CompressionCodec codec, long rowOffset, long numValues,

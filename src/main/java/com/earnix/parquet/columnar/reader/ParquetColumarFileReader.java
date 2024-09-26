@@ -27,9 +27,13 @@ import org.apache.parquet.schema.Type;
 import com.earnix.parquet.columnar.reader.chunk.internal.ChunkDecompressToPageStoreFactory;
 import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
 import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunkPageStore;
-import com.earnix.parquet.columnar.reader.processors.ParquetFileProcessors;
+import com.earnix.parquet.columnar.reader.processors.ParquetColumnarProcessors;
 import com.earnix.parquet.columnar.utils.ParquetEnumUtils;
 
+/**
+ * Read a parquet file column by column rather than row by row, and support different row processors as are defined in
+ * {@link ParquetColumnarProcessors}
+ */
 public class ParquetColumarFileReader
 {
 	private static final String STRUCTURED_FILES_UNSUPPORTED = "Structured files are not yet supported";
@@ -66,7 +70,7 @@ public class ParquetColumarFileReader
 		}
 	}
 
-	public void processFile(ParquetFileProcessors.ProcessPerChunk processor) throws IOException
+	public void processFile(ParquetColumnarProcessors.ProcessPerChunk processor) throws IOException
 	{
 		MessageType messageType = getMessageType();
 
@@ -76,7 +80,7 @@ public class ParquetColumarFileReader
 		}
 	}
 
-	private void processRowGroups(ParquetFileProcessors.ProcessPerChunk processor, FileChannel fc,
+	private void processRowGroups(ParquetColumnarProcessors.ProcessPerChunk processor, FileChannel fc,
 			MessageType messageType) throws IOException
 	{
 		for (RowGroup rowGroup : getMetaData().getRow_groups())
@@ -151,13 +155,13 @@ public class ParquetColumarFileReader
 		return messageType;
 	}
 
-	public void processFile(ParquetFileProcessors.ProcessPerRowGroup processor) throws IOException
+	public void processFile(ParquetColumnarProcessors.ProcessPerRowGroup processor) throws IOException
 	{
-
+		throw new UnsupportedOperationException("TODO!!");
 	}
 
-	public void processFile(ParquetFileProcessors.ProcessRawChunkBytes processor) throws IOException
+	public void processFile(ParquetColumnarProcessors.ProcessRawChunkBytes processor) throws IOException
 	{
-
+		throw new UnsupportedOperationException("TODO!!");
 	}
 }

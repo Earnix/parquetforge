@@ -1,12 +1,13 @@
 package com.earnix.parquet.columnar;
 
 import com.earnix.parquet.columnar.reader.ParquetColumarFileReader;
-import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
-import com.earnix.parquet.columnar.reader.processors.ParquetFileProcessors;
+import com.earnix.parquet.columnar.reader.chunk.internal.HackyParquetExtendedColumnReader;
+import com.earnix.parquet.columnar.reader.processors.ParquetColumnarProcessors;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import com.earnix.parquet.columnar.writer.ParquetFileColumnarWriterImpl;
 import com.earnix.parquet.columnar.writer.columnchunk.NullableIterators;
 import com.earnix.parquet.columnar.writer.rowgroup.RowGroupWriter;
+import org.apache.parquet.column.impl.ColumnReaderImpl;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
 import org.junit.Test;
@@ -14,7 +15,6 @@ import org.junit.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.IntStream;
@@ -29,9 +29,21 @@ public class ParquetFileWriterTest
 		try
 		{
 			createTestFile(out);
+
 			ParquetColumarFileReader reader = new ParquetColumarFileReader(out);
-			reader.processFile((ParquetFileProcessors.ProcessPerChunk) chunk -> System.out
-					.println(chunk.getDescriptor() + " TotalValues:" + chunk.getTotalValues()));
+			reader.processFile((ParquetColumnarProcessors.ProcessPerChunk) chunk -> {
+				System.out.println(chunk.getDescriptor() + " TotalValues:" + chunk.getTotalValues());
+				if (chunk.getDescriptor().getPrimitiveType()
+						.getPrimitiveTypeName() == PrimitiveType.PrimitiveTypeName.DOUBLE)
+				{
+					ColumnReaderImpl colReader = new HackyParquetExtendedColumnReader(chunk);
+					for (int i = 0; i < chunk.getTotalValues(); i++)
+					{
+						colReader.consume();
+						System.out.println(chunk.getDescriptor() + " Value: " + colReader.getDouble());
+					}
+				}
+			});
 		}
 		finally
 		{
