@@ -5,6 +5,9 @@ import org.apache.parquet.column.ColumnDescriptor;
 
 import java.util.Map;
 
+/**
+ * Represents an entire row group stuffed into memory
+ */
 public class InMemRowGroup
 {
 	private final Map<ColumnDescriptor, InMemChunk> inMemChunkMap;
