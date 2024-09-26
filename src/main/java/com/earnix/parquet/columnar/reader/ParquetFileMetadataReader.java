@@ -1,5 +1,6 @@
 package com.earnix.parquet.columnar.reader;
 
+import com.earnix.parquet.columnar.utils.ParquetMagicUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.parquet.format.ColumnChunk;
 import org.apache.parquet.format.FileMetaData;
@@ -17,16 +18,23 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 
+/**
+ * A class to assist in reading Parquet File metadata
+ */
 public class ParquetFileMetadataReader
 {
 	static final byte[] magicBytes = "PAR1".getBytes(StandardCharsets.US_ASCII);
 
+	/**
+	 * Print the parquet metadata for the specified path
+	 * 
+	 * @param path the path to print the metadata for
+	 */
 	static void printMetadata(Path path)
 	{
 		try (FileChannel fc = FileChannel.open(path))
 		{
 			FileMetaData fileMetaData = readMetadata(fc);
-			// System.out.println(fileMetaData);
 			List<RowGroup> rowGroups = fileMetaData.getRow_groups();
 			for (RowGroup rowGroup : rowGroups)
 			{
@@ -49,16 +57,23 @@ public class ParquetFileMetadataReader
 		}
 	}
 
+	/**
+	 * Read the metadata for the opened file
+	 * 
+	 * @param fc the opened file
+	 * @return the parsed metadata
+	 * @throws IOException on failure to read the file
+	 */
 	static FileMetaData readMetadata(FileChannel fc) throws IOException
 	{
-		long startPos = validateMagicAndFindFooter(fc);
+		long startPos = validateMagicAndFindFooterStartOffset(fc);
 		fc.position(startPos);
 
 		FileMetaData fileMetaData = Util.readFileMetaData(Channels.newInputStream(fc));
 		return fileMetaData;
 	}
 
-	private static long validateMagicAndFindFooter(FileChannel fc) throws IOException
+	private static long validateMagicAndFindFooterStartOffset(FileChannel fc) throws IOException
 	{
 		// we want to read the integer length of the footer, and then the magic bytes.
 		int numBytesToRead = Integer.BYTES + magicBytes.length;
@@ -76,7 +91,7 @@ public class ParquetFileMetadataReader
 		System.out.println("Footers are " + numBytesInFooters + " bytes");
 
 		// validate magic at footer
-		validateMagic(buf);
+		assertMagic(buf);
 
 		buf.clear();
 		buf.limit(magicBytes.length);
@@ -84,18 +99,15 @@ public class ParquetFileMetadataReader
 		IOUtils.readFully(fc, buf);
 		fc.read(buf, 0L);
 		buf.flip();
-		validateMagic(buf);
+		assertMagic(buf);
 
 		long startPos = fc.size() - numBytesInFooters - 8;
 		return startPos;
 	}
 
-	private static void validateMagic(ByteBuffer buf)
+	private static void assertMagic(ByteBuffer buf)
 	{
-		for (byte magicByte : magicBytes)
-		{
-			if (buf.get() != magicByte)
-				throw new IllegalStateException();
-		}
+		if (!ParquetMagicUtils.expectMagic(buf))
+			throw new IllegalStateException("Parquet file did not contain expected magic");
 	}
 }

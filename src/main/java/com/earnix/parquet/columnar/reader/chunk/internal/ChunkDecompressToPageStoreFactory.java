@@ -36,10 +36,20 @@ public class ChunkDecompressToPageStoreFactory
 	private static final byte[] EMPTY = new byte[0];
 	private static final Supplier<DictionaryPage> nullSupplier = () -> null;
 
-	public static InMemChunkPageStore buildPageStore(ColumnDescriptor descriptor, CountingInputStream is,
-			long totalBytesInPage, CompressionCodec codec) throws IOException
+	/**
+	 * Build storage for a column chunk in memory
+	 * 
+	 * @param descriptor the descriptor of the column
+	 * @param is the input stream to read the column from
+	 * @param totalBytesInAllPages the total number of bytes in all of the column pages
+	 * @param codec the compression codec used for the pages
+	 * @return the in memory page store
+	 * @throws IOException on failure to read from the stream
+	 */
+	public static InMemChunkPageStore buildColumnChunkPageStore(ColumnDescriptor descriptor, CountingInputStream is,
+			long totalBytesInAllPages, CompressionCodec codec) throws IOException
 	{
-		long endByte = is.getByteCount() + totalBytesInPage;
+		long endByte = is.getByteCount() + totalBytesInAllPages;
 		boolean isFirstPage = true;
 		Supplier<DictionaryPage> dictionaryPage = nullSupplier;
 		List<Supplier<DataPage>> dataPageList = new ArrayList<>();
@@ -71,7 +81,7 @@ public class ChunkDecompressToPageStoreFactory
 			}
 			isFirstPage = false;
 		}
-		return new InMemChunkPageStore(descriptor, dictionaryPage, dataPageList, totalValues, totalBytesInPage);
+		return new InMemChunkPageStore(descriptor, dictionaryPage, dataPageList, totalValues, totalBytesInAllPages);
 	}
 
 	private static Supplier<DictionaryPage> readDictPage(CountingInputStream is, CompressionCodec codec,

@@ -1,5 +1,6 @@
-package com.earnix.parquet.columnar.reader.chunk;
+package com.earnix.parquet.columnar.reader.processors;
 
+import com.earnix.parquet.columnar.reader.chunk.InMemRowGroup;
 import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.CompressionCodec;
@@ -11,17 +12,17 @@ import java.io.InputStream;
  */
 public class ParquetFileProcessors
 {
-	interface ProcessPerChunk
+	public interface ProcessPerChunk
 	{
 		void processChunk(InMemChunk chunk);
 	}
 
-	interface ProcessPerRowGroup
+	public interface ProcessPerRowGroup
 	{
 		void processChunk(InMemRowGroup rowGroup);
 	}
 
-	interface ProcessRawChunkBytes
+	public interface ProcessRawChunkBytes
 	{
 		void processChunk(ColumnDescriptor descriptor, CompressionCodec codec, long rowOffset, long numValues,
 				InputStream chunkInput, long numBytes);

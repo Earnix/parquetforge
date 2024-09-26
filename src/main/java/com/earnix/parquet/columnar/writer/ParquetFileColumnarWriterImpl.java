@@ -1,5 +1,6 @@
 package com.earnix.parquet.columnar.writer;
 
+import com.earnix.parquet.columnar.utils.ParquetEnumUtils;
 import com.earnix.parquet.columnar.writer.rowgroup.ColumnChunkInfo;
 import com.earnix.parquet.columnar.writer.rowgroup.FileRowGroupWriterImpl;
 import com.earnix.parquet.columnar.writer.rowgroup.RowGroupInfo;
@@ -10,8 +11,6 @@ import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.format.ColumnChunk;
 import org.apache.parquet.format.ColumnMetaData;
 import org.apache.parquet.format.CompressionCodec;
-import org.apache.parquet.format.Encoding;
-import org.apache.parquet.format.FieldRepetitionType;
 import org.apache.parquet.format.FileMetaData;
 import org.apache.parquet.format.RowGroup;
 import org.apache.parquet.format.SchemaElement;
@@ -143,7 +142,7 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 				columnMetaData.setNum_values(chunkInfo.getNumValues());
 
 				columnMetaData.setPath_in_schema(Arrays.asList(chunkInfo.getDescriptor().getPath()));
-				columnMetaData.setType(convert(chunkInfo.getDescriptor().getPrimitiveType().getPrimitiveTypeName()));
+				columnMetaData.setType(ParquetEnumUtils.convert(chunkInfo.getDescriptor().getPrimitiveType().getPrimitiveTypeName()));
 
 				// the set of all encodings
 				columnMetaData.setEncodings(new ArrayList<>(chunkInfo.getUsedEncodings()));
@@ -183,30 +182,11 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 			SchemaElement schemaElement = new SchemaElement();
 			String colName = descriptor.getPath()[descriptor.getPath().length - 1];
 			schemaElement.setName(colName);
-			schemaElement.setType(convert(descriptor.getPrimitiveType().getPrimitiveTypeName()));
-			schemaElement.setRepetition_type(convert(descriptor.getPrimitiveType().getRepetition()));
+			schemaElement.setType(ParquetEnumUtils.convert(descriptor.getPrimitiveType().getPrimitiveTypeName()));
+			schemaElement.setRepetition_type(ParquetEnumUtils.convert(descriptor.getPrimitiveType().getRepetition()));
 			schemaElementList.add(schemaElement);
 		}
 		return schemaElementList;
-	}
-
-	private static Encoding convert(org.apache.parquet.column.Encoding encoding)
-	{
-		return Encoding.valueOf(encoding.name());
-	}
-
-	private static org.apache.parquet.format.Type convert(PrimitiveType.PrimitiveTypeName primitiveTypeName)
-	{
-		if (PrimitiveType.PrimitiveTypeName.BINARY.equals(primitiveTypeName))
-		{
-			return org.apache.parquet.format.Type.BYTE_ARRAY;
-		}
-		return org.apache.parquet.format.Type.valueOf(primitiveTypeName.name());
-	}
-
-	private static FieldRepetitionType convert(Type.Repetition repetition)
-	{
-		return FieldRepetitionType.valueOf(repetition.name());
 	}
 
 	private void finishLastRowGroup() throws IOException

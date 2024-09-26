@@ -27,7 +27,7 @@ public class ChunkReader
 	public static InMemChunk readChunk(ColumnDescriptor descriptor, InputStream is, long byteLimit,
 									   CompressionCodec codec) throws IOException
 	{
-		return new InMemChunk(ChunkDecompressToPageStoreFactory.buildPageStore(descriptor, new CountingInputStream(is),
+		return new InMemChunk(ChunkDecompressToPageStoreFactory.buildColumnChunkPageStore(descriptor, new CountingInputStream(is),
 				byteLimit, codec));
 	}
 }
