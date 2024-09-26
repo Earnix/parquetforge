@@ -9,7 +9,8 @@ import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import java.io.IOException;
 import java.util.Arrays;
 
-public class CompressorZstdImpl implements CompressionCodecFactory.BytesInputCompressor, com.earnix.parquet.columnar.writer.compressors.Compressor
+public class CompressorZstdImpl implements CompressionCodecFactory.BytesInputCompressor,
+		com.earnix.parquet.columnar.writer.compressors.Compressor
 {
 	public static final String COMPRESSION_LEVEL_PROPERTY = "com.earnix.datatable.compression.zstdlevel";
 
@@ -21,8 +22,7 @@ public class CompressorZstdImpl implements CompressionCodecFactory.BytesInputCom
 		{
 			throw new IllegalStateException("Error compressing bytes: " + compressedSize);
 		}
-		checkForOverflow(compressedSize);
-		return (int) compressedSize;
+		return Math.toIntExact(compressedSize);
 	}
 
 	private static int getCompressionLevel()
@@ -31,18 +31,11 @@ public class CompressorZstdImpl implements CompressionCodecFactory.BytesInputCom
 		return compressionLevel;
 	}
 
-	private static void checkForOverflow(long longToCheck)
-	{
-		if (longToCheck > Integer.MAX_VALUE)
-			throw new IllegalStateException();
-	}
-
 	@Override
 	public int maxCompressedLength(int numBytes)
 	{
 		long bound = Zstd.compressBound(numBytes);
-		checkForOverflow(bound);
-		return (int) bound;
+		return Math.toIntExact(bound);
 	}
 
 	@Override

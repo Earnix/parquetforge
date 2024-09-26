@@ -66,7 +66,7 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 		for (PrimitiveType type : primitiveTypeList)
 		{
 			if (!supportedRepetition.contains(type.getRepetition()))
-				throw new IllegalStateException("Only required is supported for now " + type);
+				throw new IllegalStateException("Not supported repetition type: " + type);
 		}
 		messageType = new MessageType("root", primitiveTypeList.toArray(new Type[0]));
 
@@ -142,7 +142,8 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 				columnMetaData.setNum_values(chunkInfo.getNumValues());
 
 				columnMetaData.setPath_in_schema(Arrays.asList(chunkInfo.getDescriptor().getPath()));
-				columnMetaData.setType(ParquetEnumUtils.convert(chunkInfo.getDescriptor().getPrimitiveType().getPrimitiveTypeName()));
+				columnMetaData.setType(
+						ParquetEnumUtils.convert(chunkInfo.getDescriptor().getPrimitiveType().getPrimitiveTypeName()));
 
 				// the set of all encodings
 				columnMetaData.setEncodings(new ArrayList<>(chunkInfo.getUsedEncodings()));

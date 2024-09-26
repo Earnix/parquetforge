@@ -180,7 +180,7 @@ public class ChunkDecompressToPageStoreFactory
 			case ZSTD:
 			{
 				uncompressed = new byte[uncompressedPageSize];
-				long code = Zstd.decompress(compressedBytes, uncompressed);
+				long code = Zstd.decompress(uncompressed, compressedBytes);
 				if (Zstd.isError(code))
 					throw new IllegalStateException(Zstd.getErrorName(code));
 			}

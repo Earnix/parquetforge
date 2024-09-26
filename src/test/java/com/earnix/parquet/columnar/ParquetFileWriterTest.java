@@ -1,5 +1,8 @@
 package com.earnix.parquet.columnar;
 
+import com.earnix.parquet.columnar.reader.ParquetColumarFileReader;
+import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
+import com.earnix.parquet.columnar.reader.processors.ParquetFileProcessors;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import com.earnix.parquet.columnar.writer.ParquetFileColumnarWriterImpl;
 import com.earnix.parquet.columnar.writer.columnchunk.NullableIterators;
@@ -9,6 +12,7 @@ import org.apache.parquet.schema.Type;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -21,15 +25,17 @@ public class ParquetFileWriterTest
 	@Test
 	public void sanityCreateCheck() throws IOException
 	{
-		Path out = Paths.get("/Users/andrewp/test3.parquet");
-		// Path out = Files.createTempFile("testParquetFile", ".parquet");
+		Path out = Files.createTempFile("testParquetFile", ".parquet");
 		try
 		{
 			createTestFile(out);
+			ParquetColumarFileReader reader = new ParquetColumarFileReader(out);
+			reader.processFile((ParquetFileProcessors.ProcessPerChunk) chunk -> System.out
+					.println(chunk.getDescriptor() + " TotalValues:" + chunk.getTotalValues()));
 		}
 		finally
 		{
-			// Files.deleteIfExists(out);
+			Files.deleteIfExists(out);
 		}
 	}
 

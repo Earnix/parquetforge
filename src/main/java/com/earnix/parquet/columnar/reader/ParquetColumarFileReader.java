@@ -70,8 +70,6 @@ public class ParquetColumarFileReader
 	{
 		FileMetaData md = getMetaData();
 
-		Map<String, ColumnDescriptor> columnDescriptorMap = new HashMap<>();
-
 		Iterator<SchemaElement> it = md.getSchemaIterator();
 		SchemaElement root = it.next();
 		if (root.getNum_children() + 1 != md.getSchemaSize())
@@ -85,7 +83,7 @@ public class ParquetColumarFileReader
 			SchemaElement schemaElement = it.next();
 			String nameKey = schemaElement.getName();
 			if (schemaElement.getRepetition_type() != FieldRepetitionType.OPTIONAL
-					|| schemaElement.getRepetition_type() != FieldRepetitionType.REQUIRED)
+					&& schemaElement.getRepetition_type() != FieldRepetitionType.REQUIRED)
 			{
 				throw new UnsupportedEncodingException(
 						"Field: " + nameKey + " Unsupported: " + schemaElement.getRepetition_type());

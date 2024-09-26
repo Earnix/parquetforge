@@ -129,7 +129,7 @@ public class InMemPageWriter implements PageWriter
 			byte[] compressed = new byte[compressor.maxCompressedLength(toCompress.length)];
 			int compressedLen = compressor.compress(toCompress, compressed);
 
-			// if the compressed length is greater than the uncompressed size, don't compress!
+			// if the compressed length is greater or equal to than the uncompressed size, don't compress!
 			if (compressedLen < toCompress.length)
 			{
 				dataInput = buildCompressedInput(compressedLen, compressed);
