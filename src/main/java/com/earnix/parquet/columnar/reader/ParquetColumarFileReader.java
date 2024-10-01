@@ -93,7 +93,7 @@ public class ParquetColumarFileReader
 				if (columnChunk.getFile_path() != null)
 					throw new UnsupportedEncodingException();
 				long startOffset = columnChunk.getFile_offset() + columnMetaData.getData_page_offset();
-				long chunkLen = columnMetaData.getTotal_uncompressed_size();
+				long chunkLen = columnMetaData.getTotal_compressed_size();
 
 
 				fc.position(startOffset);
