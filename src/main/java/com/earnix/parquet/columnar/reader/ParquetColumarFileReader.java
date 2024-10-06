@@ -102,8 +102,7 @@ public class ParquetColumarFileReader
 						.getColumnDescription(columnMetaData.getPath_in_schema().toArray(new String[0]));
 				CompressionCodec compressionCodec = columnMetaData.getCodec();
 				InMemChunkPageStore inMemChunkPageStore = ChunkDecompressToPageStoreFactory.buildColumnChunkPageStore(
-						colDescriptor, new CountingInputStream(is), columnMetaData.getTotal_compressed_size(),
-						compressionCodec);
+						colDescriptor, new CountingInputStream(is), chunkLen, compressionCodec);
 				processor.processChunk(new InMemChunk(inMemChunkPageStore));
 			}
 		}
