@@ -21,7 +21,7 @@ public class ParquetColumnarProcessors
 	@FunctionalInterface
 	public interface ProcessPerRowGroup
 	{
-		void processChunk(InMemRowGroup rowGroup);
+		void processRowGroup(InMemRowGroup rowGroup);
 	}
 
 	@FunctionalInterface
