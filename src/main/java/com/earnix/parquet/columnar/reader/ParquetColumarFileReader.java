@@ -56,7 +56,7 @@ public class ParquetColumarFileReader
 		return metaData;
 	}
 
-	public void processFile(ParquetColumnarProcessors.ProcessPerChunk processor) throws IOException
+	public void processFile(ParquetColumnarProcessors.ChunkProcessor processor) throws IOException
 	{
 		MessageType messageType = getMessageType();
 
@@ -66,7 +66,7 @@ public class ParquetColumarFileReader
 		}
 	}
 
-	public void processFile(ParquetColumnarProcessors.ProcessPerRowGroup processor) throws IOException
+	public void processFile(ParquetColumnarProcessors.RowGroupProcessor processor) throws IOException
 	{
 		MessageType messageType = getMessageType();
 
@@ -93,7 +93,7 @@ public class ParquetColumarFileReader
 		}
 	}
 
-	private void processFile(ParquetColumnarProcessors.ProcessPerRowGroup rowGroupProcessor, ParquetColumnarProcessors.ProcessPerChunk chunkProcessor, FileChannel fc,
+	private void processFile(ParquetColumnarProcessors.RowGroupProcessor rowGroupProcessor, ParquetColumnarProcessors.ChunkProcessor chunkProcessor, FileChannel fc,
 			MessageType messageType) throws IOException
 	{
 		for (RowGroup rowGroup : getMetaData().getRow_groups())

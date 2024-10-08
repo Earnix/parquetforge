@@ -1,12 +1,18 @@
 package com.earnix.parquet.columnar;
 
 import com.earnix.parquet.columnar.reader.ParquetColumarFileReader;
+import com.earnix.parquet.columnar.reader.chunk.InMemRowGroup;
 import com.earnix.parquet.columnar.reader.chunk.internal.HackyParquetExtendedColumnReader;
+import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
 import com.earnix.parquet.columnar.reader.processors.ParquetColumnarProcessors;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import com.earnix.parquet.columnar.writer.ParquetFileColumnarWriterImpl;
+import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages;
+import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkWriter;
 import com.earnix.parquet.columnar.writer.columnchunk.NullableIterators;
+import com.earnix.parquet.columnar.writer.rowgroup.ChunkWriter;
 import com.earnix.parquet.columnar.writer.rowgroup.RowGroupWriter;
+import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.impl.ColumnReaderImpl;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
@@ -18,10 +24,19 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
+import static com.earnix.parquet.columnar.utils.ColumnWritingUtil.writeBinaryColumn;
+import static com.earnix.parquet.columnar.utils.ColumnWritingUtil.writeBooleanColumn;
+import static com.earnix.parquet.columnar.utils.ColumnWritingUtil.writeDoubleColumn;
+import static com.earnix.parquet.columnar.utils.ColumnWritingUtil.writeInt32Column;
+import static com.earnix.parquet.columnar.utils.ColumnWritingUtil.writeInt64Column;
+import static com.earnix.parquet.columnar.utils.Utils.processForFile;
+import static com.earnix.parquet.columnar.utils.Utils.convertExceptionToRuntime;
 import static org.junit.Assert.assertEquals;
 
 public class ParquetFileWriterTest
@@ -29,13 +44,13 @@ public class ParquetFileWriterTest
 	@Test
 	public void sanityCreateCheck() throws IOException
 	{
-		Path out = Files.createTempFile("testParquetFile", ".parquet");
+		Path parquetFile = Files.createTempFile("testParquetFile", ".parquet");
 		try
 		{
-			createTestFile(out);
+			fillWithRowGroups(parquetFile);
 
-			ParquetColumarFileReader reader = new ParquetColumarFileReader(out);
-			reader.processFile((ParquetColumnarProcessors.ProcessPerChunk) chunk -> {
+			ParquetColumarFileReader reader = new ParquetColumarFileReader(parquetFile);
+			reader.processFile((ParquetColumnarProcessors.ChunkProcessor) chunk -> {
 				System.out.println(chunk.getDescriptor() + " TotalValues:" + chunk.getTotalValues());
 				if (chunk.getDescriptor().getPrimitiveType()
 						.getPrimitiveTypeName() == PrimitiveType.PrimitiveTypeName.DOUBLE)
@@ -51,147 +66,109 @@ public class ParquetFileWriterTest
 		}
 		finally
 		{
-			Files.deleteIfExists(out);
+			Files.deleteIfExists(parquetFile);
 		}
 	}
 
 	@Test
-	public void testGivenParquetFile_whenProcessingByRowGroup_thenAllRowGroupsAreProcessed() throws IOException
+	public void testGivenParquetFile_whenReadingAndProcessingByRowGroup_thenAllRowGroupsAreProcessed()
 	{
-		Path out = Files.createTempFile("testParquetFile", ".parquet");
-		try
-		{
-			List<RowGroupForTesting> inputRowGroups = createTestFile(out);
-			List<RowGroupForTesting> outputRowGroups = new ArrayList<>();
-			ParquetColumarFileReader reader = new ParquetColumarFileReader(out);
-			reader.processFile((ParquetColumnarProcessors.ProcessPerRowGroup) rowGroup -> {
-				RowGroupForTesting rowGroupForTesting = new RowGroupForTesting(rowGroup.getNumRows());
-
-				rowGroup.forEachColumnChunk((columnDescriptor, chunk) -> {
-				ColumnReaderImpl colReader = new HackyParquetExtendedColumnReader(chunk);
-				List<Object> values = new ArrayList<>();
-				for (int i = 0; i < chunk.getTotalValues(); i++)
-				{
-					System.out.println("Read 1 " + columnDescriptor.getPrimitiveType().getPrimitiveTypeName());
-					System.out.println("Read 11 " + columnDescriptor.getPrimitiveType().getPrimitiveTypeName());
-					if (columnDescriptor.getPrimitiveType().getPrimitiveTypeName().equals(PrimitiveType.PrimitiveTypeName.INT64))
-					{
-						colReader.consume();
-						//System.out.println("Read 2 = " + colReader.getLong());
-					}
-//					if (columnDescriptor.getPrimitiveType().getPrimitiveTypeName().equals(PrimitiveType.PrimitiveTypeName.BOOLEAN))
-//					{
-//						colReader.consume();
-//						//System.out.println("Read 3  = " + colReader.getBoolean());
-//					}
-					PrimitiveType.PrimitiveTypeName primitiveTypeName = columnDescriptor.getPrimitiveType().getPrimitiveTypeName();
-					values.add(GeneralColumnReader.getValue(colReader, primitiveTypeName,columnDescriptor.getMaxDefinitionLevel(), GeneralColumnReader.convertToObjectClass(primitiveTypeName)));
-				}
-				rowGroupForTesting.addChunk(new ColumnChunkForTesting(
-						columnDescriptor.getPrimitiveType().getName(),
-						values));
-				});
-				outputRowGroups.add(rowGroupForTesting);
-			});
-
-			assertEquals(inputRowGroups, outputRowGroups);
-		}
-		finally
-		{
-			Files.deleteIfExists(out);
-		}
+		processForFile("testParquetFile", ".parquet", file -> {
+			List<RowGroupForTesting> expectedRowGroups = fillWithRowGroups(file);
+			List<RowGroupForTesting> actualRowGroups = readingAndProcessByRowGroup(file);
+			assertEquals(expectedRowGroups, actualRowGroups);
+		});
 	}
 
-
-	private static List<RowGroupForTesting> createTestFile(Path out) throws IOException
+	private static List<RowGroupForTesting> fillWithRowGroups(Path parquetFile)
 	{
-		List<PrimitiveType> cols = Arrays.asList(
-				new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.DOUBLE, "DOUBLE_1"),
-				new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.BOOLEAN, "BOOLEAN_2"),
-				new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.INT32, "INT32_3"),
-				new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT64, "INT64_4"),
-				new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.BINARY, "BINARY_5"));
-		try (ParquetColumnarWriter writer = new ParquetFileColumnarWriterImpl(out, cols))
+		try (ParquetColumnarWriter writer = new ParquetFileColumnarWriterImpl(parquetFile, PARQUET_COLUMNS))
 		{
 			List<RowGroupForTesting> rowGroups = new ArrayList<>();
-			rowGroups.add(writeRowGroup1(cols, writer));
-//			writeRowGroup2(cols, writer);
-//			writeRowGroup3(cols, writer);
+			rowGroups.add(writeRowGroup1(writer));
+			//			writeRowGroup2(cols, writer);
+			//			writeRowGroup3(cols, writer);
 
 			writer.finishAndWriteFooterMetadata();
 			return rowGroups;
 		}
+		catch (Exception ex)
+		{
+			throw new RuntimeException(ex);
+		}
 	}
 
-	private static RowGroupForTesting writeRowGroup1(List<PrimitiveType> cols, ParquetColumnarWriter parquetColumnarWriter) throws IOException
+	private static List<RowGroupForTesting> readingAndProcessByRowGroup(Path parquetFile)
 	{
+		return convertExceptionToRuntime(() -> {
+			ParquetColumarFileReader reader = new ParquetColumarFileReader(parquetFile);
 
-		int NUM_ROWS_2 = 2;
-		RowGroupForTesting rowGroup = new RowGroupForTesting(NUM_ROWS_2);
+			List<RowGroupForTesting> actualRowGroups = new ArrayList<>();
+			ParquetColumnarProcessors.RowGroupProcessor byRowGroupProcessor = rowGroup -> actualRowGroups.add(processRowGroup(rowGroup));
+			reader.processFile(byRowGroupProcessor);
+			return actualRowGroups;
+		});
+	}
 
-		RowGroupWriter groupWriter = parquetColumnarWriter.startNewRowGroup(NUM_ROWS_2);
-		groupWriter.writeColumn(
-				columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(0).getName(), new double[] { 1, 1 }));
-		rowGroup.addChunk(new ColumnChunkForTesting(cols.get(0).getName(), Arrays.stream(new double[] { 1, 1 }).boxed().collect(Collectors.toList())));
+	private static RowGroupForTesting processRowGroup(InMemRowGroup rowGroup)
+	{
+		RowGroupForTesting rowGroupForTesting = new RowGroupForTesting(rowGroup.getNumRows());
+		BiConsumer<ColumnDescriptor, InMemChunk> chunkProcessor = (columnDescriptor, chunk) -> rowGroupForTesting.addChunk(processChunk(columnDescriptor, chunk));
+		rowGroup.forEachColumnChunk(chunkProcessor);
+		return rowGroupForTesting;
+	}
 
-		groupWriter.writeColumn(columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(1).getName(),
-				Arrays.asList(false, null).iterator()));
-		rowGroup.addChunk(new ColumnChunkForTesting(cols.get(1).getName(), Arrays.asList(false, null)));
+	private static ColumnChunkForTesting processChunk(ColumnDescriptor columnDescriptor, InMemChunk chunk)
+	{
+		ColumnReaderImpl colReader = new HackyParquetExtendedColumnReader(chunk);
+		PrimitiveType.PrimitiveTypeName primitiveTypeName = columnDescriptor.getPrimitiveType().getPrimitiveTypeName();
 
-		groupWriter.writeColumn(
-				columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(2).getName(), new int[] { 4, 6 }));
-		rowGroup.addChunk(new ColumnChunkForTesting(cols.get(2).getName(), Arrays.stream(new int[] { 4, 6 }).boxed().collect(Collectors.toList())));
+		return new ColumnChunkForTesting(
+				columnDescriptor.getPrimitiveType().getName(),
+				getChunkValues(columnDescriptor, chunk, colReader, primitiveTypeName));
+	}
 
-		NullableLongIteratorImpl nullableLongIterator1 = new NullableLongIteratorImpl();
-		NullableLongIteratorImpl nullableLongIterator2 = new NullableLongIteratorImpl();
-		groupWriter.writeColumn(
-				columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(3).getName(), nullableLongIterator1));
-		List<Long> longVals = new ArrayList<>();
-		while (nullableLongIterator2.next())
-		{
-			if (nullableLongIterator2.isNull())
-			{
-				longVals.add(null);
-			}
-			else
-			{
-				longVals.add(nullableLongIterator2.getValue());
-			}
-		}
-		rowGroup.addChunk(new ColumnChunkForTesting(cols.get(3).getName(), longVals));
+	private static List<Object> getChunkValues(ColumnDescriptor columnDescriptor, InMemChunk chunk, ColumnReaderImpl colReader, PrimitiveType.PrimitiveTypeName primitiveTypeName)
+	{
+		return LongStream.range(0, chunk.getTotalValues())
+				.mapToObj(index -> GeneralColumnReader.getValue(colReader, primitiveTypeName, columnDescriptor.getMaxDefinitionLevel()))
+				.collect(Collectors.toList());
+	}
 
-		groupWriter.writeColumn(columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(4).getName(),
-				new String[] { "burrito", "taco" }));
-		rowGroup.addChunk(new ColumnChunkForTesting(cols.get(4).getName(), Arrays.asList(new String[] { "burrito", "taco" })));
+	private static final String DOUBLE_1 = "DOUBLE_1";
+	private static final String BOOLEAN_2 = "BOOLEAN_2";
+	private static final String INT_32_3 = "INT32_3";
+	private static final String INT_64_4 = "INT64_4";
+	private static final String BINARY_5 = "BINARY_5";
+	private static final List<PrimitiveType> PARQUET_COLUMNS = Arrays.asList(
+			new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.DOUBLE, DOUBLE_1),
+			new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.BOOLEAN, BOOLEAN_2),
+			new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.INT32, INT_32_3),
+			new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT64, INT_64_4),
+			new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.BINARY, BINARY_5)
+	);
 
+	private static RowGroupForTesting writeRowGroup1(ParquetColumnarWriter parquetColumnarWriter) throws IOException
+	{
+		List<Function<RowGroupWriter, ColumnChunkForTesting>> chunkBuilders = Arrays.asList(
+				writer -> writeDoubleColumn(writer, DOUBLE_1, new double[]{ 1, 1 }),
+				writer -> writeBooleanColumn(writer, BOOLEAN_2, Arrays.asList(false, null)),
+				writer -> writeInt32Column(writer, INT_32_3, new int[]{ 4, 6 }),
+				writer -> writeInt64Column(writer, INT_64_4, new NullableLongIteratorImpl()),
+				writer -> writeBinaryColumn(writer, BINARY_5, new String[] { "burrito", "taco" })
+		);
+
+		return writeRowGroup(2, chunkBuilders, parquetColumnarWriter);
+	}
+
+	private static RowGroupForTesting writeRowGroup(int rowsNumber, List<Function<RowGroupWriter, ColumnChunkForTesting>> chunkBuilders, ParquetColumnarWriter parquetColumnarWriter) throws IOException
+	{
+		RowGroupForTesting expectedRowGroup = new RowGroupForTesting(rowsNumber);
+		RowGroupWriter groupWriter = parquetColumnarWriter.startNewRowGroup(rowsNumber);
+		chunkBuilders.forEach(builder -> expectedRowGroup.addChunk(builder.apply(groupWriter)));
 		parquetColumnarWriter.finishRowGroup();
-		return rowGroup;
+		return expectedRowGroup;
 	}
-
-	private static class NullableLongIteratorImpl implements NullableIterators.NullableLongIterator
-	{
-		private int element = 0;
-
-		@Override
-		public long getValue()
-		{
-
-			return 1;
-		}
-
-		@Override
-		public boolean isNull()
-		{
-			return element % 2 == 0;
-		}
-
-		@Override
-		public boolean next()
-		{
-			return element++ < 2;
-		}
-	}
-
 
 	private static void writeRowGroup2(List<PrimitiveType> cols, ParquetColumnarWriter parquetColumnarWriter) throws IOException
 	{
@@ -225,5 +202,7 @@ public class ParquetFileWriterTest
 				IntStream.range(0, LOTS_OF_ROWS).mapToObj(i -> "Cheeseburger" + i % 10).iterator()));
 		writer.finishRowGroup();
 	}
+
+
 
 }

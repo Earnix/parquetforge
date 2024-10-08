@@ -13,13 +13,13 @@ import java.io.InputStream;
 public class ParquetColumnarProcessors
 {
 	@FunctionalInterface
-	public interface ProcessPerChunk
+	public interface ChunkProcessor
 	{
 		void processChunk(InMemChunk chunk);
 	}
 
 	@FunctionalInterface
-	public interface ProcessPerRowGroup
+	public interface RowGroupProcessor
 	{
 		void processRowGroup(InMemRowGroup rowGroup);
 	}
