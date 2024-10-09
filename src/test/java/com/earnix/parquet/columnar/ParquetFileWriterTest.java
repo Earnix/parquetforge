@@ -83,7 +83,7 @@ public class ParquetFileWriterTest
 		{
 			List<RowGroupForTesting> rowGroups = new ArrayList<>();
 			rowGroups.add(writeRowGroup1(writer));
-			//			writeRowGroup2(cols, writer);
+			rowGroups.add(writeRowGroup2(writer));
 			//			writeRowGroup3(cols, writer);
 
 			writer.finishAndWriteFooterMetadata();
@@ -157,6 +157,19 @@ public class ParquetFileWriterTest
 		return writeRowGroup(2, chunkBuilders, parquetColumnarWriter);
 	}
 
+	private static RowGroupForTesting writeRowGroup2(ParquetColumnarWriter parquetColumnarWriter) throws IOException
+	{
+		List<Function<RowGroupWriter, ColumnChunkForTesting>> chunkBuilders = Arrays.asList(
+				writer -> writeDoubleColumn(writer, COL_1_DOUBLE, new double[] { 30 }),
+				writer -> writeBooleanColumn(writer, COL_BOOLEAN_2, Arrays.asList(Boolean.FALSE).iterator(), Arrays.asList(Boolean.FALSE).iterator()),
+				writer -> writeInt32Column(writer, COL_3_INT_32, new int[]{ 4 }),
+				writer -> writeInt64Column(writer, COL_4_INT_64, new long[] { 4 }),
+				writer -> writeBinaryColumn(writer, COL_5_BINARY, new String[] { "cheezburger" })
+		);
+
+		return writeRowGroup(1, chunkBuilders, parquetColumnarWriter);
+	}
+
 	private static RowGroupForTesting writeRowGroup(int rowsNumber, List<Function<RowGroupWriter, ColumnChunkForTesting>> chunkBuilders, ParquetColumnarWriter parquetColumnarWriter) throws IOException
 	{
 		RowGroupForTesting expectedRowGroup = new RowGroupForTesting(rowsNumber);
@@ -166,21 +179,6 @@ public class ParquetFileWriterTest
 		return expectedRowGroup;
 	}
 
-	private static void writeRowGroup2(List<PrimitiveType> cols, ParquetColumnarWriter parquetColumnarWriter) throws IOException
-	{
-		RowGroupWriter groupWriter = parquetColumnarWriter.startNewRowGroup(1);
-		groupWriter.writeColumn(
-				columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(0).getName(), new double[] { 30, }));
-		groupWriter.writeColumn(columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(1).getName(),
-				Arrays.asList(Boolean.FALSE).iterator()));
-		groupWriter.writeColumn(
-				columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(2).getName(), new int[] { 4, }));
-		groupWriter.writeColumn(
-				columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(3).getName(), new long[] { 4, }));
-		groupWriter.writeColumn(columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(4).getName(),
-				new String[] { "cheezburger", }));
-		parquetColumnarWriter.finishRowGroup();
-	}
 
 	private static void writeRowGroup3(List<PrimitiveType> cols, ParquetColumnarWriter writer) throws IOException
 	{

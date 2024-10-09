@@ -2,11 +2,14 @@ package com.earnix.parquet.columnar.utils;
 
 import com.earnix.parquet.columnar.ColumnChunkForTesting;
 import com.earnix.parquet.columnar.NullableLongIteratorImpl;
+import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages;
 import com.earnix.parquet.columnar.writer.rowgroup.ChunkWriter;
 import com.earnix.parquet.columnar.writer.rowgroup.RowGroupWriter;
+import shaded.parquet.org.apache.thrift.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,6 +31,14 @@ public class ColumnWritingUtil
 				vals);
 	}
 
+	public static ColumnChunkForTesting writeBooleanColumn(RowGroupWriter groupWriter, String typeName, Iterator<Boolean> iterator, Iterator<Boolean> sameiIterator)
+	{
+		return writeColumn(groupWriter, typeName,
+				columnChunkWriter -> columnChunkWriter.writeColumn(typeName, iterator),
+				getBooleanValues(sameiIterator));
+	}
+
+
 	public static ColumnChunkForTesting writeInt32Column(RowGroupWriter groupWriter, String typeName, int[] vals)
 	{
 		return writeColumn(groupWriter, typeName,
@@ -40,6 +51,13 @@ public class ColumnWritingUtil
 		return writeColumn(groupWriter, typeName,
 				columnChunkWriter -> columnChunkWriter.writeColumn(typeName, nullableLongIterator),
 				getLongValues(nullableLongIterator));
+	}
+
+	public static ColumnChunkForTesting writeInt64Column(RowGroupWriter groupWriter, String typeName, long[] vals)
+	{
+		return writeColumn(groupWriter, typeName,
+				columnChunkWriter -> columnChunkWriter.writeColumn(typeName, vals),
+				Arrays.stream(vals).boxed().collect(Collectors.toList()));
 	}
 
 	public static ColumnChunkForTesting writeBinaryColumn(RowGroupWriter groupWriter, String typeName, String[] vals)
@@ -74,6 +92,12 @@ public class ColumnWritingUtil
 		nullableLongIterator.reset();
 
 		return longVals;
+	}
+
+	private static List<Boolean> getBooleanValues(Iterator<Boolean> iterator){
+		List<Boolean> boolVals = new ArrayList<>();
+		iterator.forEachRemaining(boolVals::add);
+		return boolVals;
 	}
 
 }
