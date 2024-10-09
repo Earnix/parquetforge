@@ -36,7 +36,7 @@ public class GeneralColumnReader
 			case DOUBLE:
 				return reader.getDouble();
 			default:
-				throw new IllegalStateException("Invalid Type " + primitiveTypeName);
+				throw new IllegalStateException("Unknown Type " + primitiveTypeName);
 		}
 	}
 

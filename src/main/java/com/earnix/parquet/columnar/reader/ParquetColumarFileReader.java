@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import com.earnix.parquet.columnar.reader.chunk.InMemRowGroup;
 import org.apache.commons.io.input.BoundedInputStream;
@@ -62,7 +63,7 @@ public class ParquetColumarFileReader
 
 		try (FileChannel fc = FileChannel.open(parquetFilePath))
 		{
-			processFile(rowGroup -> {}, processor, fc, messageType);
+			processFile(null, processor, fc, messageType);
 		}
 	}
 
@@ -72,7 +73,7 @@ public class ParquetColumarFileReader
 
 		try (FileChannel fc = FileChannel.open(parquetFilePath))
 		{
-			processFile(processor, chunk -> {}, fc, messageType);
+			processFile(processor, null, fc, messageType);
 		}
 	}
 
@@ -93,12 +94,13 @@ public class ParquetColumarFileReader
 		}
 	}
 
-	private void processFile(ParquetColumnarProcessors.RowGroupProcessor rowGroupProcessor, ParquetColumnarProcessors.ChunkProcessor chunkProcessor, FileChannel fc,
-			MessageType messageType) throws IOException
+	private void processFile(ParquetColumnarProcessors.RowGroupProcessor rowGroupProcessor,
+			ParquetColumnarProcessors.ChunkProcessor chunkProcessor, FileChannel fc, MessageType messageType)
+			throws IOException
 	{
 		for (RowGroup rowGroup : getMetaData().getRow_groups())
 		{
-			Map<ColumnDescriptor, InMemChunk> inMemChunkMap = new HashMap<>();
+			Map<ColumnDescriptor, InMemChunk> inMemChunkMap = rowGroupProcessor == null ? null : new HashMap<>();
 
 			for (ColumnChunk columnChunk : rowGroup.getColumns())
 			{
@@ -120,12 +122,22 @@ public class ParquetColumarFileReader
 						colDescriptor, new CountingInputStream(is), chunkLen, compressionCodec);
 
 				InMemChunk inMemChunk = new InMemChunk(inMemChunkPageStore);
-				chunkProcessor.processChunk(inMemChunk);
-				inMemChunkMap.put(colDescriptor, inMemChunk);
+				if (chunkProcessor != null)
+				{
+					chunkProcessor.processChunk(inMemChunk);
+				}
+
+				if (inMemChunkMap != null)
+				{
+					inMemChunkMap.put(colDescriptor, inMemChunk);
+				}
 			}
 
-			rowGroupProcessor.processRowGroup(new InMemRowGroup(inMemChunkMap, rowGroup.getNum_rows()));
-
+			if (rowGroupProcessor != null)
+			{
+				rowGroupProcessor.processRowGroup(
+						new InMemRowGroup(Objects.requireNonNull(inMemChunkMap), rowGroup.getNum_rows()));
+			}
 		}
 	}
 

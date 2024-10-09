@@ -80,14 +80,7 @@ public class ColumnWritingUtil
 		List<Long> longVals = new ArrayList<>();
 		while (nullableLongIterator.next())
 		{
-			if (nullableLongIterator.isNull())
-			{
-				longVals.add(null);
-			}
-			else
-			{
-				longVals.add(nullableLongIterator.getValue());
-			}
+			longVals.add(nullableLongIterator.isNull() ? null : nullableLongIterator.getValue());
 		}
 		nullableLongIterator.reset();
 

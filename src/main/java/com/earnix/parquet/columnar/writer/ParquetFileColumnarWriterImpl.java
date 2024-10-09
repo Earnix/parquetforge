@@ -21,6 +21,7 @@ import org.apache.parquet.schema.Type;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.Channels;
@@ -50,7 +51,8 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 	private FileRowGroupWriterImpl lastWriter = null;
 	private final List<RowGroupInfo> rowGroupInfos = new ArrayList<>();
 
-	public ParquetFileColumnarWriterImpl(Path outputFile, Collection<PrimitiveType> primitiveTypeList) throws IOException
+	public ParquetFileColumnarWriterImpl(Path outputFile, Collection<PrimitiveType> primitiveTypeList)
+			throws IOException
 	{
 		this(outputFile, primitiveTypeList, CompressionCodec.ZSTD);
 	}
@@ -162,11 +164,16 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 
 		CountingOutputStream os = new CountingOutputStream(Channels.newOutputStream(fileChannel));
 		Util.writeFileMetaData(fileMetaData, os);
-//		os.getByteCount();
-		byte[] toWrite = new byte[Integer.BYTES];
-		ByteBuffer.wrap(toWrite).order(ByteOrder.LITTLE_ENDIAN).putInt(Math.toIntExact(os.getCount()));
-		os.write(toWrite);
+		int byteCount = Math.toIntExact(os.getByteCount());
+		writeLittleEndianInt(os, byteCount);
 		writeMagicBytes();
+	}
+
+	private static void writeLittleEndianInt(OutputStream os, int byteCount) throws IOException
+	{
+		byte[] toWrite = new byte[Integer.BYTES];
+		ByteBuffer.wrap(toWrite).order(ByteOrder.LITTLE_ENDIAN).putInt(byteCount);
+		os.write(toWrite);
 	}
 
 	private List<SchemaElement> getSchemaElements()
