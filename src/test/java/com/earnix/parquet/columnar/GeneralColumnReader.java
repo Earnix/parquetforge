@@ -9,10 +9,11 @@ import java.nio.charset.StandardCharsets;
 public class GeneralColumnReader
 {
 	public static Object getValue(ColumnReaderImpl reader, ColumnDescriptor columnDescriptor){
+		reader.consume();
+
 		if (valueIsNull(reader, columnDescriptor.getMaxDefinitionLevel()))
 			return null;
 
-		reader.consume();
 		return getValueByType(reader, columnDescriptor.getPrimitiveType().getPrimitiveTypeName());
 	}
 

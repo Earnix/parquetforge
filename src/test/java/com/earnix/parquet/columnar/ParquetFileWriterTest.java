@@ -149,9 +149,9 @@ public class ParquetFileWriterTest
 		List<Function<RowGroupWriter, ColumnChunkForTesting>> chunkBuilders = Arrays.asList(
 				writer -> writeDoubleColumn(writer, COL_1_DOUBLE, new double[]{ 1, 1 }),
 				writer -> writeBooleanColumn(writer, COL_BOOLEAN_2, Arrays.asList(false, null)),
-				writer -> writeInt32Column(writer, COL_3_INT_32, new int[]{ 4, 6 }),
+				writer -> writeInt32Column(writer, COL_3_INT_32, new int[]{ 4, 6  }),
 				writer -> writeInt64Column(writer, COL_4_INT_64, new NullableLongIteratorImpl()),
-				writer -> writeBinaryColumn(writer, COL_5_BINARY, new String[] { "burrito", "taco" })
+				writer -> writeBinaryColumn(writer, COL_5_BINARY, new String[] { "burrito", "taco"})
 		);
 
 		return writeRowGroup(2, chunkBuilders, parquetColumnarWriter);
