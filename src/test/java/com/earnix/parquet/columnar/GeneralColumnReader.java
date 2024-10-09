@@ -1,5 +1,6 @@
 package com.earnix.parquet.columnar;
 
+import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.impl.ColumnReaderImpl;
 import org.apache.parquet.schema.PrimitiveType;
 
@@ -7,10 +8,12 @@ import java.nio.charset.StandardCharsets;
 
 public class GeneralColumnReader
 {
-	public static Object getValue(ColumnReaderImpl reader, PrimitiveType.PrimitiveTypeName primitiveTypeName, int defLevel){
-		if (valueIsNull(reader, defLevel)) return null;
+	public static Object getValue(ColumnReaderImpl reader, ColumnDescriptor columnDescriptor){
+		if (valueIsNull(reader, columnDescriptor.getMaxDefinitionLevel()))
+			return null;
+
 		reader.consume();
-		return getValueByType(reader, primitiveTypeName);
+		return getValueByType(reader, columnDescriptor.getPrimitiveType().getPrimitiveTypeName());
 	}
 
 	private static Object getValueByType(ColumnReaderImpl reader, PrimitiveType.PrimitiveTypeName primitiveTypeName)

@@ -7,10 +7,6 @@ import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
 import com.earnix.parquet.columnar.reader.processors.ParquetColumnarProcessors;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import com.earnix.parquet.columnar.writer.ParquetFileColumnarWriterImpl;
-import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages;
-import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkWriter;
-import com.earnix.parquet.columnar.writer.columnchunk.NullableIterators;
-import com.earnix.parquet.columnar.writer.rowgroup.ChunkWriter;
 import com.earnix.parquet.columnar.writer.rowgroup.RowGroupWriter;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.impl.ColumnReaderImpl;
@@ -30,6 +26,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
+import static com.earnix.parquet.columnar.GeneralColumnReader.getValue;
 import static com.earnix.parquet.columnar.utils.ColumnWritingUtil.writeBinaryColumn;
 import static com.earnix.parquet.columnar.utils.ColumnWritingUtil.writeBooleanColumn;
 import static com.earnix.parquet.columnar.utils.ColumnWritingUtil.writeDoubleColumn;
@@ -121,41 +118,40 @@ public class ParquetFileWriterTest
 	private static ColumnChunkForTesting processChunk(ColumnDescriptor columnDescriptor, InMemChunk chunk)
 	{
 		ColumnReaderImpl colReader = new HackyParquetExtendedColumnReader(chunk);
-		PrimitiveType.PrimitiveTypeName primitiveTypeName = columnDescriptor.getPrimitiveType().getPrimitiveTypeName();
 
 		return new ColumnChunkForTesting(
 				columnDescriptor.getPrimitiveType().getName(),
-				getChunkValues(columnDescriptor, chunk, colReader, primitiveTypeName));
+				getChunkValues(columnDescriptor, chunk, colReader));
 	}
 
-	private static List<Object> getChunkValues(ColumnDescriptor columnDescriptor, InMemChunk chunk, ColumnReaderImpl colReader, PrimitiveType.PrimitiveTypeName primitiveTypeName)
+	private static List<Object> getChunkValues(ColumnDescriptor columnDescriptor, InMemChunk chunk, ColumnReaderImpl colReader)
 	{
 		return LongStream.range(0, chunk.getTotalValues())
-				.mapToObj(index -> GeneralColumnReader.getValue(colReader, primitiveTypeName, columnDescriptor.getMaxDefinitionLevel()))
+				.mapToObj(index -> getValue(colReader, columnDescriptor))
 				.collect(Collectors.toList());
 	}
 
-	private static final String DOUBLE_1 = "DOUBLE_1";
-	private static final String BOOLEAN_2 = "BOOLEAN_2";
-	private static final String INT_32_3 = "INT32_3";
-	private static final String INT_64_4 = "INT64_4";
-	private static final String BINARY_5 = "BINARY_5";
+	private static final String COL_1_DOUBLE = "COL_1_DOUBLE";
+	private static final String COL_BOOLEAN_2 = "COL_2_BOOLEAN";
+	private static final String COL_3_INT_32 = "COL_3_INT32";
+	private static final String COL_4_INT_64 = "COL_4_INT64";
+	private static final String COL_5_BINARY = "COL_5_BINARY";
 	private static final List<PrimitiveType> PARQUET_COLUMNS = Arrays.asList(
-			new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.DOUBLE, DOUBLE_1),
-			new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.BOOLEAN, BOOLEAN_2),
-			new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.INT32, INT_32_3),
-			new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT64, INT_64_4),
-			new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.BINARY, BINARY_5)
+			new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.DOUBLE, COL_1_DOUBLE),
+			new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.BOOLEAN, COL_BOOLEAN_2),
+			new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.INT32, COL_3_INT_32),
+			new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT64, COL_4_INT_64),
+			new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.BINARY, COL_5_BINARY)
 	);
 
 	private static RowGroupForTesting writeRowGroup1(ParquetColumnarWriter parquetColumnarWriter) throws IOException
 	{
 		List<Function<RowGroupWriter, ColumnChunkForTesting>> chunkBuilders = Arrays.asList(
-				writer -> writeDoubleColumn(writer, DOUBLE_1, new double[]{ 1, 1 }),
-				writer -> writeBooleanColumn(writer, BOOLEAN_2, Arrays.asList(false, null)),
-				writer -> writeInt32Column(writer, INT_32_3, new int[]{ 4, 6 }),
-				writer -> writeInt64Column(writer, INT_64_4, new NullableLongIteratorImpl()),
-				writer -> writeBinaryColumn(writer, BINARY_5, new String[] { "burrito", "taco" })
+				writer -> writeDoubleColumn(writer, COL_1_DOUBLE, new double[]{ 1, 1 }),
+				writer -> writeBooleanColumn(writer, COL_BOOLEAN_2, Arrays.asList(false, null)),
+				writer -> writeInt32Column(writer, COL_3_INT_32, new int[]{ 4, 6 }),
+				writer -> writeInt64Column(writer, COL_4_INT_64, new NullableLongIteratorImpl()),
+				writer -> writeBinaryColumn(writer, COL_5_BINARY, new String[] { "burrito", "taco" })
 		);
 
 		return writeRowGroup(2, chunkBuilders, parquetColumnarWriter);

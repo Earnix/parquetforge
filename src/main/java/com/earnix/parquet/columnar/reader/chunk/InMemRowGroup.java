@@ -20,9 +20,9 @@ public class InMemRowGroup
 		this.numRows = numRows;
 	}
 
-	public void forEachColumnChunk(BiConsumer<ColumnDescriptor, InMemChunk> rowGroupConsumer)
+	public void forEachColumnChunk(BiConsumer<ColumnDescriptor, InMemChunk> chunkProcessor)
 	{
-		inMemChunkMap.forEach(rowGroupConsumer);
+		inMemChunkMap.forEach(chunkProcessor);
 	}
 
 	public long getNumRows()
