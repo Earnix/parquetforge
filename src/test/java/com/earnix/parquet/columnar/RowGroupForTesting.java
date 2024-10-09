@@ -3,13 +3,14 @@ package com.earnix.parquet.columnar;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Comparator;
+import java.util.Set;
+import java.util.TreeSet;
 
 public class RowGroupForTesting
 {
 	private final long numRows;
-	private final List<ColumnChunkForTesting> columnChunks = new ArrayList<>();
+	private final Set<ColumnChunkForTesting> columnChunks = new TreeSet<>(new TreeSet<>(Comparator.comparing(ColumnChunkForTesting::getPrimitiveTypeName)));
 
 	public RowGroupForTesting(long numRows)
 	{

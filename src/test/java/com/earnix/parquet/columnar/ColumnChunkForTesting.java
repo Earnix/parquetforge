@@ -18,6 +18,11 @@ public class ColumnChunkForTesting
 		this.values = values;
 	}
 
+	public String getPrimitiveTypeName()
+	{
+		return primitiveTypeName;
+	}
+
 	@Override
 	public int hashCode(){
 		return new HashCodeBuilder()
@@ -36,7 +41,6 @@ public class ColumnChunkForTesting
 			return false;
 		}
 		ColumnChunkForTesting other = (ColumnChunkForTesting) obj;
-
 		return new EqualsBuilder()
 				.append(primitiveTypeName, other.primitiveTypeName)
 				.append(values, other.values)
