@@ -84,7 +84,7 @@ public class ParquetFileWriterTest
 			List<RowGroupForTesting> rowGroups = new ArrayList<>();
 			rowGroups.add(writeRowGroup1(writer));
 			rowGroups.add(writeRowGroup2(writer));
-			//			writeRowGroup3(cols, writer);
+			rowGroups.add(writeRowGroup3(writer));
 
 			writer.finishAndWriteFooterMetadata();
 			return rowGroups;
@@ -170,6 +170,21 @@ public class ParquetFileWriterTest
 		return writeRowGroup(1, chunkBuilders, parquetColumnarWriter);
 	}
 
+	private static RowGroupForTesting writeRowGroup3(ParquetColumnarWriter parquetColumnarWriter) throws IOException
+	{
+		int LOTS_OF_ROWS = 10_000;
+
+		List<Function<RowGroupWriter, ColumnChunkForTesting>> chunkBuilders = Arrays.asList(
+				writer -> writeDoubleColumn(writer, COL_1_DOUBLE, IntStream.range(0, LOTS_OF_ROWS).mapToDouble(Double::valueOf).toArray()),
+				writer -> writeBooleanColumn(writer, COL_BOOLEAN_2, IntStream.range(0, LOTS_OF_ROWS).mapToObj(i -> i % 2 == 0).iterator(), IntStream.range(0, LOTS_OF_ROWS).mapToObj(i -> i % 2 == 0).iterator()),
+				writer -> writeInt32Column(writer, COL_3_INT_32, IntStream.range(0, LOTS_OF_ROWS).toArray()),
+				writer -> writeInt64Column(writer, COL_4_INT_64, LongStream.range(0, LOTS_OF_ROWS).toArray()),
+				writer -> writeBinaryColumn(writer, COL_5_BINARY, IntStream.range(0, LOTS_OF_ROWS).mapToObj(i -> "Cheeseburger" + i % 10).iterator())
+		);
+
+		return writeRowGroup(LOTS_OF_ROWS, chunkBuilders, parquetColumnarWriter);
+	}
+
 	private static RowGroupForTesting writeRowGroup(int rowsNumber, List<Function<RowGroupWriter, ColumnChunkForTesting>> chunkBuilders, ParquetColumnarWriter parquetColumnarWriter) throws IOException
 	{
 		RowGroupForTesting expectedRowGroup = new RowGroupForTesting(rowsNumber);
@@ -178,25 +193,5 @@ public class ParquetFileWriterTest
 		parquetColumnarWriter.finishRowGroup();
 		return expectedRowGroup;
 	}
-
-
-	private static void writeRowGroup3(List<PrimitiveType> cols, ParquetColumnarWriter writer) throws IOException
-	{
-		int LOTS_OF_ROWS = 10_000;
-		RowGroupWriter groupWriter = writer.startNewRowGroup(LOTS_OF_ROWS);
-		groupWriter.writeColumn(columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(0).getName(),
-				IntStream.range(0, LOTS_OF_ROWS).mapToDouble(Double::valueOf).toArray()));
-		groupWriter.writeColumn(columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(1).getName(),
-				IntStream.range(0, LOTS_OF_ROWS).mapToObj(i -> i % 2 == 0).iterator()));
-		groupWriter.writeColumn(columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(2).getName(),
-				IntStream.range(0, LOTS_OF_ROWS).toArray()));
-		groupWriter.writeColumn(columnChunkWriter -> columnChunkWriter.writeColumn(cols.get(3).getName(),
-				LongStream.range(0, LOTS_OF_ROWS).toArray()));
-		groupWriter.writeColumn(columnChunkWriter -> columnChunkWriter.writeStringColumn(cols.get(4).getName(),
-				IntStream.range(0, LOTS_OF_ROWS).mapToObj(i -> "Cheeseburger" + i % 10).iterator()));
-		writer.finishRowGroup();
-	}
-
-
 
 }

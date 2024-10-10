@@ -67,6 +67,13 @@ public class ColumnWritingUtil
 				Arrays.asList(vals));
 	}
 
+	public static ColumnChunkForTesting writeBinaryColumn(RowGroupWriter groupWriter, String typeName, Iterator<String> vals)
+	{
+		return writeColumn(groupWriter, typeName,
+				columnChunkWriter -> columnChunkWriter.writeStringColumn(typeName, vals),
+				Arrays.asList(vals));
+	}
+
 	private static ColumnChunkForTesting writeColumn(RowGroupWriter groupWriter, String typeName, ChunkWriter chunkWriter, List<?> vals)
 	{
 		return convertExceptionToRuntime(() -> {
