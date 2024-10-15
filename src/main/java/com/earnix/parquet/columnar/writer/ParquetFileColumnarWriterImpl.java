@@ -21,6 +21,7 @@ import org.apache.parquet.schema.Type;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.Channels;
@@ -30,6 +31,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
@@ -49,7 +51,8 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 	private FileRowGroupWriterImpl lastWriter = null;
 	private final List<RowGroupInfo> rowGroupInfos = new ArrayList<>();
 
-	public ParquetFileColumnarWriterImpl(Path outputFile, List<PrimitiveType> primitiveTypeList) throws IOException
+	public ParquetFileColumnarWriterImpl(Path outputFile, Collection<PrimitiveType> primitiveTypeList)
+			throws IOException
 	{
 		this(outputFile, primitiveTypeList, CompressionCodec.ZSTD);
 	}
@@ -59,7 +62,7 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 	 * 
 	 * @param primitiveTypeList the types of columns
 	 */
-	ParquetFileColumnarWriterImpl(Path outputFile, List<PrimitiveType> primitiveTypeList,
+	public ParquetFileColumnarWriterImpl(Path outputFile, Collection<PrimitiveType> primitiveTypeList,
 			CompressionCodec compressionCodec) throws IOException
 	{
 		this.compressionCodec = compressionCodec;
@@ -161,11 +164,16 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 
 		CountingOutputStream os = new CountingOutputStream(Channels.newOutputStream(fileChannel));
 		Util.writeFileMetaData(fileMetaData, os);
-		os.getByteCount();
-		byte[] toWrite = new byte[Integer.BYTES];
-		ByteBuffer.wrap(toWrite).order(ByteOrder.LITTLE_ENDIAN).putInt(Math.toIntExact(os.getCount()));
-		os.write(toWrite);
+		int byteCount = Math.toIntExact(os.getByteCount());
+		writeLittleEndianInt(os, byteCount);
 		writeMagicBytes();
+	}
+
+	private static void writeLittleEndianInt(OutputStream os, int byteCount) throws IOException
+	{
+		byte[] toWrite = new byte[Integer.BYTES];
+		ByteBuffer.wrap(toWrite).order(ByteOrder.LITTLE_ENDIAN).putInt(byteCount);
+		os.write(toWrite);
 	}
 
 	private List<SchemaElement> getSchemaElements()

@@ -44,7 +44,7 @@ public class FileRowGroupWriterImpl implements RowGroupWriter
 	}
 
 	@Override
-	public void writeColumn(Function<ColumnChunkWriter, ColumnChunkPages> writer) throws IOException
+	public void writeColumn(ChunkWriter writer) throws IOException
 	{
 		ColumnChunkPages pages = writer.apply(columnChunkWriter);
 		long totalBytes = pages.totalBytesForStorage();
