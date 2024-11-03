@@ -2,6 +2,7 @@ package com.earnix.parquet.columnar.reader;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
@@ -51,30 +52,50 @@ public class ParquetColumarFileReader
 		this.parquetFilePath = parquetFilePath;
 	}
 
+
+	public void processFile(ParquetColumnarProcessors.RowGroupProcessor processor)
+	{
+		processFile(processor, null, null);
+	}
+
+	public void processFile(ParquetColumnarProcessors.ChunkProcessor processor)
+	{
+		processFile(null, processor, null);
+	}
+
+	public void processFile(ParquetColumnarProcessors.ProcessRawChunkBytes processor)
+	{
+		processFile(null, null, processor);
+	}
+
+	private void processFile(ParquetColumnarProcessors.RowGroupProcessor rowGroupProcessor,
+			ParquetColumnarProcessors.ChunkProcessor chunkProcessor,
+			ParquetColumnarProcessors.ProcessRawChunkBytes chunkBytesProcessor)
+	{
+		try (FileChannel fc = FileChannel.open(parquetFilePath))
+		{
+			for (RowGroup rowGroup : getMetaData().getRow_groups())
+			{
+				Map<ColumnDescriptor, InMemChunk> inMemChunkMap = rowGroupProcessor == null ? null : new HashMap<>();
+
+				for (ColumnChunk columnChunk : rowGroup.getColumns())
+				{
+					processChunk(chunkProcessor, chunkBytesProcessor, columnChunk, inMemChunkMap, fc);
+				}
+
+				processRowGroup(rowGroupProcessor, rowGroup, inMemChunkMap);
+			}
+		}
+		catch (IOException ex)
+		{
+			throw new UncheckedIOException(ex);
+		}
+	}
+
 	public FileMetaData getMetaData() throws IOException
 	{
 		readMetadata();
 		return metaData;
-	}
-
-	public void processFile(ParquetColumnarProcessors.ChunkProcessor processor) throws IOException
-	{
-		MessageType messageType = getMessageType();
-
-		try (FileChannel fc = FileChannel.open(parquetFilePath))
-		{
-			processFile(null, processor, fc, messageType);
-		}
-	}
-
-	public void processFile(ParquetColumnarProcessors.RowGroupProcessor processor) throws IOException
-	{
-		MessageType messageType = getMessageType();
-
-		try (FileChannel fc = FileChannel.open(parquetFilePath))
-		{
-			processFile(processor, null, fc, messageType);
-		}
 	}
 
 	private void readMetadata() throws IOException
@@ -94,51 +115,72 @@ public class ParquetColumarFileReader
 		}
 	}
 
-	private void processFile(ParquetColumnarProcessors.RowGroupProcessor rowGroupProcessor,
-			ParquetColumnarProcessors.ChunkProcessor chunkProcessor, FileChannel fc, MessageType messageType)
+	private static InputStream getInputStream(FileChannel fc, ColumnChunk columnChunk) throws IOException
+	{
+		ColumnMetaData columnMetaData = columnChunk.getMeta_data();
+		long startOffset = columnChunk.getFile_offset() + columnMetaData.getData_page_offset();
+		fc.position(startOffset);
+		return new BoundedInputStream(Channels.newInputStream(fc), columnMetaData.getTotal_compressed_size());
+	}
+
+	private static ColumnMetaData getValidMetaData(ColumnChunk columnChunk) throws UnsupportedEncodingException
+	{
+		ColumnMetaData columnMetaData = columnChunk.getMeta_data();
+
+		// we don't support getting chunks from other files yet.
+		if (columnChunk.getFile_path() != null)
+			throw new UnsupportedEncodingException();
+		return columnMetaData;
+	}
+
+	private static void processRowGroup(ParquetColumnarProcessors.RowGroupProcessor rowGroupProcessor, RowGroup rowGroup, Map<ColumnDescriptor, InMemChunk> inMemChunkMap)
+	{
+		if (rowGroupProcessor != null)
+		{
+			rowGroupProcessor.processRowGroup(new InMemRowGroup(Objects.requireNonNull(inMemChunkMap), rowGroup.getNum_rows()));
+		}
+	}
+
+	private void processChunk(ParquetColumnarProcessors.ChunkProcessor chunkProcessor,
+			ParquetColumnarProcessors.ProcessRawChunkBytes chunkBytesProcessor,
+			ColumnChunk columnChunk, Map<ColumnDescriptor, InMemChunk> inMemChunkMap, FileChannel fc) throws IOException
+	{
+		ColumnMetaData columnMetaData = getValidMetaData(columnChunk);
+
+		ColumnDescriptor descriptor = getDescriptor(columnMetaData);
+		InputStream is = getInputStream(fc, columnChunk);
+		long chunkLen = columnMetaData.getTotal_compressed_size();
+		CompressionCodec compressionCodec = columnMetaData.getCodec();
+
+		processChunkValues(chunkProcessor, inMemChunkMap, descriptor, is, chunkLen, compressionCodec);
+		processChunkBytes(chunkBytesProcessor, columnChunk, descriptor, is);
+	}
+
+	private void processChunkValues(ParquetColumnarProcessors.ChunkProcessor chunkProcessor,
+			Map<ColumnDescriptor, InMemChunk> inMemChunkMap,
+			ColumnDescriptor colDescriptor, InputStream is, long chunkLen, CompressionCodec compressionCodec)
 			throws IOException
 	{
-		for (RowGroup rowGroup : getMetaData().getRow_groups())
+		if (chunkProcessor != null || inMemChunkMap != null)
 		{
-			Map<ColumnDescriptor, InMemChunk> inMemChunkMap = rowGroupProcessor == null ? null : new HashMap<>();
+			InMemChunkPageStore inMemChunkPageStore = ChunkDecompressToPageStoreFactory.buildColumnChunkPageStore(colDescriptor, new CountingInputStream(is), chunkLen, compressionCodec);
 
-			for (ColumnChunk columnChunk : rowGroup.getColumns())
+			InMemChunk inMemChunk = new InMemChunk(inMemChunkPageStore);
+			if (chunkProcessor != null)
 			{
-				ColumnMetaData columnMetaData = columnChunk.getMeta_data();
-
-				// we don't support getting chunks from other files yet.
-				if (columnChunk.getFile_path() != null)
-					throw new UnsupportedEncodingException();
-				long startOffset = columnChunk.getFile_offset() + columnMetaData.getData_page_offset();
-				long chunkLen = columnMetaData.getTotal_compressed_size();
-
-
-				fc.position(startOffset);
-				InputStream is = new BoundedInputStream(Channels.newInputStream(fc), chunkLen);
-				ColumnDescriptor colDescriptor = messageType
-						.getColumnDescription(columnMetaData.getPath_in_schema().toArray(new String[0]));
-				CompressionCodec compressionCodec = columnMetaData.getCodec();
-				InMemChunkPageStore inMemChunkPageStore = ChunkDecompressToPageStoreFactory.buildColumnChunkPageStore(
-						colDescriptor, new CountingInputStream(is), chunkLen, compressionCodec);
-
-				InMemChunk inMemChunk = new InMemChunk(inMemChunkPageStore);
-				if (chunkProcessor != null)
-				{
-					chunkProcessor.processChunk(inMemChunk);
-				}
-
-				if (inMemChunkMap != null)
-				{
-					inMemChunkMap.put(colDescriptor, inMemChunk);
-				}
+				chunkProcessor.processChunk(inMemChunk);
 			}
 
-			if (rowGroupProcessor != null)
+			if (inMemChunkMap != null)
 			{
-				rowGroupProcessor.processRowGroup(
-						new InMemRowGroup(Objects.requireNonNull(inMemChunkMap), rowGroup.getNum_rows()));
+				inMemChunkMap.put(colDescriptor, inMemChunk);
 			}
 		}
+	}
+
+	private ColumnDescriptor getDescriptor(ColumnMetaData columnMetaData) throws IOException
+	{
+		return getMessageType().getColumnDescription(columnMetaData.getPath_in_schema().toArray(new String[0]));
 	}
 
 	private MessageType getMessageType() throws IOException
@@ -154,6 +196,14 @@ public class ParquetColumarFileReader
 			}
 		}
 		return messageType;
+	}
+
+	private void processChunkBytes(ParquetColumnarProcessors.ProcessRawChunkBytes chunkBytesProcessor, ColumnChunk columnChunk, ColumnDescriptor colDescriptor, InputStream is)
+	{
+		if (chunkBytesProcessor != null)
+		{
+			chunkBytesProcessor.processChunk(colDescriptor, columnChunk, is);
+		}
 	}
 
 	private static MessageType buildMessageType(FileMetaData md) throws UnsupportedEncodingException
@@ -186,9 +236,4 @@ public class ParquetColumarFileReader
 		return new MessageType(root.getName(), primitiveTypeList);
 	}
 
-
-	public void processFile(ParquetColumnarProcessors.ProcessRawChunkBytes processor) throws IOException
-	{
-		throw new UnsupportedOperationException("TODO!!");
-	}
 }

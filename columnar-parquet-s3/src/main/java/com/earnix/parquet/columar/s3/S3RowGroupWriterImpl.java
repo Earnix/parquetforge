@@ -3,13 +3,17 @@ package com.earnix.parquet.columar.s3;
 import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages;
 import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkWriter;
 import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkWriterImpl;
-import com.earnix.parquet.columnar.writer.rowgroup.ChunkWriter;
+import com.earnix.parquet.columnar.writer.rowgroup.ChunkValuesWritingFunction;
 import com.earnix.parquet.columnar.writer.rowgroup.RowGroupWriter;
+import org.apache.commons.lang3.NotImplementedException;
+import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.ParquetProperties;
+import org.apache.parquet.format.ColumnChunk;
 import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.schema.MessageType;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -34,9 +38,15 @@ public class S3RowGroupWriterImpl implements RowGroupWriter
 	}
 
 	@Override
-	public void writeColumn(ChunkWriter writer) throws IOException
+	public void writeValues(ChunkValuesWritingFunction writer) throws IOException
 	{
 		ColumnChunkPages pages = writer.apply(columnChunkWriter);
 		// write this to a file.
+	}
+
+	@Override
+	public void writeCopyOfChunk(ColumnDescriptor columnDescriptor, ColumnChunk columnChunk, InputStream chunkInputStream)
+	{
+		throw new NotImplementedException();
 	}
 }

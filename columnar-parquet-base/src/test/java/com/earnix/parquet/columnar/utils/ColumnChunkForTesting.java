@@ -23,6 +23,10 @@ public class ColumnChunkForTesting
 		return primitiveTypeName;
 	}
 
+	public long getValuesNumber(){
+		return values.size();
+	}
+
 	@Override
 	public int hashCode(){
 		return new HashCodeBuilder()

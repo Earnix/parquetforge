@@ -9,6 +9,7 @@ import org.apache.parquet.schema.MessageType;
 import software.amazon.awssdk.services.s3.S3Client;
 
 import java.io.IOException;
+import java.util.function.Consumer;
 
 public class ParquetS3ObjectWriterImpl implements ParquetColumnarWriter
 {
@@ -35,19 +36,13 @@ public class ParquetS3ObjectWriterImpl implements ParquetColumnarWriter
 	}
 
 	@Override
-	public RowGroupWriter startNewRowGroup(long numRows) throws IOException
-	{
-		throw new NotImplementedException();
-	}
-
-	@Override
-	public void finishRowGroup() throws IOException
-	{
-		throw new NotImplementedException();
-	}
-
-	@Override
 	public void finishAndWriteFooterMetadata() throws IOException
+	{
+		throw new NotImplementedException();
+	}
+
+	@Override
+	public void processRowGroup(long numRows, Consumer<RowGroupWriter> rowGroupAppender)
 	{
 		throw new NotImplementedException();
 	}

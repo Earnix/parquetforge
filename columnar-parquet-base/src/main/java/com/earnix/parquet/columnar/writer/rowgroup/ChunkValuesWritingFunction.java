@@ -6,6 +6,6 @@ import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkWriter;
 import java.util.function.Function;
 
 @FunctionalInterface
-public interface ChunkWriter extends Function<ColumnChunkWriter, ColumnChunkPages>
+public interface ChunkValuesWritingFunction extends Function<ColumnChunkWriter, ColumnChunkPages>
 {
 }

@@ -22,6 +22,7 @@ import org.apache.parquet.schema.Type;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.Channels;
@@ -34,7 +35,9 @@ import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 
+import static com.earnix.parquet.columnar.reader.ParquetFileMetadataReader.magicBytes;
 import static org.apache.parquet.schema.Type.Repetition.OPTIONAL;
 import static org.apache.parquet.schema.Type.Repetition.REQUIRED;
 
@@ -79,7 +82,14 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 	}
 
 	@Override
-	public RowGroupWriter startNewRowGroup(long numRows) throws IOException
+	public void processRowGroup(long numRows, Consumer<RowGroupWriter> rowGroupAppender)
+	{
+		RowGroupWriter rowGroupWriter = startNewRowGroup(numRows);
+		rowGroupAppender.accept(rowGroupWriter);
+		finishRowGroup();
+	}
+
+	private RowGroupWriter startNewRowGroup(long numRows)
 	{
 		if (lastWriter != null)
 		{
@@ -93,17 +103,17 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 		return lastWriter;
 	}
 
-	public void finishRowGroup() throws IOException
+	private void finishRowGroup()
 	{
-		this.rowGroupInfos.add(lastWriter.closeAndValidateAllColumnsWritten());
-		lastWriter = null;
-	}
-
-	private void writeMagicBytes() throws IOException
-	{
-		int bytesWritten = fileChannel.write(ByteBuffer.wrap(magicBytes));
-		if (bytesWritten != magicBytes.length)
-			throw new IllegalStateException();
+		try
+		{
+			rowGroupInfos.add(lastWriter.closeAndValidateAllColumnsWritten());
+			lastWriter = null;
+		}
+		catch (IOException ex)
+		{
+			throw new UncheckedIOException(ex);
+		}
 	}
 
 	@Override
@@ -119,7 +129,7 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 		List<SchemaElement> schemaElementList = getSchemaElements();
 		fileMetaData.setSchema(schemaElementList);
 
-		long totalNumRows = this.rowGroupInfos.stream().mapToLong(RowGroupInfo::getNumRows).sum();
+		long totalNumRows = rowGroupInfos.stream().mapToLong(RowGroupInfo::getNumRows).sum();
 		fileMetaData.setNum_rows(totalNumRows);
 		// TODO: what version are we actually??
 		fileMetaData.setVersion(1);
@@ -168,6 +178,20 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 		writeMagicBytes();
 	}
 
+	private void writeMagicBytes()
+	{
+		try
+		{
+			int bytesWritten = fileChannel.write(ByteBuffer.wrap(magicBytes));
+			if (bytesWritten != magicBytes.length)
+				throw new IllegalStateException();
+		}
+		catch (IOException ex)
+		{
+			throw new UncheckedIOException(ex);
+		}
+	}
+
 	private static void writeLittleEndianInt(OutputStream os, int byteCount) throws IOException
 	{
 		byte[] toWrite = new byte[Integer.BYTES];
@@ -195,12 +219,6 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 			schemaElementList.add(schemaElement);
 		}
 		return schemaElementList;
-	}
-
-	private void finishLastRowGroup() throws IOException
-	{
-		rowGroupInfos.add(lastWriter.closeAndValidateAllColumnsWritten());
-		lastWriter = null;
 	}
 
 	@Override

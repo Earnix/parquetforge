@@ -3,7 +3,7 @@ package com.earnix.parquet.columnar.reader.processors;
 import com.earnix.parquet.columnar.reader.chunk.InMemRowGroup;
 import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
 import org.apache.parquet.column.ColumnDescriptor;
-import org.apache.parquet.format.CompressionCodec;
+import org.apache.parquet.format.ColumnChunk;
 
 import java.io.InputStream;
 
@@ -27,7 +27,6 @@ public class ParquetColumnarProcessors
 	@FunctionalInterface
 	public interface ProcessRawChunkBytes
 	{
-		void processChunk(ColumnDescriptor descriptor, CompressionCodec codec, long rowOffset, long numValues,
-				InputStream chunkInput, long numBytes);
+		void processChunk(ColumnDescriptor descriptor, ColumnChunk columnChunk, InputStream chunkInput);
 	}
 }
