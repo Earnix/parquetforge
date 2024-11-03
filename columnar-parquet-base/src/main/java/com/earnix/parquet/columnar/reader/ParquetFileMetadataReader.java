@@ -23,7 +23,8 @@ import java.util.List;
  */
 public class ParquetFileMetadataReader
 {
-	static final byte[] magicBytes = "PAR1".getBytes(StandardCharsets.US_ASCII);
+	// TODO: byte[] is mutable, and can't be public
+	public static final byte[] magicBytes = "PAR1".getBytes(StandardCharsets.US_ASCII);
 
 	/**
 	 * Print the parquet metadata for the specified path

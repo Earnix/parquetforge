@@ -1,12 +1,13 @@
 package com.earnix.parquet.columnar.writer.rowgroup;
 
 import java.io.IOException;
-import java.util.function.Function;
+import java.io.InputStream;
 
-import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages;
-import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkWriter;
+import org.apache.parquet.column.ColumnDescriptor;
+import org.apache.parquet.format.ColumnChunk;
 
 public interface RowGroupWriter
 {
-	void writeColumn(ChunkWriter writer) throws IOException;
+	void writeValues(ChunkValuesWritingFunction writer) throws IOException;
+	void writeCopyOfChunk(ColumnDescriptor columnDescriptor, ColumnChunk columnChunk, InputStream chunkInputStream);
 }

@@ -23,6 +23,11 @@ public class RowGroupForTesting
 		columnChunks.add(columnChunkForTesting);
 	}
 
+	public Set<ColumnChunkForTesting> getColumnChunks()
+	{
+		return columnChunks;
+	}
+
 	@Override
 	public boolean equals(Object obj)
 	{

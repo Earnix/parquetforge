@@ -121,8 +121,6 @@ public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer
 	@Override
 	public ColumnChunkPages writeColumn(String columnName, int[] vals)
 	{
-//		System.out.println("Write int columnName=" + columnName + ", vals=" + vals);
-
 		validateArrLen(vals);
 		return writeColumn(columnName, IntStream.of(vals).iterator());
 	}
@@ -143,8 +141,6 @@ public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer
 	@Override
 	public ColumnChunkPages writeColumn(String columnName, long[] vals)
 	{
-//		System.out.println("Write Col Str columnName=" + columnName + ", vals=" + vals);
-
 		validateArrLen(vals);
 		return writeColumn(columnName, LongStream.of(vals).iterator());
 	}
@@ -173,8 +169,6 @@ public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer
 	@Override
 	public ColumnChunkPages writeStringColumn(String columnName, Iterator<String> vals)
 	{
-//		System.out.println("Write Str col columnName=" + columnName + ", vals=" + vals);
-
 		return internalWriteColumn(columnName, NullableIterators.wrapStringIterator(vals),
 				(columnWriter, stringIterator, defLevel) -> columnWriter.write(Binary.fromString(stringIterator.getValue()), 0, defLevel));
 	}
@@ -182,10 +176,6 @@ public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer
 	@Override
 	public ColumnChunkPages writeColumn(String columnName, boolean[] vals)
 	{
-		System.out.println("Write Bool columnName=" + columnName);
-
-//		Arrays.asList(vals).forEach(val -> System.out.println("Write Bool val= "+ val));
-
 		return writeColumn(columnName, new Iterator<Boolean>()
 		{
 			private int i = 0;

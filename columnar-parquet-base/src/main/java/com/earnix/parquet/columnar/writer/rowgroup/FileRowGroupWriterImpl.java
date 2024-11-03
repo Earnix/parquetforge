@@ -1,6 +1,19 @@
 package com.earnix.parquet.columnar.writer.rowgroup;
 
+import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages;
+import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkWriter;
+import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkWriterImpl;
+import org.apache.commons.io.IOUtils;
+import org.apache.parquet.column.ColumnDescriptor;
+import org.apache.parquet.column.ParquetProperties;
+import org.apache.parquet.format.ColumnChunk;
+import org.apache.parquet.format.CompressionCodec;
+import org.apache.parquet.schema.MessageType;
+
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -8,17 +21,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Function;
 import java.util.stream.Collectors;
-
-import org.apache.parquet.column.ColumnDescriptor;
-import org.apache.parquet.column.ParquetProperties;
-import org.apache.parquet.format.CompressionCodec;
-import org.apache.parquet.schema.MessageType;
-
-import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages;
-import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkWriter;
-import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkWriterImpl;
 
 public class FileRowGroupWriterImpl implements RowGroupWriter
 {
@@ -28,44 +31,85 @@ public class FileRowGroupWriterImpl implements RowGroupWriter
 	private final long numRows;
 	private final long startingOffset;
 	private final AtomicLong currOffset;
-	private final List<ColumnChunkInfo> chunkInfo;
+	private final List<ColumnChunkInfo> chunkInfoList;
 	private volatile boolean closed = false;
 
 	public FileRowGroupWriterImpl(MessageType messageType, CompressionCodec compressionCodec,
-			ParquetProperties parquetProperties, long numRows, FileChannel output) throws IOException
+			ParquetProperties parquetProperties, long numRows, FileChannel output)
 	{
 		this.messageType = messageType;
 		this.output = output;
 		this.columnChunkWriter = new ColumnChunkWriterImpl(messageType, compressionCodec, parquetProperties, numRows);
 		this.numRows = numRows;
-		this.startingOffset = output.position();
+		try
+		{
+			this.startingOffset = output.position();
+		}
+		catch (IOException ex)
+		{
+			throw new UncheckedIOException(ex);
+		}
 		this.currOffset = new AtomicLong(startingOffset);
-		this.chunkInfo = Collections.synchronizedList(new ArrayList<>());
+		this.chunkInfoList = Collections.synchronizedList(new ArrayList<>());
 	}
 
 	@Override
-	public void writeColumn(ChunkWriter writer) throws IOException
+	public void writeValues(ChunkValuesWritingFunction writer)
 	{
-		ColumnChunkPages pages = writer.apply(columnChunkWriter);
-		long totalBytes = pages.totalBytesForStorage();
-		long startingOffset = this.currOffset.getAndAdd(totalBytes);
-		pages.writeToOutputStream(output, startingOffset);
-		chunkInfo.add(new ColumnChunkInfo(pages.getColumnDescriptor(), pages.getEncodingSet(), pages.getNumValues(),
-				startingOffset, totalBytes, pages.getUncompressedBytes()));
-		assertNotClosed();
+		try
+		{
+			ColumnChunkPages pages = writer.apply(columnChunkWriter);
+			long totalBytes = pages.totalBytesForStorage();
+			long startingOffset = this.currOffset.getAndAdd(totalBytes);
+			pages.writeToOutputStream(output, startingOffset);
+			validateNumRows(pages);
+			chunkInfoList.add(new ColumnChunkInfo(pages.getColumnDescriptor(), pages.getEncodingSet(), pages.getNumValues(),
+					startingOffset, totalBytes, pages.getUncompressedBytes()));
+			assertNotClosed();
+		}
+		catch (IOException ex)
+		{
+			throw new UncheckedIOException(ex);
+		}
 	}
 
-	private void assertNotClosed()
+	@Override
+	public void writeCopyOfChunk(ColumnDescriptor columnDescriptor, ColumnChunk columnChunk, InputStream chunkInputStream)
 	{
-		if (closed)
-			throw new IllegalStateException("Closed");
+		try
+		{
+			long chunkTotalBytes = columnChunk.getMeta_data().getTotal_compressed_size();
+			long startingOffset = this.currOffset.getAndAdd(chunkTotalBytes); // For thread safety, moving the position for the next tread to the end of this chunk and then writing the chink itself
+			// TODO: note that this is NOT parallelized .. need to fix this later for performance.
+			synchronized (this)
+			{
+				output.position(startingOffset);
+				IOUtils.copyLarge(chunkInputStream, Channels.newOutputStream(this.output), 0, chunkTotalBytes);
+			}
+			// TODO :The ColumnChunk and ChunkMetadata ideally should be copied completely, rather than only partially, as it can contain other things (statistics, etc.) We should only change the offsets in the file.
+			chunkInfoList.add(new ColumnChunkInfo(columnDescriptor, new HashSet<>(columnChunk.getMeta_data().getEncodings()),
+					columnChunk.getMeta_data().getNum_values(), startingOffset, chunkTotalBytes, columnChunk.getMeta_data().getTotal_uncompressed_size()));
+		}
+		catch (IOException ex)
+		{
+			throw new UncheckedIOException(ex);
+		}
+	}
+
+	private void validateNumRows(ColumnChunkPages pages)
+	{
+		if (pages.getNumValues() != numRows)
+		{
+			throw new IllegalStateException("The number of rows in the chunk is not the one that was declared for the row group" + pages.getColumnDescriptor().getPrimitiveType().getName());
+		}
 	}
 
 	public RowGroupInfo closeAndValidateAllColumnsWritten() throws IOException
 	{
 		assertNotClosed();
 		this.closed = true;
-		Set<ColumnDescriptor> descriptors = chunkInfo.stream().map(ColumnChunkInfo::getDescriptor)
+		Set<ColumnDescriptor> descriptors = chunkInfoList.stream()
+				.map(ColumnChunkInfo::getDescriptor)
 				.collect(Collectors.toSet());
 		if (!new HashSet<>(messageType.getColumns()).equals(descriptors))
 		{
@@ -74,6 +118,13 @@ public class FileRowGroupWriterImpl implements RowGroupWriter
 
 		this.output.position(this.currOffset.get());
 		long len = this.currOffset.get() - this.startingOffset;
-		return new RowGroupInfo(startingOffset, len, numRows, chunkInfo);
+		return new RowGroupInfo(startingOffset, len, numRows, chunkInfoList);
 	}
+
+	private void assertNotClosed()
+	{
+		if (closed)
+			throw new IllegalStateException("Closed");
+	}
+
 }
