@@ -1,20 +1,11 @@
 package com.earnix.parquet.columnar.reader;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
-import java.io.UnsupportedEncodingException;
-import java.nio.channels.Channels;
-import java.nio.channels.FileChannel;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-
 import com.earnix.parquet.columnar.reader.chunk.InMemRowGroup;
+import com.earnix.parquet.columnar.reader.chunk.internal.ChunkDecompressToPageStoreFactory;
+import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
+import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunkPageStore;
+import com.earnix.parquet.columnar.reader.processors.ParquetColumnarProcessors;
+import com.earnix.parquet.columnar.utils.ParquetEnumUtils;
 import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.commons.io.input.CountingInputStream;
 import org.apache.parquet.column.ColumnDescriptor;
@@ -29,11 +20,18 @@ import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
 
-import com.earnix.parquet.columnar.reader.chunk.internal.ChunkDecompressToPageStoreFactory;
-import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
-import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunkPageStore;
-import com.earnix.parquet.columnar.reader.processors.ParquetColumnarProcessors;
-import com.earnix.parquet.columnar.utils.ParquetEnumUtils;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.io.UnsupportedEncodingException;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Read a parquet file column by column rather than row by row, and support different row processors as are defined in
@@ -74,16 +72,10 @@ public class ParquetColumarFileReader
 	{
 		try (FileChannel fc = FileChannel.open(parquetFilePath))
 		{
-			for (RowGroup rowGroup : getMetaData().getRow_groups())
+			for (RowGroup rowGroup : readMetaData().getRow_groups())
 			{
-				Map<ColumnDescriptor, InMemChunk> inMemChunkMap = rowGroupProcessor == null ? null : new HashMap<>();
-
-				for (ColumnChunk columnChunk : rowGroup.getColumns())
-				{
-					processChunk(chunkProcessor, chunkBytesProcessor, columnChunk, inMemChunkMap, fc);
-				}
-
-				processRowGroup(rowGroupProcessor, rowGroup, inMemChunkMap);
+				Optional<List<InMemChunk>> optionalInMemChunksForRowGroupProcessing = processChunksOfRowGroup(chunkProcessor, chunkBytesProcessor, rowGroup, fc);
+				processRowGroup(rowGroupProcessor, rowGroup, optionalInMemChunksForRowGroupProcessing);
 			}
 		}
 		catch (IOException ex)
@@ -92,13 +84,21 @@ public class ParquetColumarFileReader
 		}
 	}
 
-	public FileMetaData getMetaData() throws IOException
+	private Optional<List<InMemChunk>> processChunksOfRowGroup(ParquetColumnarProcessors.ChunkProcessor chunkProcessor, ParquetColumnarProcessors.ProcessRawChunkBytes chunkBytesProcessor,
+			RowGroup rowGroup, FileChannel fc)
 	{
-		readMetadata();
-		return metaData;
+		boolean chunksNeededForRowGroupProcessing = chunksNeededForRowGroupProcessing(chunkProcessor, chunkBytesProcessor);
+
+		List<InMemChunk> chunks = rowGroup.getColumns().stream()
+				.map(columnChunk -> processChunkWithUncheckedException(chunkProcessor, chunkBytesProcessor, columnChunk, fc))
+				.filter(inMemChunk -> chunksNeededForRowGroupProcessing && inMemChunk.isPresent())
+				.map(Optional::get)
+				.collect(Collectors.toList());
+
+		return chunksNeededForRowGroupProcessing ? Optional.of(chunks) : Optional.empty();
 	}
 
-	private void readMetadata() throws IOException
+	public FileMetaData readMetaData() throws IOException
 	{
 		if (metaData == null)
 		{
@@ -113,6 +113,7 @@ public class ParquetColumarFileReader
 				}
 			}
 		}
+		return metaData;
 	}
 
 	private static InputStream getInputStream(FileChannel fc, ColumnChunk columnChunk) throws IOException
@@ -123,7 +124,7 @@ public class ParquetColumarFileReader
 		return new BoundedInputStream(Channels.newInputStream(fc), columnMetaData.getTotal_compressed_size());
 	}
 
-	private static ColumnMetaData getValidMetaData(ColumnChunk columnChunk) throws UnsupportedEncodingException
+	private static ColumnMetaData getAndValidateMetaData(ColumnChunk columnChunk) throws UnsupportedEncodingException
 	{
 		ColumnMetaData columnMetaData = columnChunk.getMeta_data();
 
@@ -133,57 +134,78 @@ public class ParquetColumarFileReader
 		return columnMetaData;
 	}
 
-	private static void processRowGroup(ParquetColumnarProcessors.RowGroupProcessor rowGroupProcessor, RowGroup rowGroup, Map<ColumnDescriptor, InMemChunk> inMemChunkMap)
+	private static void processRowGroup(ParquetColumnarProcessors.RowGroupProcessor rowGroupProcessor, RowGroup rowGroup, Optional<List<InMemChunk>> optionalInMemChunksForRowGroupProcessing)
 	{
 		if (rowGroupProcessor != null)
 		{
-			rowGroupProcessor.processRowGroup(new InMemRowGroup(Objects.requireNonNull(inMemChunkMap), rowGroup.getNum_rows()));
+			if (!optionalInMemChunksForRowGroupProcessing.isPresent())
+			{
+				throw new IllegalStateException("Chunk values list is empty in processing Row Group case");
+			}
+
+			rowGroupProcessor.processRowGroup(new InMemRowGroup(optionalInMemChunksForRowGroupProcessing.get(), rowGroup.getNum_rows()));
 		}
 	}
 
-	private void processChunk(ParquetColumnarProcessors.ChunkProcessor chunkProcessor,
+	private Optional<InMemChunk> processChunkWithUncheckedException(ParquetColumnarProcessors.ChunkProcessor chunkProcessor,
 			ParquetColumnarProcessors.ProcessRawChunkBytes chunkBytesProcessor,
-			ColumnChunk columnChunk, Map<ColumnDescriptor, InMemChunk> inMemChunkMap, FileChannel fc) throws IOException
+			ColumnChunk columnChunk, FileChannel fc)
 	{
-		ColumnMetaData columnMetaData = getValidMetaData(columnChunk);
+		try
+		{
+			return processChunk(chunkProcessor, chunkBytesProcessor, columnChunk, fc);
+		}
+		catch (IOException e)
+		{
+			throw new UncheckedIOException(e);
+		}
+	}
 
-		ColumnDescriptor descriptor = getDescriptor(columnMetaData);
+	private Optional<InMemChunk> processChunk(ParquetColumnarProcessors.ChunkProcessor chunkProcessor,
+			ParquetColumnarProcessors.ProcessRawChunkBytes chunkBytesProcessor,
+			ColumnChunk columnChunk, FileChannel fc) throws IOException
+	{
+		ColumnMetaData columnMetaData = getAndValidateMetaData(columnChunk);
+
+		ColumnDescriptor descriptor = buildDescriptor(buildMessageType(), columnMetaData);
 		InputStream is = getInputStream(fc, columnChunk);
 		long chunkLen = columnMetaData.getTotal_compressed_size();
 		CompressionCodec compressionCodec = columnMetaData.getCodec();
 
-		processChunkValues(chunkProcessor, inMemChunkMap, descriptor, is, chunkLen, compressionCodec);
 		processChunkBytes(chunkBytesProcessor, columnChunk, descriptor, is);
+		processChunkValues(chunkProcessor, descriptor, is, chunkLen, compressionCodec);
+
+		if (chunksNeededForRowGroupProcessing(chunkProcessor, chunkBytesProcessor))
+		{
+			return Optional.of(readInMemChunk(descriptor, is, chunkLen, compressionCodec));
+		}
+
+		return Optional.empty();
 	}
 
 	private void processChunkValues(ParquetColumnarProcessors.ChunkProcessor chunkProcessor,
-			Map<ColumnDescriptor, InMemChunk> inMemChunkMap,
 			ColumnDescriptor colDescriptor, InputStream is, long chunkLen, CompressionCodec compressionCodec)
 			throws IOException
 	{
-		if (chunkProcessor != null || inMemChunkMap != null)
+		if (chunkProcessor != null)
 		{
-			InMemChunkPageStore inMemChunkPageStore = ChunkDecompressToPageStoreFactory.buildColumnChunkPageStore(colDescriptor, new CountingInputStream(is), chunkLen, compressionCodec);
-
-			InMemChunk inMemChunk = new InMemChunk(inMemChunkPageStore);
-			if (chunkProcessor != null)
-			{
-				chunkProcessor.processChunk(inMemChunk);
-			}
-
-			if (inMemChunkMap != null)
-			{
-				inMemChunkMap.put(colDescriptor, inMemChunk);
-			}
+			chunkProcessor.processChunk(readInMemChunk( colDescriptor, is, chunkLen, compressionCodec));
 		}
 	}
 
-	private ColumnDescriptor getDescriptor(ColumnMetaData columnMetaData) throws IOException
+	private InMemChunk readInMemChunk(ColumnDescriptor colDescriptor, InputStream is, long chunkLen, CompressionCodec compressionCodec) throws IOException
 	{
-		return getMessageType().getColumnDescription(columnMetaData.getPath_in_schema().toArray(new String[0]));
+		InMemChunkPageStore inMemChunkPageStore = ChunkDecompressToPageStoreFactory.buildColumnChunkPageStore(colDescriptor, new CountingInputStream(is), chunkLen, compressionCodec);
+		return new InMemChunk(inMemChunkPageStore);
 	}
 
-	private MessageType getMessageType() throws IOException
+
+	private ColumnDescriptor buildDescriptor(MessageType messageType, ColumnMetaData columnMetaData)
+	{
+		return messageType.getColumnDescription(columnMetaData.getPath_in_schema().toArray(new String[0]));
+	}
+
+	private MessageType buildMessageType() throws IOException
 	{
 		if (messageType == null)
 		{
@@ -191,7 +213,7 @@ public class ParquetColumarFileReader
 			{
 				if (messageType == null)
 				{
-					messageType = buildMessageType(getMetaData());
+					messageType = buildMessageType(readMetaData());
 				}
 			}
 		}
@@ -234,6 +256,11 @@ public class ParquetColumarFileReader
 			primitiveTypeList.add(primitiveType);
 		}
 		return new MessageType(root.getName(), primitiveTypeList);
+	}
+
+	private static boolean chunksNeededForRowGroupProcessing(ParquetColumnarProcessors.ChunkProcessor chunkProcessor, ParquetColumnarProcessors.ProcessRawChunkBytes chunkBytesProcessor)
+	{
+		return chunkProcessor == null && chunkBytesProcessor == null;
 	}
 
 }

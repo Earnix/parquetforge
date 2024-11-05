@@ -25,7 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
@@ -94,7 +94,7 @@ public class ParquetFileWriterTest
 	{
 		assertEquals(actualChunks.size(), expectedChunks.size());
 		actualChunks.forEach((actualChunk, actualChunkValuesNumber) ->
-			assertActualExistsInExpectedChunks(actualChunk, actualChunkValuesNumber, expectedChunks)
+				assertActualExistsInExpectedChunks(actualChunk, actualChunkValuesNumber, expectedChunks)
 		);
 	}
 
@@ -102,7 +102,7 @@ public class ParquetFileWriterTest
 	{
 		if (expectedChunks.stream()
 				.noneMatch(expectedChunk -> actualChunk.equals(expectedChunk) && actualChunkValuesNumber == expectedChunk.getValuesNumber()))
-				fail("No match for actualChunk " + actualChunk + " or for values number");
+			fail("No match for actualChunk " + actualChunk + " or for values number");
 	}
 
 	private static List<ColumnChunkForTesting> getChunks(List<RowGroupForTesting> expectedRowGroups)
@@ -143,7 +143,7 @@ public class ParquetFileWriterTest
 	{
 		AtomicReference<ColumnChunkForTesting> columnChunkForTesting = new AtomicReference<>();
 		processPath("testCopyOfChunksOutputFile", ".parquet", outputPath ->
-			columnChunkForTesting.set(writeChunkByBytesAndReadItByValues(descriptor, chunkInput, columnChunk, outputPath))
+				columnChunkForTesting.set(writeChunkByBytesAndReadItByValues(descriptor, chunkInput, columnChunk, outputPath))
 		);
 		return columnChunkForTesting.get();
 	}
@@ -178,18 +178,18 @@ public class ParquetFileWriterTest
 	private static RowGroupForTesting processByRowGroup(InMemRowGroup rowGroup)
 	{
 		RowGroupForTesting rowGroupForTesting = new RowGroupForTesting(rowGroup.getNumRows());
-		BiConsumer<ColumnDescriptor, InMemChunk> chunkProcessor = (columnDescriptor, chunk) -> rowGroupForTesting.addChunk(processChunk(columnDescriptor, chunk));
+		Consumer<InMemChunk> chunkProcessor = chunk -> rowGroupForTesting.addChunk(processChunk(chunk));
 		rowGroup.forEachColumnChunk(chunkProcessor);
 		return rowGroupForTesting;
 	}
 
-	private static ColumnChunkForTesting processChunk(ColumnDescriptor columnDescriptor, InMemChunk chunk)
+	private static ColumnChunkForTesting processChunk(InMemChunk chunk)
 	{
 		ColumnReaderImpl colReader = new HackyParquetExtendedColumnReader(chunk);
-
+		ColumnDescriptor descriptor = chunk.getDescriptor();
 		return new ColumnChunkForTesting(
-				columnDescriptor.getPrimitiveType().getName(),
-				getChunkValues(columnDescriptor, chunk, colReader));
+				descriptor.getPrimitiveType().getName(),
+				getChunkValues(descriptor, chunk, colReader));
 	}
 
 	private static List<Object> getChunkValues(ColumnDescriptor columnDescriptor, InMemChunk chunk, ColumnReaderImpl colReader)
