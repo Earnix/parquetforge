@@ -164,7 +164,7 @@ public class ParquetFileWriterTest
 	private static void writeChunkToOutputParquetFile(Path outputPath, ColumnDescriptor descriptor, InputStream chunkInput, ColumnChunk columnChunk){
 		try (ParquetColumnarWriter parquetColumnarWriter = new ParquetFileColumnarWriterImpl(outputPath, Arrays.asList(descriptor.getPrimitiveType())))
 		{
-			parquetColumnarWriter.processRowGroup(columnChunk.getMeta_data().getNum_values(), (rowGroupWriter) ->
+			parquetColumnarWriter.processRowGroup(columnChunk.getMeta_data().getNum_values(), rowGroupWriter ->
 					rowGroupWriter.writeCopyOfChunk(descriptor, columnChunk, chunkInput)
 			);
 			parquetColumnarWriter.finishAndWriteFooterMetadata();
