@@ -63,8 +63,7 @@ public class FileRowGroupWriterImpl implements RowGroupWriter
 			long startingOffset = this.currOffset.getAndAdd(totalBytes);
 			pages.writeToOutputStream(output, startingOffset);
 			validateNumRows(pages);
-			chunkInfoList.add(new ColumnChunkInfo(pages.getColumnDescriptor(), pages.getEncodingSet(), pages.getNumValues(),
-					startingOffset, totalBytes, pages.getUncompressedBytes()));
+			chunkInfoList.add(new PartialColumnChunkInfo(pages, startingOffset));
 			assertNotClosed();
 		}
 		catch (IOException ex)
@@ -87,8 +86,7 @@ public class FileRowGroupWriterImpl implements RowGroupWriter
 				IOUtils.copyLarge(chunkInputStream, Channels.newOutputStream(this.output), 0, chunkTotalBytes);
 			}
 			// TODO :The ColumnChunk and ChunkMetadata ideally should be copied completely, rather than only partially, as it can contain other things (statistics, etc.) We should only change the offsets in the file.
-			chunkInfoList.add(new ColumnChunkInfo(columnDescriptor, new HashSet<>(columnChunk.getMeta_data().getEncodings()),
-					columnChunk.getMeta_data().getNum_values(), startingOffset, chunkTotalBytes, columnChunk.getMeta_data().getTotal_uncompressed_size()));
+			chunkInfoList.add(new FullColumnChunkInfo(columnDescriptor, columnChunk, startingOffset));
 		}
 		catch (IOException ex)
 		{
