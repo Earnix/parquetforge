@@ -9,7 +9,6 @@ import org.apache.commons.io.output.CountingOutputStream;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.format.ColumnChunk;
-import org.apache.parquet.format.ColumnMetaData;
 import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.format.FileMetaData;
 import org.apache.parquet.format.RowGroup;
@@ -30,7 +29,6 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
@@ -143,25 +141,7 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 			List<ColumnChunk> chunks = new ArrayList<>(rowGroupInfo.getCols().size());
 			for (ColumnChunkInfo chunkInfo : rowGroupInfo.getCols())
 			{
-				ColumnChunk columnChunk = new ColumnChunk();
-				columnChunk.setFile_offset(0);
-
-				ColumnMetaData columnMetaData = new ColumnMetaData();
-				columnMetaData.setData_page_offset(chunkInfo.getStartPos());
-				columnMetaData.setTotal_compressed_size(chunkInfo.getCompressedLen());
-				columnMetaData.setTotal_uncompressed_size(chunkInfo.getUncompressedLen());
-
-				columnMetaData.setNum_values(chunkInfo.getNumValues());
-
-				columnMetaData.setPath_in_schema(Arrays.asList(chunkInfo.getDescriptor().getPath()));
-				columnMetaData.setType(
-						ParquetEnumUtils.convert(chunkInfo.getDescriptor().getPrimitiveType().getPrimitiveTypeName()));
-
-				// the set of all encodings
-				columnMetaData.setEncodings(new ArrayList<>(chunkInfo.getUsedEncodings()));
-
-				columnMetaData.setCodec(compressionCodec);
-				columnChunk.setMeta_data(columnMetaData);
+				ColumnChunk columnChunk = chunkInfo.buildChunkFromInfo();
 				chunks.add(columnChunk);
 			}
 			rowGroup.setColumns(chunks);

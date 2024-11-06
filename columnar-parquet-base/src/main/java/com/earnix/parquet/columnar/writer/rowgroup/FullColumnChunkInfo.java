@@ -2,42 +2,33 @@ package com.earnix.parquet.columnar.writer.rowgroup;
 
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.ColumnChunk;
-import org.apache.parquet.format.Encoding;
 
-import java.util.HashSet;
-import java.util.Set;
-
-public class FullColumnChunkInfo extends ColumnChunkInfo
+public class FullColumnChunkInfo implements ColumnChunkInfo
 {
+	private final ColumnDescriptor descriptor;
 	private final ColumnChunk columnChunk;
+	private final long startPos;
+
 
 	public FullColumnChunkInfo(ColumnDescriptor descriptor, ColumnChunk columnChunk, long startPos)
 	{
-		super(descriptor, startPos);
+		this.descriptor = descriptor;
 		this.columnChunk = columnChunk;
+		this.startPos = startPos;
 	}
 
 	@Override
-	public Set<Encoding> getUsedEncodings()
+	public ColumnDescriptor getDescriptor()
 	{
-		return new HashSet<>(columnChunk.getMeta_data().getEncodings());
+		return descriptor;
 	}
 
 	@Override
-	public long getNumValues()
+	public ColumnChunk buildChunkFromInfo()
 	{
-		return columnChunk.getMeta_data().getNum_values();
+		ColumnChunk columnChunkCopy = columnChunk.deepCopy();
+		columnChunkCopy.getMeta_data().setData_page_offset(startPos);
+		return columnChunkCopy;
 	}
 
-	@Override
-	public long getUncompressedLen()
-	{
-		return columnChunk.getMeta_data().getTotal_uncompressed_size();
-	}
-
-	@Override
-	public long getCompressedLen()
-	{
-		return columnChunk.getMeta_data().getTotal_compressed_size();
-	}
 }
