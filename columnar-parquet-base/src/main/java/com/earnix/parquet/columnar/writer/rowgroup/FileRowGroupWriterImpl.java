@@ -26,8 +26,9 @@ import java.util.stream.Collectors;
 public class FileRowGroupWriterImpl implements RowGroupWriter
 {
 	private final MessageType messageType;
-	private final ColumnChunkWriter columnChunkWriter;
 	private final FileChannel output;
+	private final CompressionCodec compressionCodec;
+	private final ColumnChunkWriter columnChunkWriter;
 	private final long numRows;
 	private final long startingOffset;
 	private final AtomicLong currOffset;
@@ -39,6 +40,7 @@ public class FileRowGroupWriterImpl implements RowGroupWriter
 	{
 		this.messageType = messageType;
 		this.output = output;
+		this.compressionCodec = compressionCodec;
 		this.columnChunkWriter = new ColumnChunkWriterImpl(messageType, compressionCodec, parquetProperties, numRows);
 		this.numRows = numRows;
 		try
@@ -63,7 +65,7 @@ public class FileRowGroupWriterImpl implements RowGroupWriter
 			long startingOffset = this.currOffset.getAndAdd(totalBytes);
 			pages.writeToOutputStream(output, startingOffset);
 			validateNumRows(pages);
-			chunkInfoList.add(new PartialColumnChunkInfo(pages, startingOffset));
+			chunkInfoList.add(new PartialColumnChunkInfo(pages, startingOffset, compressionCodec));
 			assertNotClosed();
 		}
 		catch (IOException ex)

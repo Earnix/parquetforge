@@ -150,7 +150,7 @@ public class ParquetFileWriterTest
 
 	private static ColumnChunkForTesting writeChunkByBytesAndReadItByValues(ColumnDescriptor descriptor, InputStream chunkInput, ColumnChunk columnChunk, Path outputPath)
 	{
-		writeChunkToOutputParquetFile(outputPath, descriptor, chunkInput, columnChunk);
+		writeChunkAsOnlyOneInOutputParquetFile(outputPath, descriptor, chunkInput, columnChunk);
 		List<ColumnChunkForTesting> chunks = readAllChunksFromOutput(outputPath);
 		assertEquals("One chunk was written, so one should have been read as well", 1, chunks.size());
 		return chunks.get(0);
@@ -161,7 +161,7 @@ public class ParquetFileWriterTest
 		return getChunks(readingAndProcessByRowGroup(outputPath));
 	}
 
-	private static void writeChunkToOutputParquetFile(Path outputPath, ColumnDescriptor descriptor, InputStream chunkInput, ColumnChunk columnChunk){
+	private static void writeChunkAsOnlyOneInOutputParquetFile(Path outputPath, ColumnDescriptor descriptor, InputStream chunkInput, ColumnChunk columnChunk){
 		try (ParquetColumnarWriter parquetColumnarWriter = new ParquetFileColumnarWriterImpl(outputPath, Arrays.asList(descriptor.getPrimitiveType())))
 		{
 			parquetColumnarWriter.processRowGroup(columnChunk.getMeta_data().getNum_values(), rowGroupWriter ->

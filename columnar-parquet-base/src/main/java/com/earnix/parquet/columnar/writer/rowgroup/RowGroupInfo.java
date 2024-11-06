@@ -28,7 +28,9 @@ public class RowGroupInfo
 	}
 	public long getUncompressedSize()
 	{
-		return cols.stream().mapToLong(ColumnChunkInfo::getUncompressedLen).sum();
+		return cols.stream()
+				.mapToLong(RowGroupInfo::getTotalUncompressedSize)
+				.sum();
 	}
 
 	public long getNumRows()
@@ -40,4 +42,10 @@ public class RowGroupInfo
 	{
 		return cols;
 	}
+
+	private static long getTotalUncompressedSize(ColumnChunkInfo chunkInfo)
+	{
+		return chunkInfo.buildChunkFromInfo().getMeta_data().getTotal_uncompressed_size();
+	}
+
 }
