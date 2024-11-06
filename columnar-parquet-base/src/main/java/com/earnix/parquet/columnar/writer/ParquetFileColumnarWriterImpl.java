@@ -34,6 +34,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static com.earnix.parquet.columnar.reader.ParquetFileMetadataReader.magicBytes;
 import static org.apache.parquet.schema.Type.Repetition.OPTIONAL;
@@ -122,6 +123,21 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 		if (rowGroupInfos.isEmpty())
 			throw new IllegalStateException("No groups written");
 
+		CountingOutputStream os = new CountingOutputStream(Channels.newOutputStream(fileChannel));
+		Util.writeFileMetaData(getFileMetaData(), os);
+		int byteCount = Math.toIntExact(os.getByteCount());
+		writeLittleEndianInt(os, byteCount);
+		writeMagicBytes();
+	}
+
+	@Override
+	public void close() throws IOException
+	{
+		fileChannel.close();
+	}
+
+	private FileMetaData getFileMetaData()
+	{
 		FileMetaData fileMetaData = new FileMetaData();
 
 		List<SchemaElement> schemaElementList = getSchemaElements();
@@ -132,30 +148,32 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 		// TODO: what version are we actually??
 		fileMetaData.setVersion(1);
 
-		List<RowGroup> rowGroups = new ArrayList<>(rowGroupInfos.size());
-		for (RowGroupInfo rowGroupInfo : rowGroupInfos)
-		{
-			RowGroup rowGroup = new RowGroup();
-			rowGroup.setNum_rows(rowGroupInfo.getNumRows());
+		fileMetaData.setRow_groups(getRowGroupList());
+		return fileMetaData;
+	}
 
-			List<ColumnChunk> chunks = new ArrayList<>(rowGroupInfo.getCols().size());
-			for (ColumnChunkInfo chunkInfo : rowGroupInfo.getCols())
-			{
-				ColumnChunk columnChunk = chunkInfo.buildChunkFromInfo();
-				chunks.add(columnChunk);
-			}
-			rowGroup.setColumns(chunks);
-			rowGroup.setTotal_compressed_size(rowGroupInfo.getCompressedSize());
-			rowGroup.setTotal_byte_size(rowGroupInfo.getUncompressedSize());
-			rowGroups.add(rowGroup);
-		}
-		fileMetaData.setRow_groups(rowGroups);
+	private List<RowGroup> getRowGroupList()
+	{
+		return rowGroupInfos.stream()
+				.map(ParquetFileColumnarWriterImpl::getRowGroup)
+				.collect(Collectors.toList());
+	}
 
-		CountingOutputStream os = new CountingOutputStream(Channels.newOutputStream(fileChannel));
-		Util.writeFileMetaData(fileMetaData, os);
-		int byteCount = Math.toIntExact(os.getByteCount());
-		writeLittleEndianInt(os, byteCount);
-		writeMagicBytes();
+	private static RowGroup getRowGroup(RowGroupInfo rowGroupInfo)
+	{
+		RowGroup rowGroup = new RowGroup();
+		rowGroup.setNum_rows(rowGroupInfo.getNumRows());
+		rowGroup.setColumns(getChunks(rowGroupInfo));
+		rowGroup.setTotal_compressed_size(rowGroupInfo.getCompressedSize());
+		rowGroup.setTotal_byte_size(rowGroupInfo.getUncompressedSize());
+		return rowGroup;
+	}
+
+	private static List<ColumnChunk> getChunks(RowGroupInfo rowGroupInfo)
+	{
+		return rowGroupInfo.getCols().stream()
+				.map(ColumnChunkInfo::buildChunkFromInfo)
+				.collect(Collectors.toList());
 	}
 
 	private void writeMagicBytes()
@@ -201,9 +219,4 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 		return schemaElementList;
 	}
 
-	@Override
-	public void close() throws IOException
-	{
-		fileChannel.close();
-	}
 }
