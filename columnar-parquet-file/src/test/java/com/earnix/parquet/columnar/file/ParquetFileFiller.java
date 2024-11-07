@@ -103,9 +103,6 @@ public class ParquetFileFiller
 	private static RowGroupForTesting writeRowGroupFromBuilders(int rowsNumber, List<Function<RowGroupWriter, ColumnChunkForTesting>> chunkBuilders, ParquetColumnarWriter parquetColumnarWriter)
 	{
 		RowGroupForTesting expectedRowGroup = new RowGroupForTesting(rowsNumber);
-		//		RowGroupWriter groupWriter = parquetColumnarWriter.startNewRowGroup(rowsNumber);
-		//		chunkBuilders.forEach(builder -> expectedRowGroup.addChunk(builder.apply(groupWriter)));
-		//		parquetColumnarWriter.finishRowGroup();
 		parquetColumnarWriter.processRowGroup(rowsNumber, groupWriter ->
 				chunkBuilders.forEach(builder -> expectedRowGroup.addChunk(builder.apply(groupWriter))));
 		return expectedRowGroup;
