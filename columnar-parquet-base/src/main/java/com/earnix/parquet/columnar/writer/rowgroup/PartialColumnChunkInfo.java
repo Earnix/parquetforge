@@ -10,18 +10,16 @@ import org.apache.parquet.format.CompressionCodec;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-public class PartialColumnChunkInfo implements ColumnChunkInfo
+public class PartialColumnChunkInfo extends ColumnChunkInfo
 {
 	private final ColumnChunkPages pages;
 	private final CompressionCodec compressionCodec;
-	private final long startPos;
-
 
 	public PartialColumnChunkInfo(ColumnChunkPages pages, long startPos, CompressionCodec compressionCodec)
 	{
+		super(startPos);
 		this.pages = pages;
 		this.compressionCodec = compressionCodec;
-		this.startPos = startPos;
 	}
 
 	@Override
@@ -43,14 +41,13 @@ public class PartialColumnChunkInfo implements ColumnChunkInfo
 	{
 		ColumnMetaData columnMetaData = new ColumnMetaData();
 
-		columnMetaData.setData_page_offset(startPos);
+		columnMetaData.setData_page_offset(getStartingOffset());
 		columnMetaData.setTotal_compressed_size(pages.totalBytesForStorage());
 		columnMetaData.setTotal_uncompressed_size(pages.getUncompressedBytes());
 		columnMetaData.setNum_values(pages.getNumValues());
 
 		columnMetaData.setPath_in_schema(Arrays.asList(getDescriptor().getPath()));
-		columnMetaData.setType(
-				ParquetEnumUtils.convert(getDescriptor().getPrimitiveType().getPrimitiveTypeName()));
+		columnMetaData.setType(ParquetEnumUtils.convert(getDescriptor().getPrimitiveType().getPrimitiveTypeName()));
 
 		// the set of all encodings
 		columnMetaData.setEncodings(new ArrayList<>(pages.getEncodingSet()));
@@ -59,4 +56,9 @@ public class PartialColumnChunkInfo implements ColumnChunkInfo
 		return columnMetaData;
 	}
 
+	@Override
+	public long getCompressedSize()
+	{
+		return pages.totalBytesForStorage();
+	}
 }

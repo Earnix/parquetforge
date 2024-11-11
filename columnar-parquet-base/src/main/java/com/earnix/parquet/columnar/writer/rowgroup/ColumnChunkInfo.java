@@ -3,9 +3,23 @@ package com.earnix.parquet.columnar.writer.rowgroup;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.ColumnChunk;
 
-public interface ColumnChunkInfo
+public abstract class ColumnChunkInfo
 {
-	ColumnChunk buildChunkFromInfo();
-	ColumnDescriptor getDescriptor();
+	private final long startingOffset;
 
+	protected ColumnChunkInfo(long startingOffset)
+	{
+		this.startingOffset = startingOffset;
+	}
+
+	public abstract ColumnChunk buildChunkFromInfo();
+
+	public abstract ColumnDescriptor getDescriptor();
+
+	public long getStartingOffset()
+	{
+		return startingOffset;
+	}
+
+	public abstract long getCompressedSize();
 }

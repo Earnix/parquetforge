@@ -1,5 +1,6 @@
 package com.earnix.parquet.columnar.writer.rowgroup;
 
+import com.earnix.parquet.columnar.writer.columnchunk.ChunkWritingUtils;
 import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages;
 import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkWriter;
 import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkWriterImpl;
@@ -13,6 +14,7 @@ import org.apache.parquet.schema.MessageType;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
@@ -56,38 +58,34 @@ public class FileRowGroupWriterImpl implements RowGroupWriter
 	}
 
 	@Override
-	public void writeValues(ChunkValuesWritingFunction writer)
+	public void writeValues(ChunkValuesWritingFunction writer) throws IOException
 	{
-		try
-		{
-			ColumnChunkPages pages = writer.apply(columnChunkWriter);
-			long totalBytes = pages.totalBytesForStorage();
-			long startingOffset = this.currOffset.getAndAdd(totalBytes);
-			pages.writeToOutputStream(output, startingOffset);
-			validateNumRows(pages);
-			chunkInfoList.add(new PartialColumnChunkInfo(pages, startingOffset, compressionCodec));
-			assertNotClosed();
-		}
-		catch (IOException ex)
-		{
-			throw new UncheckedIOException(ex);
-		}
+		ColumnChunkPages pages = writer.apply(columnChunkWriter);
+		long totalBytes = pages.totalBytesForStorage();
+		long startingOffset = this.currOffset.getAndAdd(totalBytes);
+		pages.writeToOutputStream(output, startingOffset);
+		validateNumRows(pages);
+		chunkInfoList.add(new PartialColumnChunkInfo(pages, computeStartingOffset(startingOffset), compressionCodec));
+		assertNotClosed();
+	}
+
+	protected long computeStartingOffset(long startingOffset)
+	{
+		return startingOffset;
 	}
 
 	@Override
-	public void writeCopyOfChunk(ColumnDescriptor columnDescriptor, ColumnChunk columnChunk, InputStream chunkInputStream)
+	public void writeCopyOfChunk(ColumnDescriptor columnDescriptor, ColumnChunk columnChunk,
+			InputStream chunkInputStream)
 	{
 		try
 		{
 			long chunkTotalBytes = columnChunk.getMeta_data().getTotal_compressed_size();
-			long startingOffset = this.currOffset.getAndAdd(chunkTotalBytes); // For thread safety, moving the position for the next tread to the end of this chunk and then writing the chink itself
-			// TODO: note that this is NOT parallelized .. need to fix this later for performance.
-			synchronized (this)
-			{
-				output.position(startingOffset);
-				IOUtils.copyLarge(chunkInputStream, Channels.newOutputStream(this.output), 0, chunkTotalBytes);
-			}
-			// TODO :The ColumnChunk and ChunkMetadata ideally should be copied completely, rather than only partially, as it can contain other things (statistics, etc.) We should only change the offsets in the file.
+			// For thread safety, moving the position for the next thread to the end of
+			// this chunk and then writing the chunk itself
+			long startingOffset = this.currOffset.getAndAdd(chunkTotalBytes);
+
+			writeToChannel(chunkInputStream, startingOffset, chunkTotalBytes);
 			chunkInfoList.add(new FullColumnChunkInfo(columnDescriptor, columnChunk, startingOffset));
 		}
 		catch (IOException ex)
@@ -96,11 +94,30 @@ public class FileRowGroupWriterImpl implements RowGroupWriter
 		}
 	}
 
+	private void writeToChannel(InputStream chunkInputStream, long startingOffset, long chunkTotalBytes)
+			throws IOException
+	{
+		byte[] buf = new byte[8192];
+		ByteBuffer byteBuffer = ByteBuffer.wrap(buf);
+
+		for (long idx = 0; idx < chunkTotalBytes; idx += buf.length)
+		{
+			byteBuffer.clear();
+			int len = Math.toIntExact(Math.min(buf.length, chunkTotalBytes - idx));
+			IOUtils.readFully(chunkInputStream, buf, 0, len);
+			byteBuffer.limit(len);
+
+			ChunkWritingUtils.writeByteBufferToChannelFully(this.output, byteBuffer, startingOffset + idx);
+		}
+	}
+
 	private void validateNumRows(ColumnChunkPages pages)
 	{
 		if (pages.getNumValues() != numRows)
 		{
-			throw new IllegalStateException("The number of rows in the chunk is not the one that was declared for the row group" + pages.getColumnDescriptor().getPrimitiveType().getName());
+			throw new IllegalStateException(
+					"The number of rows in the chunk is not the one that was declared for the row group"
+							+ pages.getColumnDescriptor().getPrimitiveType().getName());
 		}
 	}
 
@@ -108,8 +125,7 @@ public class FileRowGroupWriterImpl implements RowGroupWriter
 	{
 		assertNotClosed();
 		this.closed = true;
-		Set<ColumnDescriptor> descriptors = chunkInfoList.stream()
-				.map(ColumnChunkInfo::getDescriptor)
+		Set<ColumnDescriptor> descriptors = chunkInfoList.stream().map(ColumnChunkInfo::getDescriptor)
 				.collect(Collectors.toSet());
 		if (!new HashSet<>(messageType.getColumns()).equals(descriptors))
 		{
@@ -118,7 +134,7 @@ public class FileRowGroupWriterImpl implements RowGroupWriter
 
 		this.output.position(this.currOffset.get());
 		long len = this.currOffset.get() - this.startingOffset;
-		return new RowGroupInfo(startingOffset, len, numRows, chunkInfoList);
+		return new RowGroupInfo(computeStartingOffset(startingOffset), len, numRows, chunkInfoList);
 	}
 
 	private void assertNotClosed()

@@ -60,6 +60,7 @@ public class ParquetFileFiller
 	);
 
 	private static RowGroupForTesting writeRowGroupWith2Rows(ParquetColumnarWriter parquetColumnarWriter)
+			throws IOException
 	{
 		List<Function<RowGroupWriter, ColumnChunkForTesting>> chunkBuilders = Arrays.asList(
 				writer -> writeDoubleColumn(writer, COL_1_DOUBLE, new double[]{ 1, 1 }),
@@ -73,6 +74,7 @@ public class ParquetFileFiller
 	}
 
 	private static RowGroupForTesting writeRowGroupWith1Row(ParquetColumnarWriter parquetColumnarWriter)
+			throws IOException
 	{
 		List<Function<RowGroupWriter, ColumnChunkForTesting>> chunkBuilders = Arrays.asList(
 				writer -> writeDoubleColumn(writer, COL_1_DOUBLE, new double[] { 30 }),
@@ -86,6 +88,7 @@ public class ParquetFileFiller
 	}
 
 	private static RowGroupForTesting writeRowGroupWithLotOfRows(ParquetColumnarWriter parquetColumnarWriter)
+			throws IOException
 	{
 		int LOTS_OF_ROWS = 10_000;
 
@@ -100,10 +103,12 @@ public class ParquetFileFiller
 		return writeRowGroupFromBuilders(LOTS_OF_ROWS, chunkBuilders, parquetColumnarWriter);
 	}
 
-	private static RowGroupForTesting writeRowGroupFromBuilders(int rowsNumber, List<Function<RowGroupWriter, ColumnChunkForTesting>> chunkBuilders, ParquetColumnarWriter parquetColumnarWriter)
+	private static RowGroupForTesting writeRowGroupFromBuilders(int rowsNumber,
+			List<Function<RowGroupWriter, ColumnChunkForTesting>> chunkBuilders,
+			ParquetColumnarWriter parquetColumnarWriter) throws IOException
 	{
 		RowGroupForTesting expectedRowGroup = new RowGroupForTesting(rowsNumber);
-		parquetColumnarWriter.processRowGroup(rowsNumber, groupWriter ->
+		parquetColumnarWriter.writeRowGroup(rowsNumber, groupWriter ->
 				chunkBuilders.forEach(builder -> expectedRowGroup.addChunk(builder.apply(groupWriter))));
 		return expectedRowGroup;
 	}

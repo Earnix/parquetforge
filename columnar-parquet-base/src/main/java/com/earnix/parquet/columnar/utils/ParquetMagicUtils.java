@@ -1,6 +1,8 @@
 package com.earnix.parquet.columnar.utils;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -14,14 +16,9 @@ public class ParquetMagicUtils
 	public static final String PARQUET_MAGIC = "PAR1";
 	private static final byte[] PARQUET_MAGIC_BYTES = PARQUET_MAGIC.getBytes(StandardCharsets.US_ASCII);
 
-	public static void writeMagicToBuf(ByteBuffer b)
-	{
-
-	}
-
 	/**
 	 * Returns whether magic was contained in the byte buffer
-	 * 
+	 *
 	 * @param buf the byte buffer to check
 	 * @return whether the magic was contained
 	 */
@@ -35,5 +32,17 @@ public class ParquetMagicUtils
 				return false;
 		}
 		return true;
+	}
+
+	public static void writeMagicBytes(WritableByteChannel fileChannel) throws IOException
+	{
+		ByteBuffer bb = ByteBuffer.wrap(PARQUET_MAGIC_BYTES);
+		do
+		{
+			int bytesWritten = fileChannel.write(bb);
+			if (bytesWritten <= 0)
+				throw new IOException("Could not write magic bytes");
+		}
+		while (bb.hasRemaining());
 	}
 }

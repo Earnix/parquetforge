@@ -112,15 +112,7 @@ public class ColumnChunkPages
 		for (byte[] b : this.headersAndPages)
 		{
 			ByteBuffer bb = ByteBuffer.wrap(b);
-			while (bb.hasRemaining())
-			{
-				int written = fc.write(bb, offset);
-				if (0 == written)
-				{
-					throw new IOException("Nothing got written .. should not occur");
-				}
-				offset += written;
-			}
+			offset += ChunkWritingUtils.writeByteBufferToChannelFully(fc, bb, offset);
 		}
 	}
 
