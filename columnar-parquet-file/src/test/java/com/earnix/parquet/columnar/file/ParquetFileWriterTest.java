@@ -1,6 +1,6 @@
 package com.earnix.parquet.columnar.file;
 
-import com.earnix.parquet.columnar.reader.ParquetColumarFileReader;
+import com.earnix.parquet.columnar.reader.ParquetColumnarFileReader;
 import com.earnix.parquet.columnar.reader.chunk.ChunkValuesReader;
 import com.earnix.parquet.columnar.reader.chunk.InMemRowGroup;
 import com.earnix.parquet.columnar.reader.chunk.internal.ChunkValuesReaderFactory;
@@ -45,7 +45,7 @@ public class ParquetFileWriterTest
 		{
 			fillWithRowGroups(parquetFile);
 
-			ParquetColumarFileReader reader = new ParquetColumarFileReader(parquetFile);
+			ParquetColumnarFileReader reader = new ParquetColumnarFileReader(parquetFile);
 			reader.processFile((ParquetColumnarProcessors.ChunkProcessor) chunk -> {
 				System.out.println(chunk.getDescriptor() + " TotalValues:" + chunk.getTotalValues());
 				if (chunk.getDescriptor().getPrimitiveType().getPrimitiveTypeName()
@@ -118,7 +118,7 @@ public class ParquetFileWriterTest
 
 	private static List<RowGroupForTesting> readingAndProcessByRowGroup(Path parquetPath)
 	{
-		ParquetColumarFileReader reader = new ParquetColumarFileReader(parquetPath);
+		ParquetColumnarFileReader reader = new ParquetColumnarFileReader(parquetPath);
 
 		List<RowGroupForTesting> actualRowGroups = new ArrayList<>();
 		ParquetColumnarProcessors.RowGroupProcessor byRowGroupProcessor = rowGroup -> actualRowGroups.add(
@@ -129,7 +129,7 @@ public class ParquetFileWriterTest
 
 	private static Map<ColumnChunkForTesting, Long> readingAndProcessByChunksBytes(Path inputParquetPath)
 	{
-		ParquetColumarFileReader reader = new ParquetColumarFileReader(inputParquetPath);
+		ParquetColumnarFileReader reader = new ParquetColumnarFileReader(inputParquetPath);
 
 		Map<ColumnChunkForTesting, Long> chunkActualValuesToChunkActualMetadataValuesNumber = new HashMap<>();
 

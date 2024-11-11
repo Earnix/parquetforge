@@ -23,12 +23,11 @@ import java.util.List;
  */
 public class ParquetFileMetadataReader
 {
-	// TODO: byte[] is mutable, and can't be public
-	public static final byte[] magicBytes = "PAR1".getBytes(StandardCharsets.US_ASCII);
+	static final byte[] magicBytes = "PAR1".getBytes(StandardCharsets.US_ASCII);
 
 	/**
 	 * Print the parquet metadata for the specified path
-	 * 
+	 *
 	 * @param path the path to print the metadata for
 	 */
 	static void printMetadata(Path path)
@@ -60,12 +59,12 @@ public class ParquetFileMetadataReader
 
 	/**
 	 * Read the metadata for the opened file
-	 * 
+	 *
 	 * @param fc the opened file
 	 * @return the parsed metadata
 	 * @throws IOException on failure to read the file
 	 */
-	static FileMetaData readMetadata(FileChannel fc) throws IOException
+	public static FileMetaData readMetadata(FileChannel fc) throws IOException
 	{
 		long startPos = validateMagicAndFindFooterStartOffset(fc);
 		fc.position(startPos);

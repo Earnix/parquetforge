@@ -1,7 +1,7 @@
 package com.earnix.parquet.columnar.s3;
 
 import com.earnix.parquet.columnar.s3.buffering.S3KeyUploader;
-import com.earnix.parquet.columnar.reader.ParquetColumarFileReader;
+import com.earnix.parquet.columnar.reader.ParquetColumnarFileReader;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.format.CompressionCodec;
@@ -46,7 +46,7 @@ public class CreateParquetOnS3Test
 				Files.copy(resp, tmpFile, StandardCopyOption.REPLACE_EXISTING);
 			}
 
-			ParquetColumarFileReader reader = new ParquetColumarFileReader(tmpFile);
+			ParquetColumnarFileReader reader = new ParquetColumnarFileReader(tmpFile);
 			Assert.assertEquals(colName, reader.readMetaData().getSchema().get(1).getName());
 		}
 	}

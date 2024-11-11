@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.function.Supplier;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.commons.io.input.CountingInputStream;
 import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.column.ColumnDescriptor;
@@ -38,11 +39,11 @@ public class ChunkDecompressToPageStoreFactory
 
 	/**
 	 * Build storage for a column chunk in memory
-	 * 
-	 * @param descriptor the descriptor of the column
-	 * @param is the input stream to read the column from
+	 *
+	 * @param descriptor           the descriptor of the column
+	 * @param is                   the input stream to read the column from
 	 * @param totalBytesInAllPages the total number of bytes in all of the column pages
-	 * @param codec the compression codec used for the pages
+	 * @param codec                the compression codec used for the pages
 	 * @return the in memory page store
 	 * @throws IOException on failure to read from the stream
 	 */
@@ -176,7 +177,7 @@ public class ChunkDecompressToPageStoreFactory
 			{
 				uncompressed = Snappy.uncompress(compressedBytes);
 			}
-				break;
+			break;
 			case ZSTD:
 			{
 				uncompressed = new byte[uncompressedPageSize];
@@ -184,13 +185,13 @@ public class ChunkDecompressToPageStoreFactory
 				if (Zstd.isError(code))
 					throw new IllegalStateException(Zstd.getErrorName(code));
 			}
-				break;
+			break;
 			case UNCOMPRESSED:
 			{
 				// nothing todo.
 				uncompressed = compressedBytes;
 			}
-				break;
+			break;
 			default:
 				throw new UnsupportedEncodingException("" + codec);
 		}

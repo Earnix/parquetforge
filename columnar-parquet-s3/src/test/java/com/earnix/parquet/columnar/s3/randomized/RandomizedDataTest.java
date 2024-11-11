@@ -1,6 +1,6 @@
 package com.earnix.parquet.columnar.s3.randomized;
 
-import com.earnix.parquet.columnar.reader.ParquetColumarFileReader;
+import com.earnix.parquet.columnar.reader.ParquetColumnarFileReader;
 import com.earnix.parquet.columnar.reader.chunk.ChunkValuesReader;
 import com.earnix.parquet.columnar.reader.chunk.internal.ChunkValuesReaderFactory;
 import com.earnix.parquet.columnar.reader.processors.ParquetColumnarProcessors;
@@ -162,7 +162,7 @@ public class RandomizedDataTest
 
 	private void readAndAssertValues(Path downloaded, ParquetFileInfo info) throws IOException
 	{
-		ParquetColumarFileReader reader = new ParquetColumarFileReader(downloaded);
+		ParquetColumnarFileReader reader = new ParquetColumnarFileReader(downloaded);
 		Assert.assertEquals(info.getFileMetaData().getRow_groupsSize(), reader.readMetaData().getRow_groupsSize());
 
 		// this assumes the implementation of process file is single and in order. Seems not great.

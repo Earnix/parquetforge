@@ -9,9 +9,20 @@ import java.util.List;
 
 public class ParquetFileColumnarWriterFactory
 {
+	public static ParquetColumnarWriter createWriter(Path outputFile, List<PrimitiveType> primitiveTypeList)
+			throws IOException
+	{
+		return new ParquetFileColumnarWriterImpl(outputFile, primitiveTypeList, CompressionCodec.ZSTD);
+	}
+
 	public static ParquetColumnarWriter createWriter(Path outputFile, List<PrimitiveType> primitiveTypeList,
 			CompressionCodec compressionCodec) throws IOException
 	{
 		return new ParquetFileColumnarWriterImpl(outputFile, primitiveTypeList, compressionCodec);
+	}
+
+	private ParquetFileColumnarWriterFactory()
+	{
+		// static methods ONLY
 	}
 }
