@@ -26,8 +26,7 @@ public class InMemRowGroup
 
 	public void forEachColumnChunk(Consumer<InMemChunk> chunkProcessor)
 	{
-		inMemChunkMap.values()
-				.forEach(chunkProcessor);
+		inMemChunkMap.values().forEach(chunkProcessor);
 	}
 
 	public void forEachColumnDescriptor(Collection<ColumnDescriptor> descriptorList, Consumer<InMemChunk> chunkProcessor)

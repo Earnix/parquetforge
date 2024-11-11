@@ -1,4 +1,4 @@
-package com.earnix.parquet.columar.s3;
+package com.earnix.parquet.columnar.s3;
 
 import org.junit.Assert;
 import org.junit.Test;

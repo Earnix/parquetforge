@@ -1,4 +1,4 @@
-package com.earnix.parquet.columar.s3;
+package com.earnix.parquet.columnar.s3;
 
 import com.adobe.testing.s3mock.S3MockApplication;
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;

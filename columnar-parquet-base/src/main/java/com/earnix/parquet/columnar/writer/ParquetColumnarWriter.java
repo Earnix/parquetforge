@@ -4,12 +4,27 @@ import com.earnix.parquet.columnar.writer.rowgroup.RowGroupWriter;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.function.Consumer;
 
 public interface ParquetColumnarWriter extends Closeable
 {
-	void finishAndWriteFooterMetadata() throws IOException;
+	/**
+	 * Append a row group to the file.
+	 *
+	 * @param numRows          the number of rows in the row group
+	 * @param rowGroupAppender The callback to get the RowGroupAppender. Passed as a callback to ensure that start and
+	 *                         finish are called as expected
+	 * @throws IOException on IO Failure
+	 */
+	void writeRowGroup(long numRows, RowGroupAppender rowGroupAppender) throws IOException;
 
-	void processRowGroup(long numRows, Consumer<RowGroupWriter> rowGroupAppender);
+	/**
+	 * Finish the parquet file. Writes the footer metadata. Note that {@link #close()} should still be called after.
+	 */
+	ParquetFileInfo finishAndWriteFooterMetadata() throws IOException;
 
+	@FunctionalInterface
+	interface RowGroupAppender
+	{
+		void append(RowGroupWriter rowGroupWriter) throws IOException;
+	}
 }
