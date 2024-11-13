@@ -21,6 +21,12 @@ public class FileRangeInputStreamSupplier
 		this.len = len;
 	}
 
+	/**
+	 * Return a newly opened input stream for this specific range in the file. Note: you MUST close the input stream!
+	 *
+	 * @return the input stream.
+	 * @throws IOException
+	 */
 	public InputStream get() throws IOException
 	{
 		boolean success = false;

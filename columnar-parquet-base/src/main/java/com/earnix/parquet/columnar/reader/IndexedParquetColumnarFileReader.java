@@ -129,6 +129,14 @@ public class IndexedParquetColumnarFileReader extends ParquetColumnarFileReader
 		return new FileRangeInputStreamSupplier(this.getParquetFilePath(), start, len);
 	}
 
+	/**
+	 * Read a specific column chunk in a row group into memory
+	 *
+	 * @param rowGroup   the row group offset
+	 * @param descriptor the column to read into memory
+	 * @return the in memory chunk.
+	 * @throws IOException on failure to read in the file
+	 */
 	public InMemChunk readInMem(int rowGroup, ColumnDescriptor descriptor) throws IOException
 	{
 		Pair<ColumnChunk, FileRangeInputStreamSupplier> chunk = getInputStreamSupplier(rowGroup, descriptor, false);

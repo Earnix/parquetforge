@@ -2,16 +2,12 @@ package com.earnix.parquet.columnar.s3.assembler;
 
 import com.earnix.parquet.columnar.reader.FileRangeInputStreamSupplier;
 import com.earnix.parquet.columnar.reader.IndexedParquetColumnarFileReader;
-import com.earnix.parquet.columnar.reader.ParquetFileMetadataReader;
-import org.apache.commons.lang3.NotImplementedException;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.ColumnChunk;
-import org.apache.parquet.format.FileMetaData;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 
 public class ParquetFileChunkSupplier implements ParquetColumnChunkSupplier
@@ -52,6 +48,18 @@ public class ParquetFileChunkSupplier implements ParquetColumnChunkSupplier
 				}
 			}
 		}
+	}
+
+	@Override
+	public long getNumRows()
+	{
+		return this.columnChunk.getMeta_data().getNum_values();
+	}
+
+	@Override
+	public long getCompressedLength()
+	{
+		return this.columnChunk.getMeta_data().getTotal_compressed_size();
 	}
 
 	@Override
