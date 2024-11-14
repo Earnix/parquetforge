@@ -11,7 +11,7 @@ public class UploadPartUtils
 	 * @param possibleUploadOffsets offsets that we can split the file at.
 	 * @return the divisions (will be totalNumParts or less)
 	 */
-	static long[] computePartDivisions(int totalNumParts, long[] possibleUploadOffsets)
+	public static long[] computePartDivisions(int totalNumParts, long[] possibleUploadOffsets)
 	{
 		if (possibleUploadOffsets[0] != 0)
 			throw new IllegalArgumentException("Starting offset must be zero..");

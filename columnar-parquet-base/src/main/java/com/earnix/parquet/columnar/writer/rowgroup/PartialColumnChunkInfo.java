@@ -61,4 +61,10 @@ public class PartialColumnChunkInfo extends ColumnChunkInfo
 	{
 		return pages.totalBytesForStorage();
 	}
+
+	@Override
+	public long getUncompressedSize()
+	{
+		return pages.getUncompressedBytes();
+	}
 }

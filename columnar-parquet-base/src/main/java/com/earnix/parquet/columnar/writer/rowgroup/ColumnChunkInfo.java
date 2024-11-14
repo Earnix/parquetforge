@@ -22,4 +22,6 @@ public abstract class ColumnChunkInfo
 	}
 
 	public abstract long getCompressedSize();
+
+	public abstract long getUncompressedSize();
 }

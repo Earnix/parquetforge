@@ -39,6 +39,13 @@ public class ParquetWriterUtils
 		ParquetMagicUtils.writeMagicBytes(fileChannel);
 	}
 
+	/**
+	 * Build Parquet Parquet Footer metadata
+	 *
+	 * @param rowGroupInfos     the info on the row groups
+	 * @param schemaElementList the schema of the parquet file
+	 * @return the built file metadata
+	 */
 	public static FileMetaData getFileMetaData(List<RowGroupInfo> rowGroupInfos, List<SchemaElement> schemaElementList)
 	{
 		if (rowGroupInfos.isEmpty())

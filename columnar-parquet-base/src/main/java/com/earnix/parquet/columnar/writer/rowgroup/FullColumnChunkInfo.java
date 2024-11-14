@@ -42,4 +42,10 @@ public class FullColumnChunkInfo extends ColumnChunkInfo
 	{
 		return columnChunk.getMeta_data().getTotal_compressed_size();
 	}
+
+	@Override
+	public long getUncompressedSize()
+	{
+		return columnChunk.getMeta_data().getTotal_uncompressed_size();
+	}
 }

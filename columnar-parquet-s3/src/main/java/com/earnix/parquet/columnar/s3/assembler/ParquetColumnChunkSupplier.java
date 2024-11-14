@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * Represents all of the information to put this column chunk within a parquet file
+ * Represents all the information to put this column chunk within a parquet file
  */
 public interface ParquetColumnChunkSupplier
 {
@@ -14,7 +14,7 @@ public interface ParquetColumnChunkSupplier
 
 	long getCompressedLength();
 
-	ColumnChunk getColumnChunk() throws IOException;
+	ColumnChunk getColumnChunk();
 
 	InputStream openInputStream() throws IOException;
 }

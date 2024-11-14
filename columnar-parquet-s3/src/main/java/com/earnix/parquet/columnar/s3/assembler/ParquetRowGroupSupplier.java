@@ -29,8 +29,19 @@ public class ParquetRowGroupSupplier
 	 */
 	public ParquetColumnChunkSupplier getSupplier(ColumnDescriptor columnDescriptor)
 	{
-		return Objects.requireNonNull(Objects.requireNonNull(descriptorToSupplierMap, "Chunk Descriptor cannot be null")
-				.get(columnDescriptor), () -> "Chunk Supplier not found for " + columnDescriptor);
+		ParquetColumnChunkSupplier chunkSupplier = descriptorToSupplierMap.get(
+				Objects.requireNonNull(columnDescriptor, "Chunk Descriptor cannot be null"));
+		return Objects.requireNonNull(chunkSupplier, () -> "Chunk Supplier not found for " + columnDescriptor);
+	}
+
+	/**
+	 * Get the number of columns in this Row Group
+	 *
+	 * @return the number of columns in this row group
+	 */
+	public int getNumColumns()
+	{
+		return this.descriptorToSupplierMap.size();
 	}
 
 	public static class Builder
