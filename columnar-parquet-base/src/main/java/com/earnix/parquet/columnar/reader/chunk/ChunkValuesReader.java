@@ -51,7 +51,7 @@ public class ChunkValuesReader
 	/**
 	 * @return the current value
 	 */
-	boolean getBoolean()
+	public boolean getBoolean()
 	{
 		return columnReader.getBoolean();
 	}
@@ -87,4 +87,5 @@ public class ChunkValuesReader
 	{
 		return columnReader.getDouble();
 	}
+
 }
