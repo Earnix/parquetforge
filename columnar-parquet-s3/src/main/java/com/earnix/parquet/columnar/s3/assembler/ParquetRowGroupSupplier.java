@@ -16,6 +16,11 @@ public class ParquetRowGroupSupplier
 	private static final int UNINITIALIZED_ROW_GROUP_SIZE = -1;
 	private final Map<ColumnDescriptor, ParquetColumnChunkSupplier> descriptorToSupplierMap;
 
+	public static Builder builder()
+	{
+		return new Builder();
+	}
+
 	private ParquetRowGroupSupplier(Map<ColumnDescriptor, ParquetColumnChunkSupplier> descriptorToSupplierMap)
 	{
 		this.descriptorToSupplierMap = new HashMap<>(descriptorToSupplierMap);
@@ -49,19 +54,25 @@ public class ParquetRowGroupSupplier
 		private volatile long rowGroupSize = UNINITIALIZED_ROW_GROUP_SIZE;
 		private final ConcurrentMap<ColumnDescriptor, ParquetColumnChunkSupplier> descToSupplier = new ConcurrentHashMap<>();
 
+		private Builder()
+		{
+		}
+
 		public ParquetRowGroupSupplier build()
 		{
 			return new ParquetRowGroupSupplier(descToSupplier);
 		}
 
-		public void addChunkSupplier(ColumnDescriptor descriptor, ParquetColumnChunkSupplier parquetColumnChunkSupplier)
+		public Builder addChunkSupplier(ParquetColumnChunkSupplier parquetColumnChunkSupplier)
 		{
+			ColumnDescriptor descriptor = parquetColumnChunkSupplier.getColumnDescriptor();
 			validateNumRows(descriptor, parquetColumnChunkSupplier);
 			Object old = this.descToSupplier.put(descriptor, parquetColumnChunkSupplier);
 			if (old != null)
 			{
 				throw new IllegalStateException("Cannot add descriptor twice");
 			}
+			return this;
 		}
 
 		private void validateNumRows(ColumnDescriptor descriptor, ParquetColumnChunkSupplier parquetColumnChunkSupplier)

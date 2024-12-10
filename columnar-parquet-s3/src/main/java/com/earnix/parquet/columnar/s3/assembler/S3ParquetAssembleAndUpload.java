@@ -35,11 +35,13 @@ public class S3ParquetAssembleAndUpload
 
 	private final MessageType schema;
 	private final int targetNumParts;
+	private final int uploadThreads;
 
-	public S3ParquetAssembleAndUpload(MessageType schema, int targetNumParts)
+	public S3ParquetAssembleAndUpload(MessageType schema, int targetNumParts, int uploadThreads)
 	{
 		this.schema = schema;
 		this.targetNumParts = targetNumParts;
+		this.uploadThreads = uploadThreads;
 	}
 
 	public void assembleAndUpload(S3KeyUploader uploader, List<ParquetRowGroupSupplier> rowGroups)
@@ -65,7 +67,7 @@ public class S3ParquetAssembleAndUpload
 		List<List<Supplier<InputStream>>> grouped = groupColumnChunks(lens, relevantOffsets, supplierIterator,
 				serializedMetadata.size(), () -> serializedMetadata.toInputStream());
 
-		ExecutorService service = Executors.newFixedThreadPool(5);
+		ExecutorService service = Executors.newFixedThreadPool(uploadThreads);
 		try
 		{
 			for (List<Supplier<InputStream>> grp : grouped)
@@ -92,12 +94,9 @@ public class S3ParquetAssembleAndUpload
 				service.submit(() -> uploader.uploadPart(partNum, len, sequenceInputStream));
 			}
 
-		}
-		finally
-		{
+			service.shutdown();
 			try
 			{
-				service.shutdown();
 				service.awaitTermination(365, TimeUnit.DAYS);
 			}
 			catch (InterruptedException ex)
@@ -105,6 +104,10 @@ public class S3ParquetAssembleAndUpload
 				Thread.currentThread().interrupt();
 				throw new IllegalStateException(ex);
 			}
+		}
+		finally
+		{
+			service.shutdown();
 		}
 	}
 
@@ -145,7 +148,17 @@ public class S3ParquetAssembleAndUpload
 
 			grouped.add(currGroup);
 		}
-		// todo: add the metadata to the last group.
+		List<Supplier<InputStream>> lastGroup = grouped.get(grouped.size() - 1);
+
+		// add metadata to the last group.
+		//TODO: probably should put the metadata in the last part by itself for easier downloading of metadata by
+		// itself..
+		lastGroup.add(metadataIsSupplier);
+		lens[lens.length - 1] += metadataSize;
+
+		lastGroup.add(() -> new ByteArrayInputStream(MAGIC));
+		lens[lens.length - 1] += MAGIC.length;
+
 		return grouped;
 	}
 

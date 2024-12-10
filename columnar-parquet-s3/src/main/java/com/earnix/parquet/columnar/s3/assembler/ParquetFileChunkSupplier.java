@@ -21,12 +21,34 @@ public class ParquetFileChunkSupplier implements ParquetColumnChunkSupplier
 	private ColumnChunk columnChunk;
 	private FileRangeInputStreamSupplier inputStreamSupplier;
 
+	public ParquetFileChunkSupplier(IndexedParquetColumnarFileReader reader, ColumnDescriptor columnDescriptor,
+			int rowGroup)
+	{
+		this.parquetFilePath = reader.getParquetFilePath();
+		this.columnDescriptor = columnDescriptor;
+		this.rowGroup = rowGroup;
+		initFromReader(reader);
+	}
 
+	/**
+	 * Initialize a chunk bytes supplier from the specified file with the specified column descriptor. Implementation
+	 * note - this MUST parse all footer metadata {@link org.apache.parquet.format.FileMetaData}. Prefer the constructor
+	 * with the indexed reader if many chunks are used from the same parquet file.
+	 *
+	 * @param parquetFilePath  the path to the parquet file
+	 * @param columnDescriptor the column descriptor of the column
+	 * @param rowGroup         the row group offset
+	 */
 	public ParquetFileChunkSupplier(Path parquetFilePath, ColumnDescriptor columnDescriptor, int rowGroup)
 	{
 		this.parquetFilePath = parquetFilePath;
 		this.columnDescriptor = columnDescriptor;
 		this.rowGroup = rowGroup;
+	}
+
+	public ColumnDescriptor getColumnDescriptor()
+	{
+		return columnDescriptor;
 	}
 
 	private void ensureInitialized() throws IOException
@@ -38,16 +60,21 @@ public class ParquetFileChunkSupplier implements ParquetColumnChunkSupplier
 				if (!initialized)
 				{
 					IndexedParquetColumnarFileReader reader = new IndexedParquetColumnarFileReader(parquetFilePath);
-					Pair<ColumnChunk, FileRangeInputStreamSupplier> chunk = reader.getInputStreamSupplier(rowGroup,
-							columnDescriptor);
-					this.columnChunk = chunk.getLeft();
-					// data page offset is meaningless - MUST be set externally.
-					this.columnChunk.getMeta_data().unsetData_page_offset();
-					this.inputStreamSupplier = chunk.getRight();
-					initialized = true;
+					initFromReader(reader);
 				}
 			}
 		}
+	}
+
+	private void initFromReader(IndexedParquetColumnarFileReader reader)
+	{
+		Pair<ColumnChunk, FileRangeInputStreamSupplier> chunk = reader.getInputStreamSupplier(rowGroup,
+				columnDescriptor);
+		this.columnChunk = chunk.getLeft();
+		// data page offset is meaningless - MUST be set externally.
+		this.columnChunk.getMeta_data().unsetData_page_offset();
+		this.inputStreamSupplier = chunk.getRight();
+		initialized = true;
 	}
 
 	@Override

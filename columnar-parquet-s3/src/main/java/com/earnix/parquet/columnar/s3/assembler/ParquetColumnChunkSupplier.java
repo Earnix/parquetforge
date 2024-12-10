@@ -1,5 +1,6 @@
 package com.earnix.parquet.columnar.s3.assembler;
 
+import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.ColumnChunk;
 
 import java.io.IOException;
@@ -17,4 +18,6 @@ public interface ParquetColumnChunkSupplier
 	ColumnChunk getColumnChunk();
 
 	InputStream openInputStream() throws IOException;
+
+	ColumnDescriptor getColumnDescriptor();
 }
