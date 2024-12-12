@@ -2,6 +2,7 @@ package com.earnix.parquet.columnar.s3.buffering;
 
 import com.earnix.parquet.columnar.s3.S3Constants;
 import com.google.common.util.concurrent.RateLimiter;
+import org.apache.commons.io.IOUtils;
 import shaded.parquet.it.unimi.dsi.fastutil.objects.ObjectIntImmutablePair;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.http.ContentStreamProvider;
@@ -14,6 +15,7 @@ import software.amazon.awssdk.services.s3.model.UploadPartResponse;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -26,6 +28,7 @@ import java.util.function.Supplier;
  */
 public class S3KeyUploader implements AutoCloseable
 {
+	private static final boolean ADD_ASSERTIONS = false;
 	// TODO: this should be made configurable
 	private static final int MAX_REQ_PER_SECOND = 500;
 	private final RateLimiter rateLimiter = RateLimiter.create(MAX_REQ_PER_SECOND);
@@ -115,9 +118,27 @@ public class S3KeyUploader implements AutoCloseable
 		}, len, mimeType);
 
 		rateLimiter.acquire();
+
+		String createdUploadId = getOrCreateUploadId();
+		if (ADD_ASSERTIONS)
+		{
+			System.out.println(
+					"Upload Part key: " + key + " uploadId: " + createdUploadId + " partNumber: " + partNum + " len: "
+							+ len);
+			try
+			{
+				int computedLen = IOUtils.toByteArray(is.get()).length;
+				if (computedLen != len)
+					throw new IllegalArgumentException("len is wrong");
+			}
+			catch (IOException ex)
+			{
+				throw new UncheckedIOException(ex);
+			}
+		}
+
 		UploadPartResponse resp = s3Client.uploadPart(
-				builder -> builder.bucket(bucket).key(key).uploadId(getOrCreateUploadId()).partNumber(partNum),
-				requestBody);
+				builder -> builder.bucket(bucket).key(key).uploadId(createdUploadId).partNumber(partNum), requestBody);
 
 		uploadPartResponseList.add(new ObjectIntImmutablePair<>(resp, partNum));
 	}

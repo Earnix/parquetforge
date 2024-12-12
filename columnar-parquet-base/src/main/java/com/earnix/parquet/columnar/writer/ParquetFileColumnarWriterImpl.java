@@ -39,8 +39,7 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 	private final List<RowGroupInfo> rowGroupInfos = new ArrayList<>();
 	private final FileChannel fileChannel;
 
-	public ParquetFileColumnarWriterImpl(Path outputFile, Collection<PrimitiveType> primitiveTypeList)
-			throws IOException
+	ParquetFileColumnarWriterImpl(Path outputFile, Collection<PrimitiveType> primitiveTypeList) throws IOException
 	{
 		this(outputFile, primitiveTypeList, CompressionCodec.ZSTD);
 	}
@@ -50,7 +49,7 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 	 *
 	 * @param primitiveTypeList the types of columns
 	 */
-	public ParquetFileColumnarWriterImpl(Path outputFile, Collection<PrimitiveType> primitiveTypeList,
+	ParquetFileColumnarWriterImpl(Path outputFile, Collection<PrimitiveType> primitiveTypeList,
 			CompressionCodec compressionCodec) throws IOException
 	{
 		this.compressionCodec = compressionCodec;

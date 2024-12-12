@@ -6,6 +6,7 @@ import com.earnix.parquet.columnar.writer.ParquetWriterUtils;
 import com.earnix.parquet.columnar.writer.rowgroup.ColumnChunkInfo;
 import com.earnix.parquet.columnar.writer.rowgroup.FullColumnChunkInfo;
 import com.earnix.parquet.columnar.writer.rowgroup.RowGroupInfo;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.commons.io.output.UnsynchronizedByteArrayOutputStream;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.FileMetaData;
@@ -18,19 +19,24 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.SequenceInputStream;
 import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class S3ParquetAssembleAndUpload
 {
+	private static final AtomicLong threadPoolIDNumber = new AtomicLong();
 	private static final byte[] MAGIC = "PAR1".getBytes(StandardCharsets.US_ASCII);
 
 	private final MessageType schema;
@@ -67,48 +73,73 @@ public class S3ParquetAssembleAndUpload
 		List<List<Supplier<InputStream>>> grouped = groupColumnChunks(lens, relevantOffsets, supplierIterator,
 				serializedMetadata.size(), () -> serializedMetadata.toInputStream());
 
-		ExecutorService service = Executors.newFixedThreadPool(uploadThreads);
+		// this can be moved to automatically managed resource once we upgrade to a newer java version.
+		ExecutorService service = new ThreadPoolExecutor(uploadThreads, uploadThreads, 0L, TimeUnit.MILLISECONDS,
+				new LinkedBlockingQueue<>(), new ThreadFactoryBuilder().setNameFormat(
+				"parquet-assembler-s3-uploader-" + threadPoolIDNumber.incrementAndGet() + "-%d").build());
+		boolean success = false;
 		try
 		{
+			int lenIdx = 0;
 			for (List<Supplier<InputStream>> grp : grouped)
 			{
 				int partNum = uploader.getNextPartNum();
-
-				Iterator<Supplier<InputStream>> it = grp.iterator();
-				Supplier<InputStream> sequenceInputStream = () -> new SequenceInputStream(new Enumeration<InputStream>()
-				{
-					@Override
-					public boolean hasMoreElements()
-					{
-						return it.hasNext();
-					}
-
-					@Override
-					public InputStream nextElement()
-					{
-						return it.next().get();
-					}
-				});
-				long len = -1;
-				//TODO: compute length!!
+				Supplier<InputStream> sequenceInputStream = createInputStreamSupplier(grp);
+				long len = lens[lenIdx++];
 				service.submit(() -> uploader.uploadPart(partNum, len, sequenceInputStream));
 			}
 
 			service.shutdown();
 			try
 			{
-				service.awaitTermination(365, TimeUnit.DAYS);
+				boolean uploadsCompleted = service.awaitTermination(365, TimeUnit.DAYS);
+				if (!uploadsCompleted)
+					throw new IllegalStateException("uploads did not complete within timeout");
 			}
 			catch (InterruptedException ex)
 			{
 				Thread.currentThread().interrupt();
 				throw new IllegalStateException(ex);
 			}
+			uploader.finish();
+			success = true;
 		}
 		finally
 		{
-			service.shutdown();
+			service.shutdownNow();
+			if (!success)
+			{
+				try
+				{
+					uploader.abortUpload();
+				}
+				catch (Exception ex)
+				{
+					// exception in finally block, ignore.
+				}
+			}
 		}
+	}
+
+	private static Supplier<InputStream> createInputStreamSupplier(List<Supplier<InputStream>> grp)
+	{
+		return () -> {
+			Iterator<Supplier<InputStream>> it = grp.iterator();
+			return new SequenceInputStream(new Enumeration<InputStream>()
+			{
+				@Override
+				public boolean hasMoreElements()
+				{
+					return it.hasNext();
+				}
+
+				@Override
+				public InputStream nextElement()
+				{
+					return it.next().get();
+				}
+			});
+		};
 	}
 
 	private static List<List<Supplier<InputStream>>> groupColumnChunks(long[] lens, long[] relevantOffsets,
@@ -156,21 +187,36 @@ public class S3ParquetAssembleAndUpload
 		lastGroup.add(metadataIsSupplier);
 		lens[lens.length - 1] += metadataSize;
 
-		lastGroup.add(() -> new ByteArrayInputStream(MAGIC));
-		lens[lens.length - 1] += MAGIC.length;
+		byte[] footerLenAndMagic = createFooterAndMagic(metadataSize);
+		lastGroup.add(() -> new ByteArrayInputStream(footerLenAndMagic));
+		lens[lens.length - 1] += footerLenAndMagic.length;
 
 		return grouped;
+	}
+
+	private static byte[] createFooterAndMagic(int metadataSize)
+	{
+		byte[] footerLenAndMagic = new byte[Integer.BYTES + MAGIC.length];
+		ByteBuffer footerLenAndMagicByteBuf = ByteBuffer.wrap(footerLenAndMagic);
+		footerLenAndMagicByteBuf.order(ByteOrder.LITTLE_ENDIAN);// little endian according to spec.
+		footerLenAndMagicByteBuf.putInt(metadataSize);
+		footerLenAndMagicByteBuf.put(MAGIC);
+		if (footerLenAndMagicByteBuf.hasRemaining())
+		{
+			throw new IllegalStateException();
+		}
+		return footerLenAndMagic;
 	}
 
 	private long[] computePartOffsets(List<ParquetRowGroupSupplier> rowGroups, int numColumns,
 			List<ParquetColumnChunkSupplier> orderedChunkSuppliers)
 	{
 		int currOffsetIdx = 0;
-		final long[] possibleOffsets = new long[rowGroups.size() * numColumns];
+		final long[] possibleOffsets = new long[1 + rowGroups.size() * numColumns];
 		long lastOffset = 0;
 		for (ParquetColumnChunkSupplier columnChunkSupplier : orderedChunkSuppliers)
 		{
-			lastOffset = possibleOffsets[currOffsetIdx++] = lastOffset + columnChunkSupplier.getCompressedLength();
+			lastOffset = possibleOffsets[++currOffsetIdx] = lastOffset + columnChunkSupplier.getCompressedLength();
 		}
 		long[] relevantOffsets = UploadPartUtils.computePartDivisions(targetNumParts, possibleOffsets);
 		if (relevantOffsets == null)

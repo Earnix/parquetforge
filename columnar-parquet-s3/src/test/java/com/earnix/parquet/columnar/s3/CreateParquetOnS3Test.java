@@ -2,12 +2,12 @@ package com.earnix.parquet.columnar.s3;
 
 import com.earnix.parquet.columnar.reader.IndexedParquetColumnarFileReader;
 import com.earnix.parquet.columnar.reader.ParquetColumnarFileReader;
-import com.earnix.parquet.columnar.s3.assembler.ParquetColumnChunkSupplier;
 import com.earnix.parquet.columnar.s3.assembler.ParquetFileChunkSupplier;
 import com.earnix.parquet.columnar.s3.assembler.ParquetRowGroupSupplier;
 import com.earnix.parquet.columnar.s3.assembler.S3ParquetAssembleAndUpload;
 import com.earnix.parquet.columnar.s3.buffering.S3KeyUploader;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
+import com.earnix.parquet.columnar.writer.ParquetFileColumnarWriterFactory;
 import com.earnix.parquet.columnar.writer.ParquetFileColumnarWriterImpl;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.format.CompressionCodec;
@@ -23,9 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 public class CreateParquetOnS3Test
 {
@@ -65,12 +63,11 @@ public class CreateParquetOnS3Test
 	public void tinyParquetFileAssembled() throws Exception
 	{
 		Path tmpFile = Files.createTempFile("test", ".parquet");
-		S3Client s3Client = service.getS3Client();
 		Path sourceFilePath = Paths.get("test.parquet");
 		String colName = "testDouble";
 		PrimitiveType[] primitiveTypes = new PrimitiveType[] {
 				new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.DOUBLE, colName) };
-		try (ParquetColumnarWriter writer = new ParquetFileColumnarWriterImpl(sourceFilePath,
+		try (ParquetColumnarWriter writer = ParquetFileColumnarWriterFactory.createWriter(sourceFilePath,
 				Arrays.asList(primitiveTypes)))
 		{
 			writer.writeRowGroup(1, rowGroupWriter -> rowGroupWriter.writeValues(
@@ -91,10 +88,9 @@ public class CreateParquetOnS3Test
 
 		try (S3MockService service = new S3MockService())
 		{
+			S3Client s3Client = service.getS3Client();
 			S3KeyUploader uploader = new S3KeyUploader(s3Client, service.testBucket(), keyOnS3);
 			S3ParquetAssembleAndUpload assembler = new S3ParquetAssembleAndUpload(messageType, 2, 1);
-
-			List<ParquetRowGroupSupplier> rowGroups = new ArrayList<>();
 
 			ParquetRowGroupSupplier parquetRowGroupSupplier = ParquetRowGroupSupplier.builder()
 					.addChunkSupplier(new ParquetFileChunkSupplier(localReader, localReader.getDescriptor(0), 0))

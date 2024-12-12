@@ -4,6 +4,9 @@ import org.apache.parquet.format.ColumnMetaData;
 
 import java.util.List;
 
+/**
+ * Information about a Row Group and its placement within a parquet file
+ */
 public class RowGroupInfo
 {
 	private final long startingOffset;
@@ -11,11 +14,26 @@ public class RowGroupInfo
 	private final long numRows;
 	private final List<ColumnChunkInfo> cols;
 
+	/**
+	 * Construct a new row group info
+	 *
+	 * @param startingOffset the starting offset of the row group within the parquet file
+	 * @param numRows        the number of rows within this row group
+	 * @param cols           the chunk information for all columns within this row group
+	 */
 	public RowGroupInfo(long startingOffset, long numRows, List<ColumnChunkInfo> cols)
 	{
 		this(startingOffset, computeCompressedSize(cols), numRows, cols);
 	}
 
+	/**
+	 * Construct a new row group info
+	 *
+	 * @param startingOffset the starting offset of the row group within the parquet file
+	 * @param compressedSize the compressed size of this row group
+	 * @param numRows        the number of rows within this row group
+	 * @param cols           the chunk information for all columns within this row group
+	 */
 	public RowGroupInfo(long startingOffset, long compressedSize, long numRows, List<ColumnChunkInfo> cols)
 	{
 		this.startingOffset = startingOffset;

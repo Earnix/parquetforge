@@ -20,6 +20,9 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Tests for reading arbitrary column chunks form a parquet file
+ */
 public class IndexParquetColumnarFileReaderTest
 {
 	private Path tmpFolder;

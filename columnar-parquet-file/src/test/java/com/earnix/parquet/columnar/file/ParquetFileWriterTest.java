@@ -9,6 +9,7 @@ import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
 import com.earnix.parquet.columnar.reader.processors.ParquetColumnarProcessors;
 import com.earnix.parquet.columnar.utils.ColumnChunkForTesting;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
+import com.earnix.parquet.columnar.writer.ParquetFileColumnarWriterFactory;
 import com.earnix.parquet.columnar.writer.ParquetFileColumnarWriterImpl;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.ColumnChunk;
@@ -170,7 +171,7 @@ public class ParquetFileWriterTest
 	private static void writeChunkAsOnlyOneInOutputParquetFile(Path outputPath, ColumnDescriptor descriptor,
 			InputStream chunkInput, ColumnChunk columnChunk)
 	{
-		try (ParquetColumnarWriter parquetColumnarWriter = new ParquetFileColumnarWriterImpl(outputPath,
+		try (ParquetColumnarWriter parquetColumnarWriter = ParquetFileColumnarWriterFactory.createWriter(outputPath,
 				Arrays.asList(descriptor.getPrimitiveType())))
 		{
 			parquetColumnarWriter.writeRowGroup(columnChunk.getMeta_data().getNum_values(),
@@ -200,7 +201,7 @@ public class ParquetFileWriterTest
 	}
 
 	private static List<Object> getChunkValues(ColumnDescriptor columnDescriptor, InMemChunk chunk,
-			ChunkValuesReaderImpl colReader)
+			ChunkValuesReader colReader)
 	{
 		List<Object> ret = new ArrayList<>(Math.toIntExact(chunk.getTotalValues()));
 

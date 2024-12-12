@@ -7,6 +7,8 @@ import org.apache.parquet.format.FileMetaData;
 import org.apache.parquet.format.PageHeader;
 import org.apache.parquet.format.RowGroup;
 import org.apache.parquet.format.Util;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -23,6 +25,7 @@ import java.util.List;
  */
 public class ParquetFileMetadataReader
 {
+	private static final Logger LOG = LoggerFactory.getLogger(ParquetFileMetadataReader.class);
 	static final byte[] magicBytes = "PAR1".getBytes(StandardCharsets.US_ASCII);
 
 	/**
@@ -88,6 +91,7 @@ public class ParquetFileMetadataReader
 		if (buf.remaining() != numBytesToRead)
 			throw new IllegalStateException();
 		int numBytesInFooters = buf.getInt();
+		LOG.debug("Footers are {} bytes", numBytesInFooters);
 
 		// validate magic at footer
 		assertMagic(buf);

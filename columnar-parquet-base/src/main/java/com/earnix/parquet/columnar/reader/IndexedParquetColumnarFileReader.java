@@ -21,8 +21,12 @@ import java.util.Objects;
 /**
  * A parquet columnar file reader that indexes columns and row groups to allow reading arbitrary columns and row groups
  * by raw input streams, and into {@link InMemChunk}. Also supports fetching ColumnChunk metadata data from for
- * arbitrary columns without reading the column pages.<br> All lookups are done by maps that are constructed when this
- * reader is built to ensure O(1) performance regardless of how many columns and row groups are present.
+ * arbitrary columns without reading the column pages.
+ * <p> All lookups are done by maps that are constructed when this reader is built to ensure O(1) performance
+ * regardless
+ * of how many columns and row groups are present.</p>
+ * <p>Note that this does NOT need to be closed. This is because the offset indices are created on construction,
+ * and the file is opened and closed everytime when individual chunks are read</p>
  */
 public class IndexedParquetColumnarFileReader extends ParquetColumnarFileReader
 {
@@ -140,7 +144,7 @@ public class IndexedParquetColumnarFileReader extends ParquetColumnarFileReader
 	public InMemChunk readInMem(int rowGroup, ColumnDescriptor descriptor) throws IOException
 	{
 		Pair<ColumnChunk, FileRangeInputStreamSupplier> chunk = getInputStreamSupplier(rowGroup, descriptor, false);
-		InMemChunk inMemChunk = readInMemChunk(descriptor, chunk.getRight().get(), chunk.getRight().getLen(),
+		InMemChunk inMemChunk = readInMemChunk(descriptor, chunk.getRight().get(), chunk.getRight().getNumBytesToRead(),
 				chunk.getLeft().getMeta_data().getCodec());
 		return inMemChunk;
 	}

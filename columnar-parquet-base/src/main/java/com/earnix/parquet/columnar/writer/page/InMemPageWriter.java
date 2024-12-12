@@ -29,7 +29,6 @@ import org.slf4j.LoggerFactory;
  */
 public class InMemPageWriter implements PageWriter
 {
-
 	private static final Logger LOG = LoggerFactory.getLogger(InMemPageWriter.class);
 
 	private final List<DataPage> pages = new ArrayList<>();
