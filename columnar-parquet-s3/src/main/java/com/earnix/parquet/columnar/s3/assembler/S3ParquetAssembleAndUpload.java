@@ -247,22 +247,21 @@ public class S3ParquetAssembleAndUpload
 	{
 		List<RowGroupInfo> rowGroupInfos = new ArrayList<>(rowGroupSuppliers.size());
 
-		long rowGroupStartPlace = MAGIC.length;
+		long currOffsetInFile = MAGIC.length;
 		for (ParquetRowGroupSupplier prgs : rowGroupSuppliers)
 		{
-			long chunkStartPlaceInFile = rowGroupStartPlace;
+			long rowGroupStartOffset = currOffsetInFile;
 			List<ColumnChunkInfo> chunkInfoList = new ArrayList<>(columnDescriptors.size());
 			for (ColumnDescriptor columnDescriptor : columnDescriptors)
 			{
 				ParquetColumnChunkSupplier parquetColumnChunkSupplier = prgs.getSupplier(columnDescriptor);
 				ColumnChunkInfo chunkInfo = new FullColumnChunkInfo(columnDescriptor,
-						parquetColumnChunkSupplier.getColumnChunk(), rowGroupStartPlace);
+						parquetColumnChunkSupplier.getColumnChunk(), currOffsetInFile);
 				chunkInfoList.add(chunkInfo);
-				rowGroupStartPlace += parquetColumnChunkSupplier.getCompressedLength();
+				currOffsetInFile += parquetColumnChunkSupplier.getCompressedLength();
 			}
 
-			RowGroupInfo rowGroupInfo = new RowGroupInfo(rowGroupStartPlace, chunkStartPlaceInFile - rowGroupStartPlace,
-					chunkInfoList);
+			RowGroupInfo rowGroupInfo = new RowGroupInfo(currOffsetInFile, prgs.getNumRows(), chunkInfoList);
 			rowGroupInfos.add(rowGroupInfo);
 		}
 

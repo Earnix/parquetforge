@@ -10,10 +10,10 @@ import com.earnix.parquet.columnar.s3.assembler.S3ParquetAssembleAndUpload;
 import com.earnix.parquet.columnar.s3.buffering.S3KeyUploader;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import com.earnix.parquet.columnar.writer.ParquetFileColumnarWriterFactory;
-import com.earnix.parquet.columnar.writer.ParquetFileColumnarWriterImpl;
+import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.ParquetProperties;
-import org.apache.parquet.format.ColumnChunk;
 import org.apache.parquet.format.CompressionCodec;
+import org.apache.parquet.format.RowGroup;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
@@ -97,40 +97,49 @@ public class CreateParquetOnS3Test
 			S3ParquetAssembleAndUpload assembler = new S3ParquetAssembleAndUpload(messageType, 2, 1);
 
 			// read the blocks backward
+			ColumnDescriptor descriptor = localReader.getDescriptor(0);
 			ParquetRowGroupSupplier parquetRowGroupSupplier = ParquetRowGroupSupplier.builder()
-					.addChunkSupplier(new ParquetFileChunkSupplier(localReader, localReader.getDescriptor(0), 1))
-					.build();
+					.addChunkSupplier(new ParquetFileChunkSupplier(localReader, descriptor, 1)).build();
 			ParquetRowGroupSupplier parquetRowGroupSupplier2 = ParquetRowGroupSupplier.builder()
-					.addChunkSupplier(new ParquetFileChunkSupplier(localReader, localReader.getDescriptor(0), 0))
-					.build();
+					.addChunkSupplier(new ParquetFileChunkSupplier(localReader, descriptor, 0)).build();
 
 			assembler.assembleAndUpload(uploader, Arrays.asList(parquetRowGroupSupplier, parquetRowGroupSupplier2));
 
 
-			// download and test
-			try (InputStream resp = s3Client.getObject(builder -> builder.bucket(service.testBucket()).key(keyOnS3)))
-			{
-				Files.copy(resp, tmpFile, StandardCopyOption.REPLACE_EXISTING);
-			}
-
-			IndexedParquetColumnarFileReader reader = new IndexedParquetColumnarFileReader(tmpFile);
-			Assert.assertEquals(colName, reader.readMetaData().getSchema().get(1).getName());
-
-			// make sure that we're pointing at different places.
-			Assert.assertNotEquals(
-					reader.getColumnChunk(0, localReader.getDescriptor(0)).getMeta_data().getData_page_offset(),
-					reader.getColumnChunk(1, localReader.getDescriptor(0)).getMeta_data().getData_page_offset());
-			assertValue(reader, localReader, 0, 2.0d);
-			assertValue(reader, localReader, 1, 1.0d);
+			downloadAndValidate(s3Client, service, keyOnS3, tmpFile, colName, descriptor);
 
 			Files.deleteIfExists(tmpFile2);
 		}
 	}
 
-	private static void assertValue(IndexedParquetColumnarFileReader reader,
-			IndexedParquetColumnarFileReader localReader, int rowGrp, double expected) throws IOException
+	private static void downloadAndValidate(S3Client s3Client, S3MockService service, String keyOnS3, Path tmpFile,
+			String colName, ColumnDescriptor descriptor) throws IOException
 	{
-		InMemChunk chunk = reader.readInMem(rowGrp, localReader.getDescriptor(0));
+		// download and test
+		try (InputStream resp = s3Client.getObject(builder -> builder.bucket(service.testBucket()).key(keyOnS3)))
+		{
+			Files.copy(resp, tmpFile, StandardCopyOption.REPLACE_EXISTING);
+		}
+
+		IndexedParquetColumnarFileReader reader = new IndexedParquetColumnarFileReader(tmpFile);
+		Assert.assertEquals(colName, reader.readMetaData().getSchema().get(1).getName());
+
+		// make sure that we're pointing at different places.
+		Assert.assertNotEquals(reader.getColumnChunk(0, descriptor).getMeta_data().getData_page_offset(),
+				reader.getColumnChunk(1, descriptor).getMeta_data().getData_page_offset());
+		for (RowGroup rowGroup : reader.readMetaData().getRow_groups())
+		{
+			Assert.assertEquals(1, rowGroup.getNum_rows());
+		}
+
+		assertValue(reader, descriptor, 0, 2.0d);
+		assertValue(reader, descriptor, 1, 1.0d);
+	}
+
+	private static void assertValue(IndexedParquetColumnarFileReader reader, ColumnDescriptor descriptor, int rowGrp,
+			double expected) throws IOException
+	{
+		InMemChunk chunk = reader.readInMem(rowGrp, descriptor);
 		Assert.assertEquals(1, chunk.getTotalValues());
 		ChunkValuesReader valReader = new ChunkValuesReader(chunk);
 		Assert.assertTrue(valReader.next());

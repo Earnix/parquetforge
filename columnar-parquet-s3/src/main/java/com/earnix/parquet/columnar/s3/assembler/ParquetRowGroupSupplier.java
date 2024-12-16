@@ -15,15 +15,18 @@ public class ParquetRowGroupSupplier
 {
 	private static final int UNINITIALIZED_ROW_GROUP_SIZE = -1;
 	private final Map<ColumnDescriptor, ParquetColumnChunkSupplier> descriptorToSupplierMap;
+	private final long numRows;
 
 	public static Builder builder()
 	{
 		return new Builder();
 	}
 
-	private ParquetRowGroupSupplier(Map<ColumnDescriptor, ParquetColumnChunkSupplier> descriptorToSupplierMap)
+	private ParquetRowGroupSupplier(Map<ColumnDescriptor, ParquetColumnChunkSupplier> descriptorToSupplierMap,
+			long numRows)
 	{
 		this.descriptorToSupplierMap = new HashMap<>(descriptorToSupplierMap);
+		this.numRows = numRows;
 	}
 
 	/**
@@ -49,9 +52,14 @@ public class ParquetRowGroupSupplier
 		return this.descriptorToSupplierMap.size();
 	}
 
+	public long getNumRows()
+	{
+		return numRows;
+	}
+
 	public static class Builder
 	{
-		private volatile long rowGroupSize = UNINITIALIZED_ROW_GROUP_SIZE;
+		private volatile long numRows = UNINITIALIZED_ROW_GROUP_SIZE;
 		private final ConcurrentMap<ColumnDescriptor, ParquetColumnChunkSupplier> descToSupplier = new ConcurrentHashMap<>();
 
 		private Builder()
@@ -60,7 +68,7 @@ public class ParquetRowGroupSupplier
 
 		public ParquetRowGroupSupplier build()
 		{
-			return new ParquetRowGroupSupplier(descToSupplier);
+			return new ParquetRowGroupSupplier(descToSupplier, numRows);
 		}
 
 		public Builder addChunkSupplier(ParquetColumnChunkSupplier parquetColumnChunkSupplier)
@@ -78,23 +86,23 @@ public class ParquetRowGroupSupplier
 		private void validateNumRows(ColumnDescriptor descriptor, ParquetColumnChunkSupplier parquetColumnChunkSupplier)
 		{
 			getOrInitNumRows(parquetColumnChunkSupplier);
-			if (rowGroupSize != parquetColumnChunkSupplier.getNumRows())
+			if (numRows != parquetColumnChunkSupplier.getNumRows())
 			{
 				throw new IllegalArgumentException(
-						"Row group has " + rowGroupSize + " But Col Descriptor " + descriptor + " Row " + "Len: "
+						"Row group has " + numRows + " But Col Descriptor " + descriptor + " Row " + "Len: "
 								+ parquetColumnChunkSupplier.getNumRows());
 			}
 		}
 
 		private void getOrInitNumRows(ParquetColumnChunkSupplier parquetColumnChunkSupplier)
 		{
-			if (rowGroupSize == UNINITIALIZED_ROW_GROUP_SIZE)
+			if (numRows == UNINITIALIZED_ROW_GROUP_SIZE)
 			{
 				synchronized (this)
 				{
-					if (rowGroupSize == UNINITIALIZED_ROW_GROUP_SIZE)
+					if (numRows == UNINITIALIZED_ROW_GROUP_SIZE)
 					{
-						rowGroupSize = parquetColumnChunkSupplier.getNumRows();
+						numRows = parquetColumnChunkSupplier.getNumRows();
 					}
 				}
 			}
