@@ -2,6 +2,8 @@ package com.earnix.parquet.columnar.s3;
 
 import com.earnix.parquet.columnar.reader.IndexedParquetColumnarFileReader;
 import com.earnix.parquet.columnar.reader.ParquetColumnarFileReader;
+import com.earnix.parquet.columnar.reader.chunk.ChunkValuesReader;
+import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
 import com.earnix.parquet.columnar.s3.assembler.ParquetFileChunkSupplier;
 import com.earnix.parquet.columnar.s3.assembler.ParquetRowGroupSupplier;
 import com.earnix.parquet.columnar.s3.assembler.S3ParquetAssembleAndUpload;
@@ -10,6 +12,7 @@ import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import com.earnix.parquet.columnar.writer.ParquetFileColumnarWriterFactory;
 import com.earnix.parquet.columnar.writer.ParquetFileColumnarWriterImpl;
 import org.apache.parquet.column.ParquetProperties;
+import org.apache.parquet.format.ColumnChunk;
 import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
@@ -18,6 +21,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import software.amazon.awssdk.services.s3.S3Client;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -92,11 +96,12 @@ public class CreateParquetOnS3Test
 			S3KeyUploader uploader = new S3KeyUploader(s3Client, service.testBucket(), keyOnS3);
 			S3ParquetAssembleAndUpload assembler = new S3ParquetAssembleAndUpload(messageType, 2, 1);
 
+			// read the blocks backward
 			ParquetRowGroupSupplier parquetRowGroupSupplier = ParquetRowGroupSupplier.builder()
-					.addChunkSupplier(new ParquetFileChunkSupplier(localReader, localReader.getDescriptor(0), 0))
+					.addChunkSupplier(new ParquetFileChunkSupplier(localReader, localReader.getDescriptor(0), 1))
 					.build();
 			ParquetRowGroupSupplier parquetRowGroupSupplier2 = ParquetRowGroupSupplier.builder()
-					.addChunkSupplier(new ParquetFileChunkSupplier(localReader, localReader.getDescriptor(0), 1))
+					.addChunkSupplier(new ParquetFileChunkSupplier(localReader, localReader.getDescriptor(0), 0))
 					.build();
 
 			assembler.assembleAndUpload(uploader, Arrays.asList(parquetRowGroupSupplier, parquetRowGroupSupplier2));
@@ -108,10 +113,28 @@ public class CreateParquetOnS3Test
 				Files.copy(resp, tmpFile, StandardCopyOption.REPLACE_EXISTING);
 			}
 
-			ParquetColumnarFileReader reader = new ParquetColumnarFileReader(tmpFile);
+			IndexedParquetColumnarFileReader reader = new IndexedParquetColumnarFileReader(tmpFile);
 			Assert.assertEquals(colName, reader.readMetaData().getSchema().get(1).getName());
+
+			// make sure that we're pointing at different places.
+			Assert.assertNotEquals(
+					reader.getColumnChunk(0, localReader.getDescriptor(0)).getMeta_data().getData_page_offset(),
+					reader.getColumnChunk(1, localReader.getDescriptor(0)).getMeta_data().getData_page_offset());
+			assertValue(reader, localReader, 0, 2.0d);
+			assertValue(reader, localReader, 1, 1.0d);
 
 			Files.deleteIfExists(tmpFile2);
 		}
+	}
+
+	private static void assertValue(IndexedParquetColumnarFileReader reader,
+			IndexedParquetColumnarFileReader localReader, int rowGrp, double expected) throws IOException
+	{
+		InMemChunk chunk = reader.readInMem(rowGrp, localReader.getDescriptor(0));
+		Assert.assertEquals(1, chunk.getTotalValues());
+		ChunkValuesReader valReader = new ChunkValuesReader(chunk);
+		Assert.assertTrue(valReader.next());
+		Assert.assertFalse(valReader.isNull());
+		Assert.assertEquals(expected, valReader.getDouble(), 0.0d);
 	}
 }

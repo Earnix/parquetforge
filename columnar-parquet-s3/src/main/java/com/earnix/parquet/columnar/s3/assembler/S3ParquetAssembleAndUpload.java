@@ -264,8 +264,6 @@ public class S3ParquetAssembleAndUpload
 			RowGroupInfo rowGroupInfo = new RowGroupInfo(rowGroupStartPlace, chunkStartPlaceInFile - rowGroupStartPlace,
 					chunkInfoList);
 			rowGroupInfos.add(rowGroupInfo);
-
-			rowGroupStartPlace = chunkStartPlaceInFile;
 		}
 
 		List<SchemaElement> schemaElements = ParquetWriterUtils.getSchemaElements(new MessageType("root",
