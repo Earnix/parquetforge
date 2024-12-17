@@ -34,6 +34,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+/**
+ * An interface to assemble a parquet file on S3 from source parquet files with zero copying
+ */
 public class S3ParquetAssembleAndUpload
 {
 	private static final AtomicLong threadPoolIDNumber = new AtomicLong();
@@ -43,6 +46,11 @@ public class S3ParquetAssembleAndUpload
 	private final int targetNumParts;
 	private final int uploadThreads;
 
+	/**
+	 * @param schema         the schema of the assembled parquet file
+	 * @param targetNumParts the target number of parts to use when uploading the file in parts onto S3
+	 * @param uploadThreads  the number of threads to use when uploading to s3
+	 */
 	public S3ParquetAssembleAndUpload(MessageType schema, int targetNumParts, int uploadThreads)
 	{
 		this.schema = schema;
@@ -50,6 +58,12 @@ public class S3ParquetAssembleAndUpload
 		this.uploadThreads = uploadThreads;
 	}
 
+	/**
+	 * Assemble and upload a parquet file on s3
+	 *
+	 * @param uploader  the uploader for the key on s3
+	 * @param rowGroups the suppliers of data for row groups
+	 */
 	public void assembleAndUpload(S3KeyUploader uploader, List<ParquetRowGroupSupplier> rowGroups)
 	{
 		if (rowGroups == null)

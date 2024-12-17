@@ -17,6 +17,9 @@ public class ParquetRowGroupSupplier
 	private final Map<ColumnDescriptor, ParquetColumnChunkSupplier> descriptorToSupplierMap;
 	private final long numRows;
 
+	/**
+	 * @return a bulder to make a parquet row group
+	 */
 	public static Builder builder()
 	{
 		return new Builder();
@@ -71,6 +74,12 @@ public class ParquetRowGroupSupplier
 			return new ParquetRowGroupSupplier(descToSupplier, numRows);
 		}
 
+		/**
+		 * Add a supplier for a column
+		 *
+		 * @param parquetColumnChunkSupplier the supplier for the specified column
+		 * @return the supplier for the specified column
+		 */
 		public Builder addChunkSupplier(ParquetColumnChunkSupplier parquetColumnChunkSupplier)
 		{
 			ColumnDescriptor descriptor = parquetColumnChunkSupplier.getColumnDescriptor();

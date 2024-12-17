@@ -87,7 +87,6 @@ public class CreateParquetOnS3Test
 		String keyOnS3 = "test.parquet";
 
 		Path tmpFile2 = Files.createTempFile("potato", ".parquet");
-		//todo: why do we have message type for s3 and list of primitive types for not s3?
 		MessageType messageType = new MessageType("root", primitiveTypes);
 
 		try (S3MockService service = new S3MockService())
