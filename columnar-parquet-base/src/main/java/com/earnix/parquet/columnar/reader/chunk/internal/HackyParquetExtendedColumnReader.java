@@ -10,14 +10,18 @@ import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.io.api.PrimitiveConverter;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 
 /**
  * This class is a great example of how *not* to handle encapsulation. However, the alternative would be copy/pasting a
  * lot of code which is probably worse. <br>
- * 
+ * <p>
+ * This class shouldn't be directly used. Use {@link ChunkValuesReaderImpl}
+ * instead
+ * </p>
+ * <p>
  * This code allows us to construct a column reader impl using a shared dictionary - so multiple readers can read a
  * column without having the dict copied multiple places in memory
+ * </p>
  */
 public class HackyParquetExtendedColumnReader extends ColumnReaderImpl
 {
@@ -29,12 +33,12 @@ public class HackyParquetExtendedColumnReader extends ColumnReaderImpl
 
 	private boolean finishedConstructor = false;
 
-	public HackyParquetExtendedColumnReader(InMemChunkPageStore inMemChunkPageStore)
+	HackyParquetExtendedColumnReader(InMemChunkPageStore inMemChunkPageStore)
 	{
 		this(inMemChunkPageStore.getDescriptor(), inMemChunkPageStore.toMemPageReader(), null, dummyParsedVersion);
 	}
 
-	public HackyParquetExtendedColumnReader(InMemChunk inMemChunk)
+	HackyParquetExtendedColumnReader(InMemChunk inMemChunk)
 	{
 		this(inMemChunk.getDescriptor(), inMemChunk.getDataPages(), inMemChunk.getDictionary(), dummyParsedVersion);
 	}
@@ -46,6 +50,7 @@ public class HackyParquetExtendedColumnReader extends ColumnReaderImpl
 		setDictionary(dictionary);
 
 		this.finishedConstructor = true;
+		consume();
 	}
 
 	private void setDictionary(Dictionary dictionary)

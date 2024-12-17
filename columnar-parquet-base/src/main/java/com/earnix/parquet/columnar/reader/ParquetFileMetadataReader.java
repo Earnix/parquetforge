@@ -89,7 +89,6 @@ public class ParquetFileMetadataReader
 		if (buf.remaining() != numBytesToRead)
 			throw new IllegalStateException();
 		int numBytesInFooters = buf.getInt();
-		System.out.println("Footers are " + numBytesInFooters + " bytes");
 
 		// validate magic at footer
 		assertMagic(buf);

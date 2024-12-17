@@ -1,7 +1,8 @@
 package com.earnix.parquet.columnar.s3.randomized;
 
 import com.earnix.parquet.columnar.reader.ParquetColumarFileReader;
-import com.earnix.parquet.columnar.reader.chunk.internal.HackyParquetExtendedColumnReader;
+import com.earnix.parquet.columnar.reader.chunk.ChunkValuesReader;
+import com.earnix.parquet.columnar.reader.chunk.internal.ChunkValuesReaderFactory;
 import com.earnix.parquet.columnar.reader.processors.ParquetColumnarProcessors;
 import com.earnix.parquet.columnar.s3.ParquetS3ObjectWriterImpl;
 import com.earnix.parquet.columnar.s3.S3MockService;
@@ -168,13 +169,13 @@ public class RandomizedDataTest
 		reader.processFile((ParquetColumnarProcessors.RowGroupProcessor) rowGroup -> {
 			Assert.assertTrue(rowGroup.getNumRows() <= rowGrpLen);
 			rowGroup.forEachColumnChunk(inMemChunk -> {
-				HackyParquetExtendedColumnReader columnReader = new HackyParquetExtendedColumnReader(inMemChunk);
+				ChunkValuesReader columnReader = ChunkValuesReaderFactory.createChunkReader(inMemChunk);
 				double[] vals = getRandomVals(inMemChunk.getDescriptor().getPath()[0],
 						(int) inMemChunk.getTotalValues());
 				for (int i = 0; i < rowGroup.getNumRows(); i++)
 				{
-					columnReader.consume();
 					Assert.assertEquals(vals[i], columnReader.getDouble(), 0d);
+					columnReader.next();
 				}
 			});
 		});

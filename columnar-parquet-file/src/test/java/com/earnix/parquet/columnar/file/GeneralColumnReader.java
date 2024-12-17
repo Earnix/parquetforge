@@ -1,25 +1,25 @@
 package com.earnix.parquet.columnar.file;
 
+import com.earnix.parquet.columnar.reader.chunk.internal.ChunkValuesReaderImpl;
 import org.apache.parquet.column.ColumnDescriptor;
-import org.apache.parquet.column.impl.ColumnReaderImpl;
 import org.apache.parquet.schema.PrimitiveType;
 
 import java.nio.charset.StandardCharsets;
 
 public class GeneralColumnReader
 {
-	public static Object getValue(ColumnReaderImpl reader, ColumnDescriptor columnDescriptor){
-		reader.consume();
-
-		if (valueIsNull(reader, columnDescriptor.getMaxDefinitionLevel()))
+	public static Object getValue(ChunkValuesReaderImpl reader, ColumnDescriptor columnDescriptor)
+	{
+		if (reader.isNull())
 			return null;
 
 		return getValueByType(reader, columnDescriptor.getPrimitiveType().getPrimitiveTypeName());
 	}
 
-	private static Object getValueByType(ColumnReaderImpl reader, PrimitiveType.PrimitiveTypeName primitiveTypeName)
+	private static Object getValueByType(ChunkValuesReaderImpl reader, PrimitiveType.PrimitiveTypeName primitiveTypeName)
 	{
-		switch (primitiveTypeName){
+		switch (primitiveTypeName)
+		{
 			case INT64:
 				return reader.getLong();
 			case INT32:
@@ -39,10 +39,4 @@ public class GeneralColumnReader
 				throw new IllegalStateException("Unknown Type " + primitiveTypeName);
 		}
 	}
-
-	private static boolean valueIsNull(ColumnReaderImpl reader, int defLevel)
-	{
-		return reader.getCurrentDefinitionLevel() < defLevel;
-	}
-
 }

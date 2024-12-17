@@ -63,7 +63,7 @@ public class ParquetFileFiller
 			throws IOException
 	{
 		List<Function<RowGroupWriter, ColumnChunkForTesting>> chunkBuilders = Arrays.asList(
-				writer -> writeDoubleColumn(writer, COL_1_DOUBLE, new double[]{ 1, 1 }),
+				writer -> writeDoubleColumn(writer, COL_1_DOUBLE, new double[]{ 1.3, 2.4 }),
 				writer -> writeBooleanColumn(writer, COL_BOOLEAN_2, Arrays.asList(false, null)),
 				writer -> writeInt32Column(writer, COL_3_INT_32, new int[]{ 4, 6  }),
 				writer -> writeInt64Column(writer, COL_4_INT_64, new NullableLongIteratorImpl()),
@@ -77,7 +77,7 @@ public class ParquetFileFiller
 			throws IOException
 	{
 		List<Function<RowGroupWriter, ColumnChunkForTesting>> chunkBuilders = Arrays.asList(
-				writer -> writeDoubleColumn(writer, COL_1_DOUBLE, new double[] { 30 }),
+				writer -> writeDoubleColumn(writer, COL_1_DOUBLE, new double[] { 30.6 }),
 				writer -> writeBooleanColumn(writer, COL_BOOLEAN_2, Arrays.asList(Boolean.FALSE)),
 				writer -> writeInt32Column(writer, COL_3_INT_32, new int[]{ 4 }),
 				writer -> writeInt64Column(writer, COL_4_INT_64, new long[] { 4 }),
