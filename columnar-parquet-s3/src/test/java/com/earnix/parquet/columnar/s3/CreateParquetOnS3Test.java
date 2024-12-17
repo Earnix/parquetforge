@@ -3,6 +3,7 @@ package com.earnix.parquet.columnar.s3;
 import com.earnix.parquet.columnar.reader.IndexedParquetColumnarFileReader;
 import com.earnix.parquet.columnar.reader.ParquetColumnarFileReader;
 import com.earnix.parquet.columnar.reader.chunk.ChunkValuesReader;
+import com.earnix.parquet.columnar.reader.chunk.internal.ChunkValuesReaderFactory;
 import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
 import com.earnix.parquet.columnar.s3.assembler.ParquetFileChunkSupplier;
 import com.earnix.parquet.columnar.s3.assembler.ParquetRowGroupSupplier;
@@ -140,9 +141,9 @@ public class CreateParquetOnS3Test
 	{
 		InMemChunk chunk = reader.readInMem(rowGrp, descriptor);
 		Assert.assertEquals(1, chunk.getTotalValues());
-		ChunkValuesReader valReader = new ChunkValuesReader(chunk);
-		Assert.assertTrue(valReader.next());
+		ChunkValuesReader valReader = ChunkValuesReaderFactory.createChunkReader(chunk);
 		Assert.assertFalse(valReader.isNull());
 		Assert.assertEquals(expected, valReader.getDouble(), 0.0d);
+		Assert.assertFalse(valReader.next());
 	}
 }

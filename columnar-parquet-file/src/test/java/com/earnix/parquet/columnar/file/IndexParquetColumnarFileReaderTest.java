@@ -2,6 +2,7 @@ package com.earnix.parquet.columnar.file;
 
 import com.earnix.parquet.columnar.reader.IndexedParquetColumnarFileReader;
 import com.earnix.parquet.columnar.reader.chunk.ChunkValuesReader;
+import com.earnix.parquet.columnar.reader.chunk.internal.ChunkValuesReaderFactory;
 import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import com.earnix.parquet.columnar.writer.ParquetFileColumnarWriterFactory;
@@ -81,11 +82,11 @@ public class IndexParquetColumnarFileReaderTest
 			int[] expected) throws IOException
 	{
 		InMemChunk chunk = fileReader.readInMem(rowGroup, fileReader.getDescriptor(colOffset));
-		ChunkValuesReader chunkValuesReader = new ChunkValuesReader(chunk);
-		for (int val : expected)
+		ChunkValuesReader chunkValuesReader = ChunkValuesReaderFactory.createChunkReader(chunk);
+		for (int i = 0; i < expected.length; i++)
 		{
-			Assert.assertTrue(chunkValuesReader.next());
-			Assert.assertEquals(val, chunkValuesReader.getInteger());
+			Assert.assertEquals(expected[i], chunkValuesReader.getInteger());
+			Assert.assertEquals(i < expected.length - 1, chunkValuesReader.next());
 		}
 		Assert.assertFalse(chunkValuesReader.next());
 	}

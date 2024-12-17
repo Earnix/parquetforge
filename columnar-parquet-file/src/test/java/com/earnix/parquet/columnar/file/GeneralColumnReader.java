@@ -1,6 +1,6 @@
 package com.earnix.parquet.columnar.file;
 
-import com.earnix.parquet.columnar.reader.chunk.internal.ChunkValuesReaderImpl;
+import com.earnix.parquet.columnar.reader.chunk.ChunkValuesReader;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.schema.PrimitiveType;
 
@@ -8,7 +8,7 @@ import java.nio.charset.StandardCharsets;
 
 public class GeneralColumnReader
 {
-	public static Object getValue(ChunkValuesReaderImpl reader, ColumnDescriptor columnDescriptor)
+	public static Object getValue(ChunkValuesReader reader, ColumnDescriptor columnDescriptor)
 	{
 		if (reader.isNull())
 			return null;
@@ -16,7 +16,7 @@ public class GeneralColumnReader
 		return getValueByType(reader, columnDescriptor.getPrimitiveType().getPrimitiveTypeName());
 	}
 
-	private static Object getValueByType(ChunkValuesReaderImpl reader, PrimitiveType.PrimitiveTypeName primitiveTypeName)
+	private static Object getValueByType(ChunkValuesReader reader, PrimitiveType.PrimitiveTypeName primitiveTypeName)
 	{
 		switch (primitiveTypeName)
 		{
