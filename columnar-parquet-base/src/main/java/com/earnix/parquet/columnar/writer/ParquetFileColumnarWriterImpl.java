@@ -109,7 +109,7 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 
 		List<SchemaElement> schemaElements = ParquetWriterUtils.getSchemaElements(messageType);
 		FileMetaData fileMetaData = ParquetWriterUtils.getFileMetaData(rowGroupInfos, schemaElements);
-		ParquetWriterUtils.writeFooterMetadata(fileChannel, fileMetaData);
+		ParquetWriterUtils.writeFooterMetadataAndMagic(fileChannel, fileMetaData);
 
 		return new ParquetFileInfo(fileChannel.position(), messageType, fileMetaData);
 	}

@@ -1,10 +1,11 @@
 package com.earnix.parquet.columnar.s3.downloader;
 
 import com.earnix.parquet.columnar.utils.ParquetMagicUtils;
+import com.earnix.parquet.columnar.writer.ParquetWriterUtils;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.io.output.CloseShieldOutputStream;
+import org.apache.parquet.format.ColumnChunk;
 import org.apache.parquet.format.FileMetaData;
 import org.apache.parquet.format.RowGroup;
 import org.apache.parquet.format.Util;
@@ -21,10 +22,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.nio.file.attribute.FileAttribute;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -93,6 +96,8 @@ public class S3ParquetFilePartDownloader
 	public void downloadToRowGroups(IntFunction<Path> rowGroupIntToPath) throws IOException
 	{
 		ensureFooterMetadataDownloaded();
+		sanityCheckRowGroupsAreContiguous();
+
 		boolean success = false;
 		Path[] rowGroupPath = null;
 		try
@@ -111,6 +116,11 @@ public class S3ParquetFilePartDownloader
 						== s3KeyDownloader.getObjectSize(), "Last part MUST end a the length of the s3 object");
 
 				parallelDownload(service, partsListAbsoluteOffsets, rowGroupPath, rowGrpStartToFileOffset);
+			}
+			catch (InterruptedException ex)
+			{
+				Thread.currentThread().interrupt();
+				throw new IllegalStateException("Interrupted");
 			}
 			finally
 			{
@@ -138,8 +148,9 @@ public class S3ParquetFilePartDownloader
 	}
 
 	private void parallelDownload(ExecutorService service, long[] partsListAbsoluteOffsets, Path[] rowGroupPath,
-			long[] rowGrpStartToFileOffset) throws IOException
+			long[] rowGrpStartToFileOffset) throws IOException, InterruptedException
 	{
+		Future<?>[] futs = new Future[partsListAbsoluteOffsets.length];
 		for (int i = 0; i < partsListAbsoluteOffsets.length - 1; i++)
 		{
 			final long[] byteRange = { partsListAbsoluteOffsets[i], partsListAbsoluteOffsets[i + 1] };
@@ -160,25 +171,106 @@ public class S3ParquetFilePartDownloader
 			sanityCheck(partsListAbsoluteOffsets[pos] <= byteRange[0], "Wrong part found");
 
 			int startRowgroupOffset = pos;
-			s3KeyDownloader.downloadRange(byteRange[0], byteRange[1], is -> {
-				long currentBytePos = byteRange[0];
-				for (int currFile = startRowgroupOffset; currentBytePos < byteRange[1]; currFile++)
-				{
-					try (FileChannel fc = FileChannel.open(rowGroupPath[currFile], StandardOpenOption.WRITE))
-					{
-						long offsetInRowGroup = currentBytePos - rowGrpStartToFileOffset[currFile];
-						fc.position(ParquetMagicUtils.PARQUET_MAGIC.length() + offsetInRowGroup);
-						long len = Math.min(byteRange[1], rowGrpStartToFileOffset[currFile + 1] - currentBytePos);
-						long bytesCopied = IOUtils.copyLarge(is, Channels.newOutputStream(fc), 0, len);
-						sanityCheck(bytesCopied == len,
-								"Bytes copied does not match len: " + len + " " + "bytesCopied: " + bytesCopied);
-						currentBytePos += len;
-					}
-				}
+			rateLimiter.acquire();
+			futs[i] = service.submit(() -> {
+				downloadRange(rowGroupPath, rowGrpStartToFileOffset, byteRange, startRowgroupOffset);
+				return null;
 			});
 		}
 
+		waitForFutures(futs);
+
 		//TODO: write footer metadata in each of the created files
+		for (int rowGrpNum = 0; rowGrpNum < rowGroupPath.length; rowGrpNum++)
+		{
+			FileMetaData newFooterMetadata = footerMetadata.deepCopy();
+			RowGroup rg = newFooterMetadata.getRow_groups().get(rowGrpNum);
+			long delta = ParquetMagicUtils.PARQUET_MAGIC.length() - rg.getFile_offset();
+			rg.setFile_offset(ParquetMagicUtils.PARQUET_MAGIC.length());
+			Iterator<ColumnChunk> it = rg.getColumnsIterator();
+			while (it.hasNext())
+			{
+				ColumnChunk columnChunk = it.next();
+				columnChunk.setFile_offset(columnChunk.getFile_offset() + delta);
+			}
+
+			// this is the only row group
+			newFooterMetadata.setRow_groups(Collections.singletonList(rg));
+			try (FileChannel fc = FileChannel.open(rowGroupPath[rowGrpNum], StandardOpenOption.WRITE))
+			{
+				fc.position(fc.size());
+				ParquetWriterUtils.writeFooterMetadataAndMagic(fc, newFooterMetadata);
+			}
+		}
+	}
+
+	private static void waitForFutures(Future<?>[] futs) throws InterruptedException, IOException
+	{
+		for (Future<?> fut : futs)
+		{
+			try
+			{
+				fut.get();
+			}
+			catch (ExecutionException ex)
+			{
+				if (ex.getCause() instanceof RuntimeException)
+					throw (RuntimeException) ex.getCause();
+				if (ex.getCause() instanceof IOException)
+					throw (IOException) ex.getCause();
+
+				// shouldn't happen..
+				throw new IllegalStateException(ex);
+			}
+		}
+	}
+
+	private void downloadRange(Path[] rowGroupPath, long[] rowGrpStartToFileOffset, long[] byteRange,
+			int startRowgroupOffset) throws IOException
+	{
+		s3KeyDownloader.downloadRange(byteRange[0], byteRange[1], is -> {
+			long currentBytePos = byteRange[0];
+			for (int currFile = startRowgroupOffset; currentBytePos < byteRange[1]; currFile++)
+			{
+				try (FileChannel fc = FileChannel.open(rowGroupPath[currFile], StandardOpenOption.WRITE))
+				{
+					long offsetInRowGroup = currentBytePos - rowGrpStartToFileOffset[currFile];
+					fc.position(ParquetMagicUtils.PARQUET_MAGIC.length() + offsetInRowGroup);
+					long len = Math.min(byteRange[1], rowGrpStartToFileOffset[currFile + 1] - currentBytePos);
+					long bytesCopied = IOUtils.copyLarge(is, Channels.newOutputStream(fc), 0, len);
+					sanityCheck(bytesCopied == len,
+							"Bytes copied does not match len: " + len + " " + "bytesCopied: " + bytesCopied);
+					currentBytePos += len;
+				}
+			}
+		});
+	}
+
+	private void sanityCheckRowGroupsAreContiguous()
+	{
+		ensureFooterMetadataDownloaded();
+		Iterator<RowGroup> it = footerMetadata.getRow_groupsIterator();
+
+		long expectedOffset = ParquetMagicUtils.PARQUET_MAGIC.length();
+		while (it.hasNext())
+		{
+			RowGroup rg = it.next();
+			sanityCheck(rg.getFile_offset() == expectedOffset, "Row group start at unexpected place");
+			sanityCheck(rg.getTotal_compressed_size() > 0, "Row group compressed size invalid");
+			expectedOffset += rg.getTotal_compressed_size();
+
+			Iterator<ColumnChunk> columnChunkIterator = rg.getColumnsIterator();
+			while (columnChunkIterator.hasNext())
+			{
+				ColumnChunk columnChunk = columnChunkIterator.next();
+				sanityCheck(columnChunk.getFile_offset() >= rg.getFile_offset(),
+						"chunk cannot start before row group offset");
+				sanityCheck(columnChunk.getMeta_data().getTotal_compressed_size() > 0,
+						"chunk must have more than zero data");
+				long chunkEnd = columnChunk.getFile_offset() + columnChunk.getMeta_data().getTotal_compressed_size();
+				sanityCheck(chunkEnd <= expectedOffset, "chunk cannot end after row group offset");
+			}
+		}
 	}
 
 	private long[] computePartOffsets()

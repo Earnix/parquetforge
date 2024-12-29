@@ -7,7 +7,6 @@ import com.earnix.parquet.columnar.writer.rowgroup.RowGroupInfo;
 import org.apache.commons.io.output.CountingOutputStream;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.ColumnChunk;
-import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.format.FileMetaData;
 import org.apache.parquet.format.RowGroup;
 import org.apache.parquet.format.SchemaElement;
@@ -29,7 +28,7 @@ import java.util.stream.Collectors;
  */
 public class ParquetWriterUtils
 {
-	public static void writeFooterMetadata(WritableByteChannel fileChannel, FileMetaData fileMetaData)
+	public static void writeFooterMetadataAndMagic(WritableByteChannel fileChannel, FileMetaData fileMetaData)
 			throws IOException
 	{
 		CountingOutputStream os = new CountingOutputStream(Channels.newOutputStream(fileChannel));
