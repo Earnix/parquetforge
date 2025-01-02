@@ -183,6 +183,10 @@ public class RandomizedDataTest
 		long endOffsetOfFirstRowGrp = firstRowGrp.getFile_offset() + firstRowGrp.getTotal_compressed_size();
 		readAndAssertValuesDownloadToRowGroups(keyDownloader,
 				new long[] { 0, endOffsetOfFirstRowGrp, keyDownloader.getObjectSize() });
+		readAndAssertValuesDownloadToRowGroups(keyDownloader,
+				new long[] { 0, endOffsetOfFirstRowGrp - 1, keyDownloader.getObjectSize() });
+		readAndAssertValuesDownloadToRowGroups(keyDownloader,
+				new long[] { 0, endOffsetOfFirstRowGrp + 1, keyDownloader.getObjectSize() });
 	}
 
 	private double[] getRandomVals(String colName, int numValues)
