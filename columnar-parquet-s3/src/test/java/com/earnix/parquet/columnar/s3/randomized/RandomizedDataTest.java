@@ -1,17 +1,27 @@
 package com.earnix.parquet.columnar.s3.randomized;
 
+import com.earnix.parquet.columnar.reader.IndexedParquetColumnarFileReader;
 import com.earnix.parquet.columnar.reader.ParquetColumnarFileReader;
 import com.earnix.parquet.columnar.reader.chunk.ChunkValuesReader;
+import com.earnix.parquet.columnar.reader.chunk.InMemRowGroup;
 import com.earnix.parquet.columnar.reader.chunk.internal.ChunkValuesReaderFactory;
 import com.earnix.parquet.columnar.reader.processors.ParquetColumnarProcessors;
 import com.earnix.parquet.columnar.s3.ParquetS3ObjectWriterImpl;
 import com.earnix.parquet.columnar.s3.S3MockService;
 import com.earnix.parquet.columnar.s3.buffering.S3KeyUploader;
+import com.earnix.parquet.columnar.s3.downloader.S3KeyDownloader;
+import com.earnix.parquet.columnar.s3.downloader.S3ParquetFilePartDownloader;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import com.earnix.parquet.columnar.writer.ParquetFileInfo;
+import com.google.common.math.IntMath;
+import com.google.common.primitives.Ints;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.file.PathUtils;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.format.CompressionCodec;
+import org.apache.parquet.format.FileMetaData;
+import org.apache.parquet.format.RowGroup;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
@@ -27,6 +37,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -36,6 +47,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
+import java.util.function.IntFunction;
 import java.util.stream.IntStream;
 
 @RunWith(Parameterized.class)
@@ -121,6 +134,7 @@ public class RandomizedDataTest
 	private static S3MockService s3MockService;
 	private final int numRows;
 	private final int rowGrpLen;
+	private final int numRowGroups;
 	private final int targetPartsPerRowGrp;
 	private final int numCols;
 	private Path tmpFolder;
@@ -131,6 +145,7 @@ public class RandomizedDataTest
 	{
 		this.numRows = numRows;
 		this.rowGrpLen = rowGrpLen;
+		this.numRowGroups = IntMath.divide(numRows, rowGrpLen, RoundingMode.CEILING);
 		this.targetPartsPerRowGrp = targetPartsPerRowGrp;
 		this.numCols = numCols;
 	}
@@ -145,8 +160,29 @@ public class RandomizedDataTest
 				targetPartsPerRowGrp, numCols);
 		Path downloaded = downloadToTempFile(KEY);
 
-		resetRandom();
-		readAndAssertValues(downloaded, info);
+		try
+		{
+			resetRandom();
+			readAndAssertValuesStandardDownload(downloaded, info);
+		}
+		finally
+		{
+			Files.deleteIfExists(downloaded);
+		}
+
+
+		S3KeyDownloader keyDownloader = new S3KeyDownloader(s3MockService.getS3Client(), s3MockService.testBucket(),
+				KEY);
+
+		readAndAssertValuesDownloadToRowGroups(keyDownloader, new long[] { 0, keyDownloader.getObjectSize() });
+
+		readAndAssertValuesDownloadToRowGroups(keyDownloader,
+				new long[] { 0, keyDownloader.getObjectSize() / 3, keyDownloader.getObjectSize() });
+
+		RowGroup firstRowGrp = info.getFileMetaData().getRow_groups().get(0);
+		long endOffsetOfFirstRowGrp = firstRowGrp.getFile_offset() + firstRowGrp.getTotal_compressed_size();
+		readAndAssertValuesDownloadToRowGroups(keyDownloader,
+				new long[] { 0, endOffsetOfFirstRowGrp, keyDownloader.getObjectSize() });
 	}
 
 	private double[] getRandomVals(String colName, int numValues)
@@ -160,24 +196,14 @@ public class RandomizedDataTest
 		return randDoubleVals;
 	}
 
-	private void readAndAssertValues(Path downloaded, ParquetFileInfo info) throws IOException
+	private void readAndAssertValuesStandardDownload(Path downloaded, ParquetFileInfo info) throws IOException
 	{
 		ParquetColumnarFileReader reader = new ParquetColumnarFileReader(downloaded);
 		Assert.assertEquals(info.getFileMetaData().getRow_groupsSize(), reader.readMetaData().getRow_groupsSize());
 
 		// this assumes the implementation of process file is single and in order. Seems not great.
 		reader.processFile((ParquetColumnarProcessors.RowGroupProcessor) rowGroup -> {
-			Assert.assertTrue(rowGroup.getNumRows() <= rowGrpLen);
-			rowGroup.forEachColumnChunk(inMemChunk -> {
-				ChunkValuesReader columnReader = ChunkValuesReaderFactory.createChunkReader(inMemChunk);
-				double[] vals = getRandomVals(inMemChunk.getDescriptor().getPath()[0],
-						(int) inMemChunk.getTotalValues());
-				for (int i = 0; i < rowGroup.getNumRows(); i++)
-				{
-					Assert.assertEquals(vals[i], columnReader.getDouble(), 0d);
-					columnReader.next();
-				}
-			});
+			assertNextValuesEqual(rowGroup);
 		});
 	}
 
@@ -225,5 +251,63 @@ public class RandomizedDataTest
 			Files.copy(resp, tmpFile, StandardCopyOption.REPLACE_EXISTING);
 		}
 		return tmpFile;
+	}
+
+	private void readAndAssertValuesDownloadToRowGroups(S3KeyDownloader keyDownloader, long[] offsets)
+			throws IOException
+	{
+		resetRandom();
+		S3ParquetFilePartDownloader parquetFilePartDownloader = partDownloader(keyDownloader, offsets);
+		Path tmpFolder = Files.createTempDirectory("s3_explode_rowgrps");
+		try
+		{
+			BiFunction<Integer, RowGroup, Path> rowGrpNumToFile = (rowGrpNum, rg) -> tmpFolder.resolve(
+					"row_grp_" + rowGrpNum + ".parquet");
+			parquetFilePartDownloader.downloadToRowGroups(rowGrpNumToFile);
+
+			for (int rgNum = 0; rgNum < numRowGroups; rgNum++)
+			{
+				Path rgPath = rowGrpNumToFile.apply(rgNum, null);
+				Assert.assertTrue(Files.isRegularFile(rgPath));
+
+				ParquetColumnarFileReader reader = new ParquetColumnarFileReader(rgPath);
+				Assert.assertEquals(1, reader.readMetaData().getRow_groupsSize());
+
+				reader.processFile((ParquetColumnarProcessors.RowGroupProcessor) rowGroup -> {
+					assertNextValuesEqual(rowGroup);
+				});
+			}
+		}
+		finally
+		{
+			PathUtils.deleteDirectory(tmpFolder);
+		}
+	}
+
+	private static S3ParquetFilePartDownloader partDownloader(S3KeyDownloader keyDownloader, long[] offsets)
+	{
+		S3ParquetFilePartDownloader parquetFilePartDownloader = new S3ParquetFilePartDownloader(keyDownloader)
+		{
+			@Override
+			protected long[] computePartOffsets()
+			{
+				return offsets;
+			}
+		};
+		return parquetFilePartDownloader;
+	}
+
+	private void assertNextValuesEqual(InMemRowGroup rowGroup)
+	{
+		Assert.assertTrue(rowGroup.getNumRows() <= rowGrpLen);
+		rowGroup.forEachColumnChunk(inMemChunk -> {
+			ChunkValuesReader columnReader = ChunkValuesReaderFactory.createChunkReader(inMemChunk);
+			double[] vals = getRandomVals(inMemChunk.getDescriptor().getPath()[0], (int) inMemChunk.getTotalValues());
+			for (int i = 0; i < rowGroup.getNumRows(); i++)
+			{
+				Assert.assertEquals(vals[i], columnReader.getDouble(), 0d);
+				columnReader.next();
+			}
+		});
 	}
 }

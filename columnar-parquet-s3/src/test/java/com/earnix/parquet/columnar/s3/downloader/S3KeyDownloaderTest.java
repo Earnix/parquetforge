@@ -2,6 +2,7 @@ package com.earnix.parquet.columnar.s3.downloader;
 
 import com.earnix.parquet.columnar.s3.S3MockService;
 import com.earnix.parquet.columnar.s3.buffering.S3KeyUploader;
+import org.apache.commons.io.IOUtils;
 import org.junit.Assert;
 import org.junit.Test;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -40,6 +41,14 @@ public class S3KeyDownloaderTest
 			Assert.assertArrayEquals(expecteds, lastBytes);
 
 			byte[] lastBytes2 = s3KeyDownloader.getLastBytes(8);
+			Assert.assertEquals(8, lastBytes2.length);
+			Assert.assertArrayEquals(expecteds, lastBytes2);
+
+			byte[] lastBytes3 = new byte[expecteds.length];
+			s3KeyDownloader.downloadRange(dataPart1.length - 8, dataPart1.length, is -> {
+				IOUtils.readFully(is, lastBytes3);
+				Assert.assertEquals(-1, is.read());
+			});
 			Assert.assertEquals(8, lastBytes2.length);
 			Assert.assertArrayEquals(expecteds, lastBytes2);
 		}

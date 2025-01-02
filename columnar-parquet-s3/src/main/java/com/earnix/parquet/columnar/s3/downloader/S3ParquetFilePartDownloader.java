@@ -25,6 +25,8 @@ import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -32,7 +34,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.IntFunction;
+import java.util.function.BiFunction;
 
 /**
  * Download an s3 file into parts
@@ -93,7 +95,7 @@ public class S3ParquetFilePartDownloader
 		}
 	}
 
-	public void downloadToRowGroups(IntFunction<Path> rowGroupIntToPath) throws IOException
+	public void downloadToRowGroups(BiFunction<Integer, RowGroup, Path> rowGroupIntToPath) throws IOException
 	{
 		ensureFooterMetadataDownloaded();
 		sanityCheckRowGroupsAreContiguous();
@@ -150,25 +152,39 @@ public class S3ParquetFilePartDownloader
 	private void parallelDownload(ExecutorService service, long[] partsListAbsoluteOffsets, Path[] rowGroupPath,
 			long[] rowGrpStartToFileOffset) throws IOException, InterruptedException
 	{
-		Future<?>[] futs = new Future[partsListAbsoluteOffsets.length];
+		Future<?>[] futs = new Future[partsListAbsoluteOffsets.length - 1];
+		RowGroup lastRG = footerMetadata.getRow_groups().get(footerMetadata.getRow_groupsSize() - 1);
+		long startOffsetOfFooterMetadata = lastRG.getFile_offset() + lastRG.getTotal_compressed_size();
 		for (int i = 0; i < partsListAbsoluteOffsets.length - 1; i++)
 		{
 			final long[] byteRange = { partsListAbsoluteOffsets[i], partsListAbsoluteOffsets[i + 1] };
+			sanityCheck(byteRange[0] < byteRange[1], "Byte range must be have positive length");
+
+			// if this part starts at or after the footer metadata, we have no need to download it. We're done!
+			if (byteRange[0] >= startOffsetOfFooterMetadata)
+			{
+				// fill the futures array with completed futures to prevent NPE.
+				futs[i] = CompletableFuture.completedFuture(null);
+				continue;
+			}
 
 			// find first path containing these bytes
-			int pos = Arrays.binarySearch(partsListAbsoluteOffsets, byteRange[0]);
+			int pos = Arrays.binarySearch(rowGrpStartToFileOffset, byteRange[0]);
 
 			// this can happen with the first part, because we discard the magic
 			if (pos == -1)
 			{
-				byteRange[0] = partsListAbsoluteOffsets[0];
+				byteRange[0] = rowGrpStartToFileOffset[0];
+				pos = 0;
 			}
-			if (pos < 0)
+			else if (pos < 0)
 			{
-				pos = -pos - 1;
+				pos = -pos - 2;
 			}
 
-			sanityCheck(partsListAbsoluteOffsets[pos] <= byteRange[0], "Wrong part found");
+			sanityCheck(rowGrpStartToFileOffset[pos] <= byteRange[0], "Wrong row group found");
+			sanityCheck(pos == rowGrpStartToFileOffset.length - 1 || rowGrpStartToFileOffset[pos + 1] > byteRange[0],
+					"Wrong row group found");
 
 			int startRowgroupOffset = pos;
 			rateLimiter.acquire();
@@ -191,7 +207,8 @@ public class S3ParquetFilePartDownloader
 			while (it.hasNext())
 			{
 				ColumnChunk columnChunk = it.next();
-				columnChunk.setFile_offset(columnChunk.getFile_offset() + delta);
+				columnChunk.getMeta_data()
+						.setData_page_offset(columnChunk.getMeta_data().getData_page_offset() + delta);
 			}
 
 			// this is the only row group
@@ -230,13 +247,23 @@ public class S3ParquetFilePartDownloader
 	{
 		s3KeyDownloader.downloadRange(byteRange[0], byteRange[1], is -> {
 			long currentBytePos = byteRange[0];
-			for (int currFile = startRowgroupOffset; currentBytePos < byteRange[1]; currFile++)
+			for (int rowGroupNum = startRowgroupOffset;
+				 currentBytePos < byteRange[1] && rowGroupNum < rowGrpStartToFileOffset.length; rowGroupNum++)
 			{
-				try (FileChannel fc = FileChannel.open(rowGroupPath[currFile], StandardOpenOption.WRITE))
+				try (FileChannel fc = FileChannel.open(rowGroupPath[rowGroupNum], StandardOpenOption.WRITE))
 				{
-					long offsetInRowGroup = currentBytePos - rowGrpStartToFileOffset[currFile];
+					long offsetInRowGroup = currentBytePos - rowGrpStartToFileOffset[rowGroupNum];
+
+					// note this will break if the parquet file has some buffer space between row groups..
+					sanityCheck(offsetInRowGroup >= 0, "Offset in row group must be greater than zero");
+					long rowGroupLength = footerMetadata.getRow_groups().get(rowGroupNum).getTotal_compressed_size();
+					sanityCheck(offsetInRowGroup < rowGroupLength,
+							"Offset in row group must be less than total compressed size");
+
 					fc.position(ParquetMagicUtils.PARQUET_MAGIC.length() + offsetInRowGroup);
-					long len = Math.min(byteRange[1], rowGrpStartToFileOffset[currFile + 1] - currentBytePos);
+
+					long len = Math.min(byteRange[1] - currentBytePos, rowGroupLength - offsetInRowGroup);
+					sanityCheck(len > 0, "len must be greater than zero");
 					long bytesCopied = IOUtils.copyLarge(is, Channels.newOutputStream(fc), 0, len);
 					sanityCheck(bytesCopied == len,
 							"Bytes copied does not match len: " + len + " " + "bytesCopied: " + bytesCopied);
@@ -263,21 +290,38 @@ public class S3ParquetFilePartDownloader
 			while (columnChunkIterator.hasNext())
 			{
 				ColumnChunk columnChunk = columnChunkIterator.next();
-				sanityCheck(columnChunk.getFile_offset() >= rg.getFile_offset(),
+				sanityCheck(columnChunk.getMeta_data().getData_page_offset() >= rg.getFile_offset(),
 						"chunk cannot start before row group offset");
 				sanityCheck(columnChunk.getMeta_data().getTotal_compressed_size() > 0,
 						"chunk must have more than zero data");
-				long chunkEnd = columnChunk.getFile_offset() + columnChunk.getMeta_data().getTotal_compressed_size();
+				long chunkEnd = columnChunk.getMeta_data().getData_page_offset() + columnChunk.getMeta_data()
+						.getTotal_compressed_size();
 				sanityCheck(chunkEnd <= expectedOffset, "chunk cannot end after row group offset");
 			}
 		}
 	}
 
-	private long[] computePartOffsets()
+	/**
+	 * Compute the starting part offsets to fetch from S3 when downloading. The default implementation uses the parts
+	 * from list parts for optimal performance. This is protected in order to easily test randomized part breakdowns to
+	 * find corner cases.
+	 * <br>
+	 * In the event that parts are not found, it will return a single offset with the whole file. We should consult with
+	 * the S3 engineers to understand whether parallelizing a download makes sense in this case.
+	 *
+	 * @return the starting and ending part offsets
+	 */
+	protected long[] computePartOffsets()
 	{
-		long[] partsListAbsoluteOffsets = new long[s3KeyDownloader.getPartsList().size() + 1];
+		List<ObjectPart> partsList = s3KeyDownloader.getPartsList();
+
+		// if the object was not uploaded in parts, use only one part to download. Need to ask AWS if this is good..
+		if (partsList.isEmpty())
+			return new long[] { 0, s3KeyDownloader.getObjectSize() };
+
+		long[] partsListAbsoluteOffsets = new long[partsList.size() + 1];
 		int offsetIdx = 1;
-		for (ObjectPart objectPart : s3KeyDownloader.getPartsList())
+		for (ObjectPart objectPart : partsList)
 		{
 			partsListAbsoluteOffsets[offsetIdx] = partsListAbsoluteOffsets[offsetIdx - 1] + objectPart.size();
 			offsetIdx++;
@@ -318,7 +362,7 @@ public class S3ParquetFilePartDownloader
 		return rowGrpStartToFileOffset;
 	}
 
-	private Path[] createFiles(IntFunction<Path> rowGroupIntToPath) throws IOException
+	private Path[] createFiles(BiFunction<Integer, RowGroup, Path> rowGroupIntToPath) throws IOException
 	{
 		Path[] rowGroupPath = new Path[footerMetadata.getRow_groupsSize()];
 		boolean success = false;
@@ -328,7 +372,7 @@ public class S3ParquetFilePartDownloader
 			for (int rowGrpNum = 0; it.hasNext(); rowGrpNum++)
 			{
 				// create and write magic
-				rowGroupPath[rowGrpNum] = Files.write(rowGroupIntToPath.apply(rowGrpNum),
+				rowGroupPath[rowGrpNum] = Files.write(rowGroupIntToPath.apply(rowGrpNum, it.next()),
 						ParquetMagicUtils.PARQUET_MAGIC.getBytes(StandardCharsets.US_ASCII),
 						StandardOpenOption.CREATE_NEW);
 			}

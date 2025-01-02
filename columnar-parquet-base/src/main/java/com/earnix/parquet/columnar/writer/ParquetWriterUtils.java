@@ -70,6 +70,7 @@ public class ParquetWriterUtils
 	private static RowGroup getRowGroup(RowGroupInfo rowGroupInfo)
 	{
 		RowGroup rowGroup = new RowGroup();
+		rowGroup.setFile_offset(rowGroupInfo.getStartingOffset());
 		rowGroup.setNum_rows(rowGroupInfo.getNumRows());
 		rowGroup.setColumns(getChunks(rowGroupInfo));
 		rowGroup.setTotal_compressed_size(rowGroupInfo.getCompressedSize());
