@@ -163,7 +163,6 @@ public class S3KeyDownloader
 	 */
 	public byte[] getLastBytes(int numberOfBytes)
 	{
-		// note that http spec says the last byte is inclusive, so subtract one from end byte.
 		String byteRange = "bytes=" + "-" + numberOfBytes;
 		ResponseBytes<GetObjectResponse> resp = s3Client.getObjectAsBytes(
 				builder -> builder.bucket(bucket).key(key).range(byteRange));

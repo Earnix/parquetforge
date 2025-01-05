@@ -34,7 +34,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.BiFunction;
 
 /**
  * Download an s3 file into parts
@@ -95,7 +94,15 @@ public class S3ParquetFilePartDownloader
 		}
 	}
 
-	public void downloadToRowGroups(BiFunction<Integer, RowGroup, Path> rowGroupIntToPath) throws IOException
+	/**
+	 * Download a parquet file into one file per row group
+	 *
+	 * @param rowGroupIntToPath a function that computes the path for a rowgroup based upon the rowgroup offset and also
+	 *                          the rowgroup metadata. IMPORTANT: do NOT manipulate the RowGroup metadata. Bad things
+	 *                          will happen!
+	 * @throws IOException on failure to write to disk or read from S3.
+	 */
+	public void downloadToRowGroups(RowGroupToPath rowGroupIntToPath) throws IOException
 	{
 		ensureFooterMetadataDownloaded();
 		sanityCheckRowGroupsAreContiguous();
@@ -105,6 +112,8 @@ public class S3ParquetFilePartDownloader
 		try
 		{
 			rowGroupPath = createFiles(rowGroupIntToPath);
+
+			// the offset in the parquet file where each row group starts.
 			long[] rowGrpStartToFileOffset = computeStartingOffsetsForRowGroups();
 
 			ExecutorService service = new ThreadPoolExecutor(numDownloadThreads, numDownloadThreads, 0L,
@@ -189,7 +198,7 @@ public class S3ParquetFilePartDownloader
 			int startRowgroupOffset = pos;
 			rateLimiter.acquire();
 			futs[i] = service.submit(() -> {
-				downloadRange(rowGroupPath, rowGrpStartToFileOffset, byteRange, startRowgroupOffset);
+				downloadByteRange(rowGroupPath, rowGrpStartToFileOffset, byteRange, startRowgroupOffset);
 				return null;
 			});
 		}
@@ -242,32 +251,38 @@ public class S3ParquetFilePartDownloader
 		}
 	}
 
-	private void downloadRange(Path[] rowGroupPath, long[] rowGrpStartToFileOffset, long[] byteRange,
+	private void downloadByteRange(Path[] rowGroupPath, long[] rowGrpStartToFileOffset, long[] byteRange,
 			int startRowgroupOffset) throws IOException
 	{
 		s3KeyDownloader.downloadRange(byteRange[0], byteRange[1], is -> {
-			long currentBytePos = byteRange[0];
+			long currentBytePosInS3 = byteRange[0];
 			for (int rowGroupNum = startRowgroupOffset;
-				 currentBytePos < byteRange[1] && rowGroupNum < rowGrpStartToFileOffset.length; rowGroupNum++)
+				 currentBytePosInS3 < byteRange[1] && rowGroupNum < rowGrpStartToFileOffset.length; rowGroupNum++)
 			{
 				try (FileChannel fc = FileChannel.open(rowGroupPath[rowGroupNum], StandardOpenOption.WRITE))
 				{
-					long offsetInRowGroup = currentBytePos - rowGrpStartToFileOffset[rowGroupNum];
+					final long offsetInRowGroup = currentBytePosInS3 - rowGrpStartToFileOffset[rowGroupNum];
 
 					// note this will break if the parquet file has some buffer space between row groups..
 					sanityCheck(offsetInRowGroup >= 0, "Offset in row group must be greater than zero");
-					long rowGroupLength = footerMetadata.getRow_groups().get(rowGroupNum).getTotal_compressed_size();
+					final long rowGroupLength = footerMetadata.getRow_groups().get(rowGroupNum)
+							.getTotal_compressed_size();
 					sanityCheck(offsetInRowGroup < rowGroupLength,
 							"Offset in row group must be less than total compressed size");
 
 					fc.position(ParquetMagicUtils.PARQUET_MAGIC.length() + offsetInRowGroup);
 
-					long len = Math.min(byteRange[1] - currentBytePos, rowGroupLength - offsetInRowGroup);
-					sanityCheck(len > 0, "len must be greater than zero");
-					long bytesCopied = IOUtils.copyLarge(is, Channels.newOutputStream(fc), 0, len);
-					sanityCheck(bytesCopied == len,
-							"Bytes copied does not match len: " + len + " " + "bytesCopied: " + bytesCopied);
-					currentBytePos += len;
+					final long bytesRemainingInS3Stream = byteRange[1] - currentBytePosInS3;
+					final long bytesRemainingInRowGroup = rowGroupLength - offsetInRowGroup;
+					final long numBytesToCopy = Math.min(bytesRemainingInS3Stream, bytesRemainingInRowGroup);
+
+					sanityCheck(numBytesToCopy > 0, "numBytesToCopy must be greater than zero");
+
+					final long bytesCopied = IOUtils.copyLarge(is, Channels.newOutputStream(fc), 0, numBytesToCopy);
+					sanityCheck(bytesCopied == numBytesToCopy,
+							"Bytes copied does not match numBytesToCopy: " + numBytesToCopy + " " + "bytesCopied: "
+									+ bytesCopied);
+					currentBytePosInS3 += bytesCopied;
 				}
 			}
 		});
@@ -308,6 +323,8 @@ public class S3ParquetFilePartDownloader
 	 * <br>
 	 * In the event that parts are not found, it will return a single offset with the whole file. We should consult with
 	 * the S3 engineers to understand whether parallelizing a download makes sense in this case.
+	 * <br>
+	 * This is a protected api so it can be overridden for unit tests
 	 *
 	 * @return the starting and ending part offsets
 	 */
@@ -353,16 +370,16 @@ public class S3ParquetFilePartDownloader
 	private long[] computeStartingOffsetsForRowGroups()
 	{
 		long[] rowGrpStartToFileOffset = new long[footerMetadata.getRow_groupsSize()];
-		Iterator<RowGroup> it2 = footerMetadata.getRow_groupsIterator();
-		for (int rowGrpNum = 0; it2.hasNext(); rowGrpNum++)
+		Iterator<RowGroup> rgIter = footerMetadata.getRow_groupsIterator();
+		for (int rowGrpNum = 0; rgIter.hasNext(); rowGrpNum++)
 		{
-			RowGroup rowGroup = it2.next();
+			RowGroup rowGroup = rgIter.next();
 			rowGrpStartToFileOffset[rowGrpNum] = rowGroup.getFile_offset();
 		}
 		return rowGrpStartToFileOffset;
 	}
 
-	private Path[] createFiles(BiFunction<Integer, RowGroup, Path> rowGroupIntToPath) throws IOException
+	private Path[] createFiles(RowGroupToPath rowGroupIntToPath) throws IOException
 	{
 		Path[] rowGroupPath = new Path[footerMetadata.getRow_groupsSize()];
 		boolean success = false;
@@ -372,7 +389,7 @@ public class S3ParquetFilePartDownloader
 			for (int rowGrpNum = 0; it.hasNext(); rowGrpNum++)
 			{
 				// create and write magic
-				rowGroupPath[rowGrpNum] = Files.write(rowGroupIntToPath.apply(rowGrpNum, it.next()),
+				rowGroupPath[rowGrpNum] = Files.write(rowGroupIntToPath.toPath(rowGrpNum, it.next()),
 						ParquetMagicUtils.PARQUET_MAGIC.getBytes(StandardCharsets.US_ASCII),
 						StandardOpenOption.CREATE_NEW);
 			}
@@ -392,5 +409,18 @@ public class S3ParquetFilePartDownloader
 	{
 		if (!assertion)
 			throw new IllegalStateException(message);
+	}
+
+	@FunctionalInterface
+	public interface RowGroupToPath
+	{
+		/**
+		 * Compute the path for a row group on disk
+		 *
+		 * @param rowgroupOffset the rowgroup offset in the parquet files footer metadata
+		 * @param rowGroup       the row group data - do NOT modify
+		 * @return the path to store the rowgroup on disk.
+		 */
+		Path toPath(int rowgroupOffset, RowGroup rowGroup);
 	}
 }
