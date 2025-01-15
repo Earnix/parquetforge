@@ -4,6 +4,7 @@ import static com.earnix.parquet.columnar.utils.ParquetEnumUtils.convert;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
@@ -117,7 +118,10 @@ public class ChunkDecompressToPageStoreFactory
 		Encoding repEncoding = convert(dataPageHeader.getRepetition_level_encoding());
 		Encoding defEncoding = convert(dataPageHeader.getDefinition_level_encoding());
 		Encoding dataEncoding = convert(dataPageHeader.getEncoding());
-		return () -> dataPageV1Supplier(dataBytesUncompressed, numValues, repEncoding, defEncoding, dataEncoding);
+
+		// make serializable
+		return (Supplier<DataPage> & Serializable) () -> dataPageV1Supplier(dataBytesUncompressed, numValues,
+				repEncoding, defEncoding, dataEncoding);
 	}
 
 	private static DataPageV1 dataPageV1Supplier(byte[] dataBytesUncompressed, int numValues, Encoding repEncoding,
@@ -154,8 +158,8 @@ public class ChunkDecompressToPageStoreFactory
 	private static Supplier<DataPage> dataPageV2Supplier(int numRows, int numNulls, int numValues,
 			byte[] repetitionLevelBytes, byte[] defLevelBytes, Encoding encoding, byte[] dataBytesUncompressed)
 	{
-		return () -> DataPageV2.uncompressed(numRows, numNulls, numValues, wrap(repetitionLevelBytes),
-				wrap(defLevelBytes), encoding, wrap(dataBytesUncompressed), null);
+		return (Supplier<DataPage> & Serializable) () -> DataPageV2.uncompressed(numRows, numNulls, numValues,
+				wrap(repetitionLevelBytes), wrap(defLevelBytes), encoding, wrap(dataBytesUncompressed), null);
 	}
 
 	private static BytesInput wrap(byte[] bytes)

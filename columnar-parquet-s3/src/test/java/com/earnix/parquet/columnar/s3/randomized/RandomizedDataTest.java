@@ -265,13 +265,13 @@ public class RandomizedDataTest
 		Path tmpFolder = Files.createTempDirectory("s3_explode_rowgrps");
 		try
 		{
-			BiFunction<Integer, RowGroup, Path> rowGrpNumToFile = (rowGrpNum, rg) -> tmpFolder.resolve(
+			S3ParquetFilePartDownloader.RowGroupToPath rowGrpNumToFile = (rowGrpNum, rg) -> tmpFolder.resolve(
 					"row_grp_" + rowGrpNum + ".parquet");
 			parquetFilePartDownloader.downloadToRowGroups(rowGrpNumToFile);
 
 			for (int rgNum = 0; rgNum < numRowGroups; rgNum++)
 			{
-				Path rgPath = rowGrpNumToFile.apply(rgNum, null);
+				Path rgPath = rowGrpNumToFile.toPath(rgNum, null);
 				Assert.assertTrue(Files.isRegularFile(rgPath));
 
 				ParquetColumnarFileReader reader = new ParquetColumnarFileReader(rgPath);
