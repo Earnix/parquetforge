@@ -22,6 +22,7 @@
             <groupId>com.earnix</groupId>
             <artifactId>parquet-columnar-base</artifactId>
             <version>${project.version}</version>
+            <scope>test</scope>
             <type>test-jar</type>
         </dependency>
         <dependency>
