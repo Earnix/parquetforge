@@ -137,6 +137,10 @@ public class S3ParquetAssembleAndUpload
 
 	private static Supplier<InputStream> createInputStreamSupplier(List<Supplier<InputStream>> grp)
 	{
+		// this code is fragile. Note that we do NOT use Collections.enumeration.
+		// This code ensures that an InputStream is created ONLY when it is ready to be read, and not before.
+		// This is important because we may have many InputStreams in many different files and we don't want to run
+		// out of file descriptors.
 		return () -> {
 			Iterator<Supplier<InputStream>> it = grp.iterator();
 			return new SequenceInputStream(new Enumeration<InputStream>()

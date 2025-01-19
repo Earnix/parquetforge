@@ -2,23 +2,24 @@ package com.earnix.parquet.columnar.utils;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.apache.parquet.column.ColumnDescriptor;
 
 import java.util.List;
 
 public class ColumnChunkForTesting
 {
-	private final String primitiveTypeName;
+	private final ColumnDescriptor primitiveTypeName;
 
 	private final List<?> values;
 
 
-	public ColumnChunkForTesting(String primitiveTypeName, List<?> values)
+	public ColumnChunkForTesting(ColumnDescriptor primitiveTypeName, List<?> values)
 	{
 		this.primitiveTypeName = primitiveTypeName;
 		this.values = values;
 	}
 
-	public String getPrimitiveTypeName()
+	public ColumnDescriptor getPrimitiveTypeName()
 	{
 		return primitiveTypeName;
 	}

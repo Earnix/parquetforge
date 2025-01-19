@@ -8,7 +8,9 @@ import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import com.earnix.parquet.columnar.writer.ParquetFileColumnarWriterFactory;
 import org.apache.commons.lang3.SerializationUtils;
+import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.CompressionCodec;
+import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
 import org.junit.Assert;
@@ -18,6 +20,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 import java.util.stream.IntStream;
 
@@ -30,13 +33,15 @@ public class InMemChunkSerializationTest
 		try
 		{
 			String colName = "chicken";
-			try (ParquetColumnarWriter writer = ParquetFileColumnarWriterFactory.createWriter(tmp,
-					Collections.singletonList(
-							new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.DOUBLE,
-									colName))))
+			List<Type> col = Collections.singletonList(
+					new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.DOUBLE, colName));
+			MessageType messageType = new MessageType("root", col);
+			ColumnDescriptor columnDescriptor = messageType.getColumns().get(0);
+			try (ParquetColumnarWriter writer = ParquetFileColumnarWriterFactory.createWriter(tmp, messageType,
+					CompressionCodec.ZSTD, true))
 			{
 				writer.writeRowGroup(1, rowGroupWriter -> rowGroupWriter.writeValues(
-						chunkWriter -> chunkWriter.writeColumn(colName, new double[] { 1 })));
+						chunkWriter -> chunkWriter.writeColumn(columnDescriptor, new double[] { 1 })));
 
 				double[] randomNums = new double[] { 1, -100, 4, 9394, 3412, 323265 };
 				Random rand = new Random();
@@ -44,7 +49,7 @@ public class InMemChunkSerializationTest
 						.mapToDouble(i -> randomNums[rand.nextInt(randomNums.length)]).toArray();
 
 				writer.writeRowGroup(randChunkData.length, rowGroupWriter -> rowGroupWriter.writeValues(
-						chunkWriter -> chunkWriter.writeColumn(colName, randChunkData)));
+						chunkWriter -> chunkWriter.writeColumn(columnDescriptor, randChunkData)));
 				writer.finishAndWriteFooterMetadata();
 			}
 			IndexedParquetColumnarFileReader reader = new IndexedParquetColumnarFileReader(tmp);

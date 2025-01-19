@@ -1,13 +1,5 @@
 package com.earnix.parquet.columnar.writer.columnchunk;
 
-import java.lang.reflect.Array;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.PrimitiveIterator;
-import java.util.stream.DoubleStream;
-import java.util.stream.IntStream;
-import java.util.stream.LongStream;
-
 import com.earnix.parquet.columnar.writer.page.InMemPageWriter;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.ColumnWriteStore;
@@ -20,163 +12,160 @@ import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.Type;
 
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.PrimitiveIterator;
+import java.util.stream.DoubleStream;
+import java.util.stream.IntStream;
+import java.util.stream.LongStream;
+
 public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkWriter
 {
-	private final MessageType messageType;
+	private static final String DUMMY_COL_NAME = "dummy_col_name";
 	private final ParquetProperties parquetProperties;
 
 	/**
 	 * Number of rows in this row group
 	 */
-	private final long numRows;
 	private final CompressionCodec compressionCodec;
 
 	/**
-	 * Create a new chunk writer impl. This is an abstraction for writing a row group
-	 * 
-	 * @param messageType the schema of the message (note that only one level is supported - no structured data.
-	 *            optional is supported)
-	 * @param compressionCodec the compression codec to compress the data with
+	 * Create a new chunk writer impl. This is an abstraction for writing columns to data pages
+	 *
+	 * @param compressionCodec  the compression codec to compress the data with
 	 * @param parquetProperties the properties for parquet encoding
-	 * @param numRows the number of rows that are in this row group
 	 */
-	public ColumnChunkWriterImpl(MessageType messageType, CompressionCodec compressionCodec,
-			ParquetProperties parquetProperties, long numRows)
+	public ColumnChunkWriterImpl(CompressionCodec compressionCodec, ParquetProperties parquetProperties)
 	{
-		this.messageType = messageType;
 		this.compressionCodec = compressionCodec;
 		this.parquetProperties = parquetProperties;
-		this.numRows = numRows;
 	}
 
 	@Override
-	public ColumnChunkPages writeColumn(String columnName, double[] vals)
+	public ColumnChunkPages writeColumn(ColumnDescriptor column, double[] vals)
 	{
-		validateArrLen(vals);
-		return writeColumn(columnName, DoubleStream.of(vals).iterator());
-	}
-
-	private void validateArrLen(Object vals)
-	{
-		if (Array.getLength(vals) != numRows)
-			throw new IllegalArgumentException();
+		return writeColumn(column, DoubleStream.of(vals).iterator());
 	}
 
 	@Override
-	public ColumnChunkPages writeColumn(String columnName, PrimitiveIterator.OfDouble doubleIterator)
+	public ColumnChunkPages writeColumn(ColumnDescriptor column, PrimitiveIterator.OfDouble doubleIterator)
 	{
-		return writeColumn(columnName, NullableIterators.wrapDoubleIterator(doubleIterator));
+		return writeColumn(column, NullableIterators.wrapDoubleIterator(doubleIterator));
 	}
 
 	@Override
-	public ColumnChunkPages writeColumn(String columnName, NullableIterators.NullableDoubleIterator iterator)
+	public ColumnChunkPages writeColumn(ColumnDescriptor column, NullableIterators.NullableDoubleIterator iterator)
 	{
-		return internalWriteColumn(columnName, iterator,
+		return internalWriteColumn(column, iterator,
 				(colwriter, it, defLevel) -> colwriter.write(it.getValue(), 0, defLevel));
 	}
 
-	private <I extends NullableIterators.NullableIterator> ColumnChunkPages internalWriteColumn(String columnName,
+	private <I extends NullableIterators.NullableIterator> ColumnChunkPages internalWriteColumn(ColumnDescriptor path,
 			I primitiveIterator, RecordConsumer<I> recordCallback)
 	{
 		try (InMemPageWriter writer = new InMemPageWriter(compressionCodec))
 		{
-			ColumnDescriptor path = messageType.getColumnDescription(new String[] { columnName });
-
-			PageWriteStore pageWriteStore = descriptor -> {
-				if (!path.equals(descriptor))
-				{
-					throw new IllegalArgumentException("unexpected descriptor: " + descriptor + ". expected: " + path);
-				}
-				return writer;
-			};
-
-			// A hacky way to use the page limit/flush logic without changing the column writer impl
-			MessageType dummyMessageType = new MessageType(messageType.getName(), path.getPrimitiveType());
-			try (ColumnWriteStore writeStore = new ColumnWriteStoreV2(dummyMessageType, pageWriteStore,
-					parquetProperties); //
-					ColumnWriter columnWriter = writeStore.getColumnWriter(path))
-			{
-				for (long i = 0; i < numRows; i++)
-				{
-					if (!primitiveIterator.next())
-						throw new IllegalArgumentException("too few values for " + columnName);
-					if (primitiveIterator.isNull())
-					{
-						if (path.getPrimitiveType().getRepetition() == Type.Repetition.REQUIRED)
-							throw new IllegalStateException("Field is required!");
-						columnWriter.writeNull(0, 0);
-					}
-					else
-					{
-						recordCallback.recordCallback(columnWriter, primitiveIterator, path.getMaxDefinitionLevel());
-					}
-					writeStore.endRecord();
-				}
-				writeStore.flush();
-			}
+			writeRecords(primitiveIterator, recordCallback, path, writer);
 			return new ColumnChunkPages(path, writer.getDictionaryPage(), writer.getPages());
 		}
 	}
 
-	@Override
-	public ColumnChunkPages writeColumn(String columnName, int[] vals)
+	private <I extends NullableIterators.NullableIterator> void writeRecords(I primitiveIterator,
+			RecordConsumer<I> recordCallback, ColumnDescriptor path, InMemPageWriter writer)
 	{
-		validateArrLen(vals);
-		return writeColumn(columnName, IntStream.of(vals).iterator());
+		PageWriteStore pageWriteStore = descriptor -> {
+			if (!path.equals(descriptor))
+			{
+				throw new IllegalArgumentException("unexpected descriptor: " + descriptor + ". expected: " + path);
+			}
+			return writer;
+		};
+
+		// A hacky way to use the page limit/flush logic without changing the column writer impl
+		MessageType dummyMessageType = new MessageType(DUMMY_COL_NAME, path.getPrimitiveType());
+		try (ColumnWriteStore writeStore = new ColumnWriteStoreV2(dummyMessageType, pageWriteStore, parquetProperties);
+				ColumnWriter columnWriter = writeStore.getColumnWriter(path))
+		{
+			long numVals = 0;
+			while (primitiveIterator.next())
+			{
+				if (primitiveIterator.isNull())
+				{
+					if (path.getPrimitiveType().getRepetition() == Type.Repetition.REQUIRED)
+						throw new IllegalStateException("Field is required!");
+					columnWriter.writeNull(0, 0);
+				}
+				else
+				{
+					recordCallback.recordCallback(columnWriter, primitiveIterator, path.getMaxDefinitionLevel());
+				}
+				writeStore.endRecord();
+				++numVals;
+			}
+
+			if (numVals == 0)
+				throw new IllegalArgumentException("A page cannot contain zero values " + path);
+
+			writeStore.flush();
+		}
 	}
 
 	@Override
-	public ColumnChunkPages writeColumn(String columnName, PrimitiveIterator.OfInt iterator)
+	public ColumnChunkPages writeColumn(ColumnDescriptor column, int[] vals)
 	{
-		return writeColumn(columnName, NullableIterators.wrapIntegerIterator(iterator));
+		return writeColumn(column, IntStream.of(vals).iterator());
 	}
 
 	@Override
-	public ColumnChunkPages writeColumn(String columnName, NullableIterators.NullableIntegerIterator iterator)
+	public ColumnChunkPages writeColumn(ColumnDescriptor column, PrimitiveIterator.OfInt iterator)
 	{
-		return internalWriteColumn(columnName, iterator,
+		return writeColumn(column, NullableIterators.wrapIntegerIterator(iterator));
+	}
+
+	@Override
+	public ColumnChunkPages writeColumn(ColumnDescriptor column, NullableIterators.NullableIntegerIterator iterator)
+	{
+		return internalWriteColumn(column, iterator,
 				(colWriter, it, defLevel) -> colWriter.write(it.getValue(), 0, defLevel));
 	}
 
 	@Override
-	public ColumnChunkPages writeColumn(String columnName, long[] vals)
+	public ColumnChunkPages writeColumn(ColumnDescriptor column, long[] vals)
 	{
-		validateArrLen(vals);
-		return writeColumn(columnName, LongStream.of(vals).iterator());
+		return writeColumn(column, LongStream.of(vals).iterator());
 	}
 
 	@Override
-	public ColumnChunkPages writeColumn(String columnName, PrimitiveIterator.OfLong iterator)
+	public ColumnChunkPages writeColumn(ColumnDescriptor column, PrimitiveIterator.OfLong iterator)
 	{
-		return writeColumn(columnName, NullableIterators.wrapLongIterator(iterator));
+		return writeColumn(column, NullableIterators.wrapLongIterator(iterator));
 	}
 
 	@Override
-	public ColumnChunkPages writeColumn(String columnName, NullableIterators.NullableLongIterator iterator)
+	public ColumnChunkPages writeColumn(ColumnDescriptor column, NullableIterators.NullableLongIterator iterator)
 	{
-		return internalWriteColumn(columnName, iterator,
+		return internalWriteColumn(column, iterator,
 				(colWriter, it, defLevel) -> colWriter.write(it.getValue(), 0, defLevel));
 	}
 
 	@Override
-	public ColumnChunkPages writeColumn(String columnName, String[] vals)
+	public ColumnChunkPages writeColumn(ColumnDescriptor column, String[] vals)
 	{
-
-		validateArrLen(vals);
-		return writeStringColumn(columnName, Arrays.asList(vals).iterator());
+		return writeStringColumn(column, Arrays.asList(vals).iterator());
 	}
 
 	@Override
-	public ColumnChunkPages writeStringColumn(String columnName, Iterator<String> vals)
+	public ColumnChunkPages writeStringColumn(ColumnDescriptor column, Iterator<String> vals)
 	{
-		return internalWriteColumn(columnName, NullableIterators.wrapStringIterator(vals),
-				(columnWriter, stringIterator, defLevel) -> columnWriter.write(Binary.fromString(stringIterator.getValue()), 0, defLevel));
+		return internalWriteColumn(column, NullableIterators.wrapStringIterator(vals),
+				(columnWriter, stringIterator, defLevel) -> columnWriter.write(
+						Binary.fromString(stringIterator.getValue()), 0, defLevel));
 	}
 
 	@Override
-	public ColumnChunkPages writeColumn(String columnName, boolean[] vals)
+	public ColumnChunkPages writeColumn(ColumnDescriptor column, boolean[] vals)
 	{
-		return writeColumn(columnName, new Iterator<Boolean>()
+		return writeColumn(column, new Iterator<Boolean>()
 		{
 			private int i = 0;
 
@@ -194,9 +183,9 @@ public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer
 		});
 	}
 
-	public ColumnChunkPages writeColumn(String columnName, Iterator<Boolean> iterator)
+	public ColumnChunkPages writeColumn(ColumnDescriptor column, Iterator<Boolean> iterator)
 	{
-		return internalWriteColumn(columnName, NullableIterators.wrapBooleanIterator(iterator),
+		return internalWriteColumn(column, NullableIterators.wrapBooleanIterator(iterator),
 				(columnWriter, boolIterator, defLevel) -> columnWriter.write(boolIterator.getValue(), 0, defLevel));
 	}
 

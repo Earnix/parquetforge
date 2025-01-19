@@ -108,8 +108,9 @@ public class ColumnChunkWriterReaderTest
 		// Parquet writing properties - default is fine for this case.
 		ParquetProperties properties = ParquetProperties.builder().build();
 
-		ColumnChunkWriter writer = new ColumnChunkWriterImpl(messageType, codec, properties, vals.length);
-		ColumnChunkPages pages = writer.writeColumn("testDouble", vals);
+		ColumnChunkWriter writer = new ColumnChunkWriterImpl(codec, properties);
+		ColumnChunkPages pages = writer.writeColumn(messageType.getColumnDescription(new String[] { "testDouble" }),
+				vals);
 		System.out.println("Bytes to write: " + pages.totalBytesForStorage());
 
 		ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream((int) pages.totalBytesForStorage());

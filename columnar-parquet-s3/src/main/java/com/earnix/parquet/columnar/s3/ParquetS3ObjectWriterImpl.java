@@ -125,7 +125,8 @@ public class ParquetS3ObjectWriterImpl implements ParquetColumnarWriter
 		}
 
 		S3RowGroupWriterImpl rowGroupWriter = new S3RowGroupWriterImpl(messageType, compressionCodec, parquetProperties,
-				numRows, buffer.getTmpFileChannel(), offsetOfCurrentFile);
+				numRows, buffer.getFilePath(), buffer.getTmpFileChannel(), buffer.getTmpFileChannel().position(),
+				offsetOfCurrentFile);
 
 		rowGroupAppender.append(rowGroupWriter);
 		finishRowGroup(rowGroupWriter);

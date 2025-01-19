@@ -34,6 +34,11 @@ public class S3FileUploadBuffer
 		this.tmpFileChannel = FileChannel.open(tmpFile, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
 	}
 
+	public Path getFilePath()
+	{
+		return tmpFile;
+	}
+
 	/**
 	 * Get the file channel to pass to the parquet data writer
 	 *

@@ -10,7 +10,6 @@ import com.earnix.parquet.columnar.reader.processors.ParquetColumnarProcessors;
 import com.earnix.parquet.columnar.utils.ColumnChunkForTesting;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import com.earnix.parquet.columnar.writer.ParquetFileColumnarWriterFactory;
-import com.earnix.parquet.columnar.writer.ParquetFileColumnarWriterImpl;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.ColumnChunk;
 import org.apache.parquet.schema.PrimitiveType;
@@ -172,7 +171,7 @@ public class ParquetFileWriterTest
 			InputStream chunkInput, ColumnChunk columnChunk)
 	{
 		try (ParquetColumnarWriter parquetColumnarWriter = ParquetFileColumnarWriterFactory.createWriter(outputPath,
-				Arrays.asList(descriptor.getPrimitiveType())))
+				Arrays.asList(descriptor.getPrimitiveType()), false))
 		{
 			parquetColumnarWriter.writeRowGroup(columnChunk.getMeta_data().getNum_values(),
 					rowGroupWriter -> rowGroupWriter.writeCopyOfChunk(descriptor, columnChunk, chunkInput));
@@ -196,8 +195,7 @@ public class ParquetFileWriterTest
 	{
 		ChunkValuesReaderImpl colReader = new ChunkValuesReaderImpl(chunk);
 		ColumnDescriptor descriptor = chunk.getDescriptor();
-		return new ColumnChunkForTesting(descriptor.getPrimitiveType().getName(),
-				getChunkValues(descriptor, chunk, colReader));
+		return new ColumnChunkForTesting(descriptor, getChunkValues(descriptor, chunk, colReader));
 	}
 
 	private static List<Object> getChunkValues(ColumnDescriptor columnDescriptor, InMemChunk chunk,

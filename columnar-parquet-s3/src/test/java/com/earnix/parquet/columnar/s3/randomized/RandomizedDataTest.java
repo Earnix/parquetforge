@@ -18,6 +18,7 @@ import com.google.common.primitives.Ints;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.file.PathUtils;
+import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.format.FileMetaData;
@@ -231,8 +232,8 @@ public class RandomizedDataTest
 				writer.writeRowGroup(numVals, rowGroupWriter -> {
 					for (int i = 0; i < numCols; i++)
 					{
-						String columnName = getColumnName(colName, i);
-						double[] valsToUpload = getRandomVals(columnName, numVals);
+						ColumnDescriptor columnName = getColumnDescriptor(messageType, colName, i);
+						double[] valsToUpload = getRandomVals(columnName.getPath()[0], numVals);
 						rowGroupWriter.writeValues(chunkWriter -> chunkWriter.writeColumn(columnName, valsToUpload));
 					}
 				});
@@ -244,6 +245,11 @@ public class RandomizedDataTest
 	private static String getColumnName(String colName, int i)
 	{
 		return colName + i;
+	}
+
+	private static ColumnDescriptor getColumnDescriptor(MessageType messageType, String colName, int i)
+	{
+		return messageType.getColumnDescription(new String[] { getColumnName(colName, i) });
 	}
 
 	private Path downloadToTempFile(String key) throws IOException

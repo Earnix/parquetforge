@@ -6,6 +6,8 @@ import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import com.earnix.parquet.columnar.writer.ParquetFileColumnarWriterFactory;
 import com.earnix.parquet.columnar.writer.ParquetFileColumnarWriterImpl;
 import com.earnix.parquet.columnar.writer.rowgroup.RowGroupWriter;
+import org.apache.parquet.column.ColumnDescriptor;
+import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
 
@@ -31,7 +33,7 @@ public class ParquetFileFiller
 	public static List<RowGroupForTesting> fillWithRowGroups(Path parquetFile)
 	{
 		try (ParquetColumnarWriter rowGroupWriter = ParquetFileColumnarWriterFactory.createWriter(parquetFile,
-				PARQUET_COLUMNS))
+				PARQUET_COLUMNS, false))
 		{
 			List<RowGroupForTesting> rowGroups = new ArrayList<>();
 			rowGroups.add(writeRowGroupWith2Rows(rowGroupWriter));
@@ -47,24 +49,36 @@ public class ParquetFileFiller
 		}
 	}
 
-
-	private static final String COL_1_DOUBLE = "COL_1_DOUBLE";
-	private static final String COL_BOOLEAN_2 = "COL_2_BOOLEAN";
-	private static final String COL_3_INT_32 = "COL_3_INT32";
-	private static final String COL_4_INT_64 = "COL_4_INT64";
-	private static final String COL_5_BINARY = "COL_5_BINARY";
+	private static final String COL_1_DOUBLE_NAME = "COL_1_DOUBLE";
+	private static final String COL_BOOLEAN_2_NAME = "COL_2_BOOLEAN";
+	private static final String COL_3_INT_32_NAME = "COL_3_INT32";
+	private static final String COL_4_INT_64_NAME = "COL_4_INT64";
+	private static final String COL_5_BINARY_NAME = "COL_5_BINARY";
 	private static final List<PrimitiveType> PARQUET_COLUMNS = Arrays.asList(
-			new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.DOUBLE, COL_1_DOUBLE),
-			new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.BOOLEAN, COL_BOOLEAN_2),
-			new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.INT32, COL_3_INT_32),
-			new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT64, COL_4_INT_64),
-			new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.BINARY, COL_5_BINARY));
+			new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.DOUBLE, COL_1_DOUBLE_NAME),
+			new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.BOOLEAN, COL_BOOLEAN_2_NAME),
+			new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.INT32, COL_3_INT_32_NAME),
+			new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT64, COL_4_INT_64_NAME),
+			new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.BINARY, COL_5_BINARY_NAME));
+
+	// List is copied so generics is happy.
+	private static final MessageType messageType = new MessageType("root", new ArrayList<>(PARQUET_COLUMNS));
+	private static final ColumnDescriptor COL_1_DOUBLE = messageType.getColumnDescription(
+			new String[] { COL_1_DOUBLE_NAME });
+	private static final ColumnDescriptor COL_BOOLEAN_2 = messageType.getColumnDescription(
+			new String[] { COL_BOOLEAN_2_NAME });
+	private static final ColumnDescriptor COL_3_INT_32 = messageType.getColumnDescription(
+			new String[] { COL_3_INT_32_NAME });
+	private static final ColumnDescriptor COL_4_INT_64 = messageType.getColumnDescription(
+			new String[] { COL_4_INT_64_NAME });
+	private static final ColumnDescriptor COL_5_BINARY = messageType.getColumnDescription(
+			new String[] { COL_5_BINARY_NAME });
 
 	private static RowGroupForTesting writeRowGroupWith2Rows(ParquetColumnarWriter parquetColumnarWriter)
 			throws IOException
 	{
 		List<Function<RowGroupWriter, ColumnChunkForTesting>> chunkBuilders = Arrays.asList(
-				writer -> writeDoubleColumn(writer, COL_1_DOUBLE, new double[]{ 1.3, 2.4 }),
+				writer -> writeDoubleColumn(writer, COL_1_DOUBLE, new double[] { 1.3, 2.4 }),
 				writer -> writeBooleanColumn(writer, COL_BOOLEAN_2, Arrays.asList(false, null)),
 				writer -> writeInt32Column(writer, COL_3_INT_32, new int[] { 4, 6 }),
 				writer -> writeInt64Column(writer, COL_4_INT_64, new NullableLongIteratorImpl()),

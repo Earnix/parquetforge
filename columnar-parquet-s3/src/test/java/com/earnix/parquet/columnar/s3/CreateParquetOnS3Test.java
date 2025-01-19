@@ -48,7 +48,7 @@ public class CreateParquetOnS3Test
 					properties, uploader, 2))
 			{
 				writer.writeRowGroup(1, rowGroupWriter -> rowGroupWriter.writeValues(
-						chunkWriter -> chunkWriter.writeColumn(colName, new double[] { 1 })));
+						chunkWriter -> chunkWriter.writeColumn(messageType.getColumns().get(0), new double[] { 1 })));
 				writer.finishAndWriteFooterMetadata();
 			}
 
@@ -70,15 +70,16 @@ public class CreateParquetOnS3Test
 		Path tmpFile = Files.createTempFile("test", ".parquet");
 		Path sourceFilePath = Paths.get("test.parquet");
 		String colName = "testDouble";
-		PrimitiveType[] primitiveTypes = new PrimitiveType[] {
-				new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.DOUBLE, colName) };
-		try (ParquetColumnarWriter writer = ParquetFileColumnarWriterFactory.createWriter(sourceFilePath,
-				Arrays.asList(primitiveTypes)))
+		MessageType messageType = new MessageType("root", new PrimitiveType[] {
+				new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.DOUBLE, colName) });
+		ColumnDescriptor colDescriptor = messageType.getColumnDescription(new String[] { colName });
+		try (ParquetColumnarWriter writer = ParquetFileColumnarWriterFactory.createWriter(sourceFilePath, messageType,
+				CompressionCodec.ZSTD, true))
 		{
 			writer.writeRowGroup(1, rowGroupWriter -> rowGroupWriter.writeValues(
-					chunkWriter -> chunkWriter.writeColumn(colName, new double[] { 1 })));
+					chunkWriter -> chunkWriter.writeColumn(colDescriptor, new double[] { 1 })));
 			writer.writeRowGroup(1, rowGroupWriter -> rowGroupWriter.writeValues(
-					chunkWriter -> chunkWriter.writeColumn(colName, new double[] { 2 })));
+					chunkWriter -> chunkWriter.writeColumn(colDescriptor, new double[] { 2 })));
 			writer.finishAndWriteFooterMetadata();
 		}
 
@@ -88,7 +89,6 @@ public class CreateParquetOnS3Test
 		String keyOnS3 = "test.parquet";
 
 		Path tmpFile2 = Files.createTempFile("potato", ".parquet");
-		MessageType messageType = new MessageType("root", primitiveTypes);
 
 		try (S3MockService service = new S3MockService())
 		{
