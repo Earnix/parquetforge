@@ -8,52 +8,52 @@ import java.util.List;
 
 public class ColumnChunkForTesting
 {
-	private final ColumnDescriptor primitiveTypeName;
+	private final ColumnDescriptor columnDescriptor;
 
 	private final List<?> values;
 
 
-	public ColumnChunkForTesting(ColumnDescriptor primitiveTypeName, List<?> values)
+	public ColumnChunkForTesting(ColumnDescriptor columnDescriptor, List<?> values)
 	{
-		this.primitiveTypeName = primitiveTypeName;
+		this.columnDescriptor = columnDescriptor;
 		this.values = values;
 	}
 
-	public ColumnDescriptor getPrimitiveTypeName()
+	public ColumnDescriptor getColumnDescriptor()
 	{
-		return primitiveTypeName;
+		return columnDescriptor;
 	}
 
-	public long getValuesNumber(){
+	public long getValuesNumber()
+	{
 		return values.size();
 	}
 
 	@Override
-	public int hashCode(){
-		return new HashCodeBuilder()
-				.append(primitiveTypeName)
-				.append(values)
-				.toHashCode();
+	public int hashCode()
+	{
+		return new HashCodeBuilder().append(columnDescriptor).append(values).toHashCode();
 	}
 
 	@Override
 	public boolean equals(Object obj)
 	{
-		if (this == obj) {
+		if (this == obj)
+		{
 			return true;
 		}
-		if (obj == null || getClass() != obj.getClass()) {
+		if (obj == null || getClass() != obj.getClass())
+		{
 			return false;
 		}
 		ColumnChunkForTesting other = (ColumnChunkForTesting) obj;
-		return new EqualsBuilder()
-				.append(primitiveTypeName, other.primitiveTypeName)
-				.append(values, other.values)
+		return new EqualsBuilder().append(columnDescriptor, other.columnDescriptor).append(values, other.values)
 				.isEquals();
 	}
 
 	@Override
-	public String toString(){
-		return primitiveTypeName + ": " + values;
+	public String toString()
+	{
+		return columnDescriptor + ": " + values;
 	}
 }

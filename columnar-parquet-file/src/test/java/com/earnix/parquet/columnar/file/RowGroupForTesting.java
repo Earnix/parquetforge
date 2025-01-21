@@ -11,7 +11,8 @@ import java.util.TreeSet;
 public class RowGroupForTesting
 {
 	private final long numRows;
-	private final Set<ColumnChunkForTesting> columnChunks = new TreeSet<>(new TreeSet<>(Comparator.comparing(ColumnChunkForTesting::getPrimitiveTypeName)));
+	private final Set<ColumnChunkForTesting> columnChunks = new TreeSet<>(
+			new TreeSet<>(Comparator.comparing(ColumnChunkForTesting::getColumnDescriptor)));
 
 	public RowGroupForTesting(long numRows)
 	{
