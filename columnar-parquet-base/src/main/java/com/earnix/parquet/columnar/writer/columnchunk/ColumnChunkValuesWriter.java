@@ -24,11 +24,14 @@ public class ColumnChunkValuesWriter implements AutoCloseable
 	static final String DUMMY_COL_NAME = "dummy_col_name";
 
 	private final ColumnDescriptor columnDescriptor;
-	private final PageWriteStore pageWriteStore;
 
-	private final ColumnWriteStore writeStore;
-	private final ColumnWriter columnWriter;
-	private final InMemPageWriter inMemPageWriter;
+	// these fields are not final, so they can be set to null after finished, in case the writer is kept around -
+	// any allocated mem can be free'd.
+	private PageWriteStore pageWriteStore;
+	private ColumnWriteStore writeStore;
+	private ColumnWriter columnWriter;
+	private InMemPageWriter inMemPageWriter;
+
 	private volatile ColumnChunkPages pages = null;
 
 	// counter for number of values written
@@ -86,15 +89,21 @@ public class ColumnChunkValuesWriter implements AutoCloseable
 
 					pages = new ColumnChunkPages(columnDescriptor, inMemPageWriter.getDictionaryPage(),
 							inMemPageWriter.getPages());
+					close();
 				}
 			}
 		}
 		return pages;
 	}
 
+	public boolean isFinished()
+	{
+		return pages != null;
+	}
+
 	private void assertNotFinished()
 	{
-		if (pages != null)
+		if (isFinished())
 		{
 			throw new IllegalStateException("Already finished writing column " + columnDescriptor);
 		}
@@ -106,7 +115,9 @@ public class ColumnChunkValuesWriter implements AutoCloseable
 		Exception toThrow = null;
 		try
 		{
-			columnWriter.close();
+			if (columnWriter != null)
+				columnWriter.close();
+			columnWriter = null;
 		}
 		catch (Exception ex)
 		{
@@ -116,7 +127,9 @@ public class ColumnChunkValuesWriter implements AutoCloseable
 
 		try
 		{
-			writeStore.close();
+			if (writeStore != null)
+				writeStore.close();
+			writeStore = null;
 		}
 		catch (Exception ex)
 		{
@@ -126,7 +139,9 @@ public class ColumnChunkValuesWriter implements AutoCloseable
 
 		try
 		{
-			this.pageWriteStore.close();
+			if (pageWriteStore != null)
+				this.pageWriteStore.close();
+			pageWriteStore = null;
 		}
 		catch (Exception ex)
 		{
@@ -136,7 +151,9 @@ public class ColumnChunkValuesWriter implements AutoCloseable
 
 		try
 		{
-			this.inMemPageWriter.close();
+			if (inMemPageWriter != null)
+				inMemPageWriter.close();
+			inMemPageWriter = null;
 		}
 		catch (Exception ex)
 		{
@@ -156,36 +173,42 @@ public class ColumnChunkValuesWriter implements AutoCloseable
 
 	public void write(int value)
 	{
+		assertNotFinished();
 		columnWriter.write(value, maxRepetitionLevel(), maxDefinitionLevel());
 		wroteValue();
 	}
 
 	public void write(long value)
 	{
+		assertNotFinished();
 		columnWriter.write(value, maxRepetitionLevel(), maxDefinitionLevel());
 		wroteValue();
 	}
 
 	public void write(boolean value)
 	{
+		assertNotFinished();
 		columnWriter.write(value, maxRepetitionLevel(), maxDefinitionLevel());
 		wroteValue();
 	}
 
 	public void write(Binary value)
 	{
+		assertNotFinished();
 		columnWriter.write(value, maxRepetitionLevel(), maxDefinitionLevel());
 		wroteValue();
 	}
 
 	public void write(float value)
 	{
+		assertNotFinished();
 		columnWriter.write(value, maxRepetitionLevel(), maxDefinitionLevel());
 		wroteValue();
 	}
 
 	public void write(double value)
 	{
+		assertNotFinished();
 		columnWriter.write(value, maxRepetitionLevel(), maxDefinitionLevel());
 		wroteValue();
 	}
@@ -211,7 +234,6 @@ public class ColumnChunkValuesWriter implements AutoCloseable
 	{
 		writeStore.endRecord();
 		++numVals;
-		assertNotFinished();
 	}
 
 	public ColumnDescriptor getColumnDescriptor()
