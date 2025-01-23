@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 /**
  * A class for writing column chunk values incrementally with a writer, and getting the resultant pages at the end
  */
-public class ColumnChunkValuesWriter implements AutoCloseable, ColumnWriter
+public class ColumnChunkValuesWriter implements AutoCloseable
 {
 	private static final Logger LOG = LoggerFactory.getLogger(ColumnChunkValuesWriter.class);
 
@@ -154,50 +154,53 @@ public class ColumnChunkValuesWriter implements AutoCloseable, ColumnWriter
 		}
 	}
 
-	@Override
-	public void write(int value, int repetitionLevel, int definitionLevel)
+	public void write(int value)
 	{
-		columnWriter.write(value, repetitionLevel, definitionLevel);
+		columnWriter.write(value, maxRepetitionLevel(), maxDefinitionLevel());
 		wroteValue();
 	}
 
-	@Override
-	public void write(long value, int repetitionLevel, int definitionLevel)
+	public void write(long value)
 	{
-		columnWriter.write(value, repetitionLevel, definitionLevel);
+		columnWriter.write(value, maxRepetitionLevel(), maxDefinitionLevel());
 		wroteValue();
 	}
 
-	@Override
-	public void write(boolean value, int repetitionLevel, int definitionLevel)
+	public void write(boolean value)
 	{
-		columnWriter.write(value, repetitionLevel, definitionLevel);
+		columnWriter.write(value, maxRepetitionLevel(), maxDefinitionLevel());
 		wroteValue();
 	}
 
-	@Override
-	public void write(Binary value, int repetitionLevel, int definitionLevel)
+	public void write(Binary value)
 	{
-		columnWriter.write(value, repetitionLevel, definitionLevel);
+		columnWriter.write(value, maxRepetitionLevel(), maxDefinitionLevel());
 		wroteValue();
 	}
 
-	@Override
-	public void write(float value, int repetitionLevel, int definitionLevel)
+	public void write(float value)
 	{
-		columnWriter.write(value, repetitionLevel, definitionLevel);
+		columnWriter.write(value, maxRepetitionLevel(), maxDefinitionLevel());
 		wroteValue();
 	}
 
-	@Override
-	public void write(double value, int repetitionLevel, int definitionLevel)
+	public void write(double value)
 	{
-		columnWriter.write(value, repetitionLevel, definitionLevel);
+		columnWriter.write(value, maxRepetitionLevel(), maxDefinitionLevel());
 		wroteValue();
 	}
 
-	@Override
-	public void writeNull(int repetitionLevel, int definitionLevel)
+	private int maxRepetitionLevel()
+	{
+		return columnDescriptor.getMaxRepetitionLevel();
+	}
+
+	private int maxDefinitionLevel()
+	{
+		return columnDescriptor.getMaxDefinitionLevel();
+	}
+
+	public void writeNull()
 	{
 		if (columnDescriptor.getPrimitiveType().getRepetition() == Type.Repetition.REQUIRED)
 			throw new IllegalStateException("Field is required!");
@@ -209,13 +212,6 @@ public class ColumnChunkValuesWriter implements AutoCloseable, ColumnWriter
 		writeStore.endRecord();
 		++numVals;
 		assertNotFinished();
-	}
-
-	@Override
-	public long getBufferedSizeInMemory()
-	{
-		// need to test whether this works - it may not
-		return columnWriter.getBufferedSizeInMemory();
 	}
 
 	public ColumnDescriptor getColumnDescriptor()

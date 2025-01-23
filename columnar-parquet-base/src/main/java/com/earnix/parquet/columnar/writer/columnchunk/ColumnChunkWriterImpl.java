@@ -55,8 +55,7 @@ public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer
 	@Override
 	public ColumnChunkPages writeColumn(ColumnDescriptor column, NullableIterators.NullableDoubleIterator iterator)
 	{
-		return internalWriteColumn(column, iterator,
-				(colwriter, it, defLevel) -> colwriter.write(it.getValue(), 0, defLevel));
+		return internalWriteColumn(column, iterator, (colwriter, it) -> colwriter.write(it.getValue()));
 	}
 
 	private <I extends NullableIterators.NullableIterator> ColumnChunkPages internalWriteColumn(ColumnDescriptor path,
@@ -77,12 +76,11 @@ public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer
 		{
 			if (primitiveIterator.isNull())
 			{
-				columnChunkValuesWriter.writeNull(0, 0);
+				columnChunkValuesWriter.writeNull();
 			}
 			else
 			{
-				recordCallback.recordCallback(columnChunkValuesWriter, primitiveIterator,
-						columnChunkValuesWriter.getColumnDescriptor().getMaxDefinitionLevel());
+				recordCallback.recordCallback(columnChunkValuesWriter, primitiveIterator);
 			}
 		}
 	}
@@ -102,8 +100,7 @@ public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer
 	@Override
 	public ColumnChunkPages writeColumn(ColumnDescriptor column, NullableIterators.NullableIntegerIterator iterator)
 	{
-		return internalWriteColumn(column, iterator,
-				(colWriter, it, defLevel) -> colWriter.write(it.getValue(), 0, defLevel));
+		return internalWriteColumn(column, iterator, (colWriter, it) -> colWriter.write(it.getValue()));
 	}
 
 	@Override
@@ -121,8 +118,7 @@ public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer
 	@Override
 	public ColumnChunkPages writeColumn(ColumnDescriptor column, NullableIterators.NullableLongIterator iterator)
 	{
-		return internalWriteColumn(column, iterator,
-				(colWriter, it, defLevel) -> colWriter.write(it.getValue(), 0, defLevel));
+		return internalWriteColumn(column, iterator, (colWriter, it) -> colWriter.write(it.getValue()));
 	}
 
 	@Override
@@ -135,8 +131,7 @@ public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer
 	public ColumnChunkPages writeStringColumn(ColumnDescriptor column, Iterator<String> vals)
 	{
 		return internalWriteColumn(column, NullableIterators.wrapStringIterator(vals),
-				(columnWriter, stringIterator, defLevel) -> columnWriter.write(
-						Binary.fromString(stringIterator.getValue()), 0, defLevel));
+				(columnWriter, stringIterator) -> columnWriter.write(Binary.fromString(stringIterator.getValue())));
 	}
 
 	@Override
@@ -163,11 +158,11 @@ public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer
 	public ColumnChunkPages writeColumn(ColumnDescriptor column, Iterator<Boolean> iterator)
 	{
 		return internalWriteColumn(column, NullableIterators.wrapBooleanIterator(iterator),
-				(columnWriter, boolIterator, defLevel) -> columnWriter.write(boolIterator.getValue(), 0, defLevel));
+				(columnWriter, boolIterator) -> columnWriter.write(boolIterator.getValue()));
 	}
 
 	interface RecordConsumer<I extends NullableIterators.NullableIterator>
 	{
-		void recordCallback(ColumnWriter columnWriter, I iterator, int definitionLevel);
+		void recordCallback(ColumnChunkValuesWriter columnWriter, I iterator);
 	}
 }
