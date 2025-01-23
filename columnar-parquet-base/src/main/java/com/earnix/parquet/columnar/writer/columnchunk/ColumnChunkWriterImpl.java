@@ -21,7 +21,6 @@ import java.util.stream.LongStream;
 
 public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkWriter
 {
-	private static final String DUMMY_COL_NAME = "dummy_col_name";
 	private final ParquetProperties parquetProperties;
 
 	/**
@@ -63,50 +62,28 @@ public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer
 	private <I extends NullableIterators.NullableIterator> ColumnChunkPages internalWriteColumn(ColumnDescriptor path,
 			I primitiveIterator, RecordConsumer<I> recordCallback)
 	{
-		try (InMemPageWriter writer = new InMemPageWriter(compressionCodec))
+		try (ColumnChunkValuesWriter columnChunkValuesWriter = new ColumnChunkValuesWriter(path, parquetProperties,
+				compressionCodec))
 		{
-			writeRecords(primitiveIterator, recordCallback, path, writer);
-			return new ColumnChunkPages(path, writer.getDictionaryPage(), writer.getPages());
+			writeRecords(primitiveIterator, recordCallback, columnChunkValuesWriter);
+			return columnChunkValuesWriter.finishAndGetPages();
 		}
 	}
 
 	private <I extends NullableIterators.NullableIterator> void writeRecords(I primitiveIterator,
-			RecordConsumer<I> recordCallback, ColumnDescriptor path, InMemPageWriter writer)
+			RecordConsumer<I> recordCallback, ColumnChunkValuesWriter columnChunkValuesWriter)
 	{
-		PageWriteStore pageWriteStore = descriptor -> {
-			if (!path.equals(descriptor))
-			{
-				throw new IllegalArgumentException("unexpected descriptor: " + descriptor + ". expected: " + path);
-			}
-			return writer;
-		};
-
-		// A hacky way to use the page limit/flush logic without changing the column writer impl
-		MessageType dummyMessageType = new MessageType(DUMMY_COL_NAME, path.getPrimitiveType());
-		try (ColumnWriteStore writeStore = new ColumnWriteStoreV2(dummyMessageType, pageWriteStore, parquetProperties);
-				ColumnWriter columnWriter = writeStore.getColumnWriter(path))
+		while (primitiveIterator.next())
 		{
-			long numVals = 0;
-			while (primitiveIterator.next())
+			if (primitiveIterator.isNull())
 			{
-				if (primitiveIterator.isNull())
-				{
-					if (path.getPrimitiveType().getRepetition() == Type.Repetition.REQUIRED)
-						throw new IllegalStateException("Field is required!");
-					columnWriter.writeNull(0, 0);
-				}
-				else
-				{
-					recordCallback.recordCallback(columnWriter, primitiveIterator, path.getMaxDefinitionLevel());
-				}
-				writeStore.endRecord();
-				++numVals;
+				columnChunkValuesWriter.writeNull(0, 0);
 			}
-
-			if (numVals == 0)
-				throw new IllegalArgumentException("A page cannot contain zero values " + path);
-
-			writeStore.flush();
+			else
+			{
+				recordCallback.recordCallback(columnChunkValuesWriter, primitiveIterator,
+						columnChunkValuesWriter.getColumnDescriptor().getMaxDefinitionLevel());
+			}
 		}
 	}
 

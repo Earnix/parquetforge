@@ -81,7 +81,7 @@ public class InMemPageWriter implements PageWriter
 		pages.add(new DataPageV1(compressedInput, valueCount, toCompress.length, statistics, rlEncoding, dlEncoding,
 				valuesEncoding));
 		totalValueCount += valueCount;
-		LOG.debug("page written for {} bytes and {} records", bytesInput.size(), valueCount);
+		logPageWritten(valueCount, bytesInput.size());
 	}
 
 	private static BytesInput buildCompressedInput(int compressedLen, byte[] compressed)
@@ -132,8 +132,8 @@ public class InMemPageWriter implements PageWriter
 			if (compressedLen < toCompress.length)
 			{
 				dataInput = buildCompressedInput(compressedLen, compressed);
-				int uncompressedLen = Math
-						.toIntExact(repetitionLevels.size() + definitionLevels.size() + toCompress.length);
+				int uncompressedLen = Math.toIntExact(
+						repetitionLevels.size() + definitionLevels.size() + toCompress.length);
 				pages.add(DataPageV2.compressed(rowCount, nullCount, valueCount, copy(repetitionLevels),
 						copy(definitionLevels), dataEncoding, dataInput, uncompressedLen, statistics));
 			}
@@ -146,6 +146,11 @@ public class InMemPageWriter implements PageWriter
 		}
 
 		totalValueCount += valueCount;
+		logPageWritten(valueCount, size);
+	}
+
+	private static void logPageWritten(int valueCount, long size)
+	{
 		LOG.debug("page written for {} bytes and {} records", size, valueCount);
 	}
 
