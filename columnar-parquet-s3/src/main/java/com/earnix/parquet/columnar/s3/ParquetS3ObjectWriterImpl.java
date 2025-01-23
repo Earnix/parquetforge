@@ -7,6 +7,7 @@ import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import com.earnix.parquet.columnar.writer.ParquetFileInfo;
 import com.earnix.parquet.columnar.writer.ParquetWriterUtils;
 import com.earnix.parquet.columnar.writer.rowgroup.RowGroupInfo;
+import com.earnix.parquet.columnar.writer.rowgroup.RowGroupWriter;
 import org.apache.commons.io.file.DeletingPathVisitor;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.format.CompressionCodec;
@@ -58,6 +59,7 @@ public class ParquetS3ObjectWriterImpl implements ParquetColumnarWriter
 	// offset from all previous buffers that have been uploaded.
 	private long offsetOfCurrentFile = 0L;
 	private final List<RowGroupInfo> rowGroupInfos = new ArrayList<>();
+	private S3RowGroupWriterImpl lastWriter = null;
 
 	private S3FileUploadBuffer buffer;
 
@@ -111,9 +113,13 @@ public class ParquetS3ObjectWriterImpl implements ParquetColumnarWriter
 				new SynchronousQueue<>(), new ThreadPoolExecutor.CallerRunsPolicy());
 	}
 
-	@Override
-	public void writeRowGroup(long numRows, RowGroupAppender rowGroupAppender) throws IOException
+	public S3RowGroupWriterImpl startNewRowGroup(long numRows) throws IOException
 	{
+		if (lastWriter != null)
+		{
+			throw new IllegalStateException("Last writer was not closed");
+		}
+
 		if (buffer == null)
 		{
 			makeNewBuffer();
@@ -124,12 +130,10 @@ public class ParquetS3ObjectWriterImpl implements ParquetColumnarWriter
 			}
 		}
 
-		S3RowGroupWriterImpl rowGroupWriter = new S3RowGroupWriterImpl(messageType, compressionCodec, parquetProperties,
-				numRows, buffer.getFilePath(), buffer.getTmpFileChannel(), buffer.getTmpFileChannel().position(),
+		lastWriter = new S3RowGroupWriterImpl(messageType, compressionCodec, parquetProperties, numRows,
+				buffer.getFilePath(), buffer.getTmpFileChannel(), buffer.getTmpFileChannel().position(),
 				offsetOfCurrentFile);
-
-		rowGroupAppender.append(rowGroupWriter);
-		finishRowGroup(rowGroupWriter);
+		return lastWriter;
 	}
 
 	private void makeNewBuffer() throws IOException
@@ -138,9 +142,10 @@ public class ParquetS3ObjectWriterImpl implements ParquetColumnarWriter
 		buffer = new S3FileUploadBuffer(targetS3PartsPerRowGroup, tmpFile);
 	}
 
-	private void finishRowGroup(S3RowGroupWriterImpl rowGroupWriter) throws IOException
+	@Override
+	public void finishRowGroup() throws IOException
 	{
-		RowGroupInfo rowGroupInfo = rowGroupWriter.closeAndValidateAllColumnsWritten();
+		RowGroupInfo rowGroupInfo = lastWriter.closeAndValidateAllColumnsWritten();
 		this.rowGroupInfos.add(rowGroupInfo);
 
 		// the possible split points array contains the ending points of each column within a row group.
@@ -152,6 +157,13 @@ public class ParquetS3ObjectWriterImpl implements ParquetColumnarWriter
 		Arrays.sort(possibleSplitPoints);
 
 		uploadBufferedData(possibleSplitPoints, false);
+		lastWriter = null;
+	}
+
+	@Override
+	public RowGroupWriter getCurrentRowGroupWriter()
+	{
+		return lastWriter;
 	}
 
 	private void uploadBufferedData(long[] possibleSplitPoints, boolean isLastPart) throws IOException

@@ -15,7 +15,19 @@ public interface ParquetColumnarWriter extends Closeable
 	 *                         finish are called as expected
 	 * @throws IOException on IO Failure
 	 */
-	void writeRowGroup(long numRows, RowGroupAppender rowGroupAppender) throws IOException;
+	default void writeRowGroup(long numRows, RowGroupAppender rowGroupAppender) throws IOException
+	{
+		RowGroupWriter rowGroupWriter = startNewRowGroup(numRows);
+		rowGroupAppender.append(rowGroupWriter);
+		finishRowGroup();
+	}
+
+	RowGroupWriter startNewRowGroup(long numRows) throws IOException;
+
+	RowGroupWriter getCurrentRowGroupWriter();
+
+	void finishRowGroup() throws IOException;
+
 
 	/**
 	 * Finish the parquet file. Writes the footer metadata. Note that {@link #close()} should still be called after.

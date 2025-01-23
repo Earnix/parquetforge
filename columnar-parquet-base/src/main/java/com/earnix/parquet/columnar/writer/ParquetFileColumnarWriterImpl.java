@@ -94,13 +94,6 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 	}
 
 	@Override
-	public void writeRowGroup(long numRows, RowGroupAppender rowGroupAppender) throws IOException
-	{
-		RowGroupWriter rowGroupWriter = startNewRowGroup(numRows);
-		rowGroupAppender.append(rowGroupWriter);
-		finishRowGroup();
-	}
-
 	public RowGroupWriter startNewRowGroup(long numRows) throws IOException
 	{
 		if (lastWriter != null)
@@ -114,6 +107,12 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 
 		lastWriter = new FileRowGroupWriterImpl(messageType, compressionCodec, parquetProperties, numRows, outputFile,
 				fileChannel, offsetInFile);
+		return lastWriter;
+	}
+
+	@Override
+	public RowGroupWriter getCurrentRowGroupWriter()
+	{
 		return lastWriter;
 	}
 
@@ -134,6 +133,7 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 		}
 	}
 
+	@Override
 	public void finishRowGroup() throws IOException
 	{
 		RowGroupInfo rowGrpInfo = lastWriter.closeAndValidateAllColumnsWritten();
