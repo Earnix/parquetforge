@@ -34,8 +34,6 @@ import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY;
  */
 public class InMemChunk implements Serializable
 {
-	private static final int maxDictionaryByteSize = 100;
-
 	// not serializable - so need to custom serialize.
 	private transient ColumnDescriptor descriptor;
 

@@ -209,7 +209,8 @@ public class ParquetColumnarFileReader
 			CompressionCodec compressionCodec) throws IOException
 	{
 		InMemChunkPageStore inMemChunkPageStore = ChunkDecompressToPageStoreFactory.buildColumnChunkPageStore(
-				colDescriptor, new CountingInputStream(is), chunkLen, compressionCodec);
+				colDescriptor, BoundedInputStream.builder().setInputStream(is).setMaxCount(chunkLen).get(), chunkLen,
+				compressionCodec);
 		return new InMemChunk(inMemChunkPageStore);
 	}
 

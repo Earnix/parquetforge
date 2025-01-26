@@ -1,18 +1,8 @@
 package com.earnix.parquet.columnar.reader.chunk.internal;
 
-import static com.earnix.parquet.columnar.utils.ParquetEnumUtils.convert;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.Serializable;
-import java.io.UnsupportedEncodingException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Supplier;
-
+import com.github.luben.zstd.Zstd;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.input.BoundedInputStream;
-import org.apache.commons.io.input.CountingInputStream;
 import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.Encoding;
@@ -28,7 +18,15 @@ import org.apache.parquet.format.PageHeader;
 import org.apache.parquet.format.Util;
 import org.xerial.snappy.Snappy;
 
-import com.github.luben.zstd.Zstd;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Serializable;
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Supplier;
+
+import static com.earnix.parquet.columnar.utils.ParquetEnumUtils.convert;
 
 /**
  * A factory to read a column from an input stream into an uncompressed in memory page store.
@@ -48,15 +46,15 @@ public class ChunkDecompressToPageStoreFactory
 	 * @return the in memory page store
 	 * @throws IOException on failure to read from the stream
 	 */
-	public static InMemChunkPageStore buildColumnChunkPageStore(ColumnDescriptor descriptor, CountingInputStream is,
+	public static InMemChunkPageStore buildColumnChunkPageStore(ColumnDescriptor descriptor, BoundedInputStream is,
 			long totalBytesInAllPages, CompressionCodec codec) throws IOException
 	{
-		long endByte = is.getByteCount() + totalBytesInAllPages;
+		long endByte = is.getCount() + totalBytesInAllPages;
 		boolean isFirstPage = true;
 		Supplier<DictionaryPage> dictionaryPage = nullSupplier;
 		List<Supplier<DataPage>> dataPageList = new ArrayList<>();
 		long totalValues = 0L;
-		while (is.getByteCount() < endByte)
+		while (is.getCount() < endByte)
 		{
 			PageHeader pageHeader = Util.readPageHeader(is);
 			if (pageHeader.isSetDictionary_page_header())
@@ -86,7 +84,7 @@ public class ChunkDecompressToPageStoreFactory
 		return new InMemChunkPageStore(descriptor, dictionaryPage, dataPageList, totalValues, totalBytesInAllPages);
 	}
 
-	private static Supplier<DictionaryPage> readDictPage(CountingInputStream is, CompressionCodec codec,
+	private static Supplier<DictionaryPage> readDictPage(InputStream is, CompressionCodec codec,
 			PageHeader pageHeader) throws IOException
 	{
 		DictionaryPageHeader dictionaryPageHeader = pageHeader.getDictionary_page_header();

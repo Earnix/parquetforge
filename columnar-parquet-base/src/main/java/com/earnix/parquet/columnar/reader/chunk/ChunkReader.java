@@ -5,6 +5,7 @@ import java.io.InputStream;
 
 import com.earnix.parquet.columnar.reader.chunk.internal.ChunkDecompressToPageStoreFactory;
 import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
+import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.commons.io.input.CountingInputStream;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.CompressionCodec;
@@ -16,7 +17,7 @@ public class ChunkReader
 {
 	/**
 	 * Read all the pages of the column chunk into memory with a deserialized dictionary
-	 * 
+	 *
 	 * @param descriptor
 	 * @param is
 	 * @param byteLimit
@@ -25,9 +26,9 @@ public class ChunkReader
 	 * @throws IOException
 	 */
 	public static InMemChunk readChunk(ColumnDescriptor descriptor, InputStream is, long byteLimit,
-									   CompressionCodec codec) throws IOException
+			CompressionCodec codec) throws IOException
 	{
-		return new InMemChunk(ChunkDecompressToPageStoreFactory.buildColumnChunkPageStore(descriptor, new CountingInputStream(is),
-				byteLimit, codec));
+		return new InMemChunk(ChunkDecompressToPageStoreFactory.buildColumnChunkPageStore(descriptor,
+				BoundedInputStream.builder().setInputStream(is).setMaxCount(byteLimit).get(), byteLimit, codec));
 	}
 }
