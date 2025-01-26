@@ -1,17 +1,14 @@
 package com.earnix.parquet.columnar.s3.assembler;
 
+import com.earnix.parquet.columnar.assembler.BaseParquetAssembler;
+import com.earnix.parquet.columnar.assembler.ParquetColumnChunkSupplier;
+import com.earnix.parquet.columnar.assembler.ParquetRowGroupSupplier;
 import com.earnix.parquet.columnar.s3.buffering.S3KeyUploader;
 import com.earnix.parquet.columnar.s3.buffering.UploadPartUtils;
-import com.earnix.parquet.columnar.writer.ParquetWriterUtils;
-import com.earnix.parquet.columnar.writer.rowgroup.ColumnChunkInfo;
-import com.earnix.parquet.columnar.writer.rowgroup.FullColumnChunkInfo;
-import com.earnix.parquet.columnar.writer.rowgroup.RowGroupInfo;
+import com.earnix.parquet.columnar.utils.ParquetMagicUtils;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.commons.io.output.UnsynchronizedByteArrayOutputStream;
 import org.apache.parquet.column.ColumnDescriptor;
-import org.apache.parquet.format.FileMetaData;
-import org.apache.parquet.format.SchemaElement;
-import org.apache.parquet.format.Util;
 import org.apache.parquet.schema.MessageType;
 
 import java.io.ByteArrayInputStream;
@@ -19,9 +16,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.SequenceInputStream;
 import java.io.UncheckedIOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Iterator;
@@ -32,15 +26,13 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 /**
  * An interface to assemble a parquet file on S3 from source parquet files with zero copying
  */
-public class S3ParquetAssembleAndUpload
+public class S3ParquetAssembleAndUpload extends BaseParquetAssembler
 {
 	private static final AtomicLong threadPoolIDNumber = new AtomicLong();
-	private static final byte[] MAGIC = "PAR1".getBytes(StandardCharsets.US_ASCII);
 
 	private final MessageType schema;
 	private final int targetNumParts;
@@ -74,7 +66,7 @@ public class S3ParquetAssembleAndUpload
 		int numColumns = rowGroups.get(0).getNumColumns();
 
 		List<ColumnDescriptor> orderedDescriptors = schema.getColumns();
-		UnsynchronizedByteArrayOutputStream serializedMetadata = buildSerializedMetadata(orderedDescriptors, rowGroups);
+		UnsynchronizedByteArrayOutputStream serializedMetadata = BaseParquetAssembler.buildSerializedMetadata(orderedDescriptors, rowGroups);
 
 		List<ParquetColumnChunkSupplier> orderedChunkSuppliers = orderChunkSuppliers(rowGroups, numColumns,
 				orderedDescriptors);
@@ -85,7 +77,7 @@ public class S3ParquetAssembleAndUpload
 
 		long[] lens = new long[relevantOffsets.length - 1];
 		List<List<Supplier<InputStream>>> grouped = groupColumnChunks(lens, relevantOffsets, supplierIterator,
-				serializedMetadata.size(), () -> serializedMetadata.toInputStream());
+				serializedMetadata.size(), serializedMetadata::toInputStream);
 
 		// this can be moved to automatically managed resource once we upgrade to a newer java version.
 		ExecutorService service = new ThreadPoolExecutor(uploadThreads, uploadThreads, 0L, TimeUnit.MILLISECONDS,
@@ -137,10 +129,10 @@ public class S3ParquetAssembleAndUpload
 
 	private static Supplier<InputStream> createInputStreamSupplier(List<Supplier<InputStream>> grp)
 	{
-		// this code is fragile. Note that we do NOT use Collections.enumeration.
+		// Beware: This code is fragile. We intentionally do NOT use Collections.enumeration.
 		// This code ensures that an InputStream is created ONLY when it is ready to be read, and not before.
-		// This is important because we may have many InputStreams in many different files and we don't want to run
-		// out of file descriptors.
+		// This is important because we may have many InputStreams in many different files, and we don't want to run
+		// out of file descriptors - only one file should be open at a time.
 		return () -> {
 			Iterator<Supplier<InputStream>> it = grp.iterator();
 			return new SequenceInputStream(new Enumeration<InputStream>()
@@ -174,8 +166,8 @@ public class S3ParquetAssembleAndUpload
 			if (grouped.isEmpty())
 			{
 				// we're first! add the magic.
-				currGroup.add(() -> new ByteArrayInputStream(MAGIC));
-				lens[i - 1] += MAGIC.length;
+				currGroup.add(ParquetMagicUtils::newMagicBytesInputStream);
+				lens[i - 1] += ParquetMagicUtils.PARQUET_MAGIC.length();
 			}
 
 			while (currPlace < relevantOffsets[i])
@@ -205,25 +197,11 @@ public class S3ParquetAssembleAndUpload
 		lastGroup.add(metadataIsSupplier);
 		lens[lens.length - 1] += metadataSize;
 
-		byte[] footerLenAndMagic = createFooterAndMagic(metadataSize);
+		byte[] footerLenAndMagic = ParquetMagicUtils.createFooterAndMagic(metadataSize);
 		lastGroup.add(() -> new ByteArrayInputStream(footerLenAndMagic));
 		lens[lens.length - 1] += footerLenAndMagic.length;
 
 		return grouped;
-	}
-
-	private static byte[] createFooterAndMagic(int metadataSize)
-	{
-		byte[] footerLenAndMagic = new byte[Integer.BYTES + MAGIC.length];
-		ByteBuffer footerLenAndMagicByteBuf = ByteBuffer.wrap(footerLenAndMagic);
-		footerLenAndMagicByteBuf.order(ByteOrder.LITTLE_ENDIAN);// little endian according to spec.
-		footerLenAndMagicByteBuf.putInt(metadataSize);
-		footerLenAndMagicByteBuf.put(MAGIC);
-		if (footerLenAndMagicByteBuf.hasRemaining())
-		{
-			throw new IllegalStateException();
-		}
-		return footerLenAndMagic;
 	}
 
 	private long[] computePartOffsets(List<ParquetRowGroupSupplier> rowGroups, int numColumns,
@@ -258,44 +236,5 @@ public class S3ParquetAssembleAndUpload
 			}
 		}
 		return orderedChunkSuppliers;
-	}
-
-	private UnsynchronizedByteArrayOutputStream buildSerializedMetadata(List<ColumnDescriptor> columnDescriptors,
-			List<ParquetRowGroupSupplier> rowGroupSuppliers)
-	{
-		List<RowGroupInfo> rowGroupInfos = new ArrayList<>(rowGroupSuppliers.size());
-
-		long currOffsetInFile = MAGIC.length;
-		for (ParquetRowGroupSupplier prgs : rowGroupSuppliers)
-		{
-			long rowGroupStartOffset = currOffsetInFile;
-			List<ColumnChunkInfo> chunkInfoList = new ArrayList<>(columnDescriptors.size());
-			for (ColumnDescriptor columnDescriptor : columnDescriptors)
-			{
-				ParquetColumnChunkSupplier parquetColumnChunkSupplier = prgs.getSupplier(columnDescriptor);
-				ColumnChunkInfo chunkInfo = new FullColumnChunkInfo(columnDescriptor,
-						parquetColumnChunkSupplier.getColumnChunk(), currOffsetInFile);
-				chunkInfoList.add(chunkInfo);
-				currOffsetInFile += parquetColumnChunkSupplier.getCompressedLength();
-			}
-
-			RowGroupInfo rowGroupInfo = new RowGroupInfo(currOffsetInFile, prgs.getNumRows(), chunkInfoList);
-			rowGroupInfos.add(rowGroupInfo);
-		}
-
-		List<SchemaElement> schemaElements = ParquetWriterUtils.getSchemaElements(new MessageType("root",
-				columnDescriptors.stream().map(ColumnDescriptor::getPrimitiveType).collect(Collectors.toList())));
-		FileMetaData parquetFooterMetadata = ParquetWriterUtils.getFileMetaData(rowGroupInfos, schemaElements);
-		UnsynchronizedByteArrayOutputStream byteArrayOutputStream = UnsynchronizedByteArrayOutputStream.builder().get();
-
-		try
-		{
-			Util.writeFileMetaData(parquetFooterMetadata, byteArrayOutputStream);
-			return byteArrayOutputStream;
-		}
-		catch (IOException ex)
-		{
-			throw new UncheckedIOException(ex);
-		}
 	}
 }

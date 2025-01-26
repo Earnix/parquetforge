@@ -1,7 +1,10 @@
 package com.earnix.parquet.columnar.utils;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 
@@ -34,6 +37,11 @@ public class ParquetMagicUtils
 		return true;
 	}
 
+	public static InputStream newMagicBytesInputStream()
+	{
+		return new ByteArrayInputStream(PARQUET_MAGIC_BYTES);
+	}
+
 	public static void writeMagicBytes(WritableByteChannel fileChannel) throws IOException
 	{
 		ByteBuffer bb = ByteBuffer.wrap(PARQUET_MAGIC_BYTES);
@@ -44,5 +52,19 @@ public class ParquetMagicUtils
 				throw new IOException("Could not write magic bytes");
 		}
 		while (bb.hasRemaining());
+	}
+
+	public static byte[] createFooterAndMagic(int metadataSize)
+	{
+		byte[] footerLenAndMagic = new byte[Integer.BYTES + PARQUET_MAGIC.length()];
+		ByteBuffer footerLenAndMagicByteBuf = ByteBuffer.wrap(footerLenAndMagic);
+		footerLenAndMagicByteBuf.order(ByteOrder.LITTLE_ENDIAN);// little endian according to spec.
+		footerLenAndMagicByteBuf.putInt(metadataSize);
+		footerLenAndMagicByteBuf.put(PARQUET_MAGIC_BYTES);
+		if (footerLenAndMagicByteBuf.hasRemaining())
+		{
+			throw new IllegalStateException();
+		}
+		return footerLenAndMagic;
 	}
 }

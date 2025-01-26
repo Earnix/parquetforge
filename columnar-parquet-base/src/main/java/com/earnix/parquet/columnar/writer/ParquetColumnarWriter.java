@@ -22,10 +22,24 @@ public interface ParquetColumnarWriter extends Closeable
 		finishRowGroup();
 	}
 
+	/**
+	 * Start a new row group with the specified number of rows
+	 *
+	 * @param numRows the number of rows of data in this row group
+	 * @return the row group writer
+	 * @throws IOException on failure to write to the destination
+	 */
 	RowGroupWriter startNewRowGroup(long numRows) throws IOException;
 
+	/**
+	 * @return the current row group writer that is opened for writing
+	 */
 	RowGroupWriter getCurrentRowGroupWriter();
 
+	/**
+	 * Mark the current row group as finished. This should also validate that all required columns are written when
+	 * possible to prevent corrupted partial parquet files
+	 */
 	void finishRowGroup() throws IOException;
 
 

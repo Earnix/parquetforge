@@ -1,4 +1,4 @@
-package com.earnix.parquet.columnar.s3.assembler;
+package com.earnix.parquet.columnar.assembler;
 
 import org.apache.parquet.column.ColumnDescriptor;
 
@@ -18,7 +18,7 @@ public class ParquetRowGroupSupplier
 	private final long numRows;
 
 	/**
-	 * @return a bulder to make a parquet row group
+	 * @return a builder to make a parquet row group
 	 */
 	public static Builder builder()
 	{
@@ -55,9 +55,21 @@ public class ParquetRowGroupSupplier
 		return this.descriptorToSupplierMap.size();
 	}
 
+	/**
+	 * @return the number of rows in this row group
+	 */
 	public long getNumRows()
 	{
 		return numRows;
+	}
+
+	/**
+	 * @return the total number of bytes used by this row group
+	 */
+	public long compressedBytes()
+	{
+		return descriptorToSupplierMap.values().stream()// all of the column chunks
+				.mapToLong(ParquetColumnChunkSupplier::getCompressedLength).sum();
 	}
 
 	public static class Builder

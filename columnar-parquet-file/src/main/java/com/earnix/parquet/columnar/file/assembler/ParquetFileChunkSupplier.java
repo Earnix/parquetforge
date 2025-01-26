@@ -1,5 +1,6 @@
-package com.earnix.parquet.columnar.s3.assembler;
+package com.earnix.parquet.columnar.file.assembler;
 
+import com.earnix.parquet.columnar.assembler.ParquetColumnChunkSupplier;
 import com.earnix.parquet.columnar.file.reader.FileRangeInputStreamSupplier;
 import com.earnix.parquet.columnar.file.reader.IndexedParquetColumnarFileReader;
 import org.apache.commons.lang3.tuple.Pair;
@@ -16,7 +17,7 @@ public class ParquetFileChunkSupplier implements ParquetColumnChunkSupplier
 	private final ColumnDescriptor columnDescriptor;
 	private final int rowGroup;
 
-	// lazily computed
+	// lazily populated
 	private volatile boolean initialized;
 	private ColumnChunk columnChunk;
 	private FileRangeInputStreamSupplier inputStreamSupplier;
@@ -46,6 +47,9 @@ public class ParquetFileChunkSupplier implements ParquetColumnChunkSupplier
 		this.rowGroup = rowGroup;
 	}
 
+	/**
+	 * @return the column descriptor of this column
+	 */
 	public ColumnDescriptor getColumnDescriptor()
 	{
 		return columnDescriptor;

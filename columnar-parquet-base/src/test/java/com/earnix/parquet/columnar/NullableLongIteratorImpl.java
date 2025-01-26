@@ -9,7 +9,6 @@ public class NullableLongIteratorImpl implements NullableIterators.NullableLongI
 	@Override
 	public long getValue()
 	{
-
 		return 1;
 	}
 

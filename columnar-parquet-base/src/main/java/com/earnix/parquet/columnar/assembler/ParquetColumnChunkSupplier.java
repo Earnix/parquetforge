@@ -1,4 +1,4 @@
-package com.earnix.parquet.columnar.s3.assembler;
+package com.earnix.parquet.columnar.assembler;
 
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.ColumnChunk;

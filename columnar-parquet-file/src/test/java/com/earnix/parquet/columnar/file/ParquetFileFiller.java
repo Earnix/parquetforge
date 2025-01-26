@@ -6,6 +6,7 @@ import com.earnix.parquet.columnar.utils.ColumnChunkForTesting;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import com.earnix.parquet.columnar.writer.rowgroup.RowGroupWriter;
 import org.apache.parquet.column.ColumnDescriptor;
+import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
@@ -15,7 +16,9 @@ import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
@@ -129,4 +132,27 @@ public class ParquetFileFiller
 		return expectedRowGroup;
 	}
 
+	static void basicSingleDoubleColumnParquetFile(Path tmp) throws IOException
+	{
+		String colName = "chicken";
+		List<Type> col = Collections.singletonList(
+				new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.DOUBLE, colName));
+		MessageType messageType = new MessageType("root", col);
+		ColumnDescriptor columnDescriptor = messageType.getColumns().get(0);
+		try (ParquetColumnarWriter writer = ParquetFileColumnarWriterFactory.createWriter(tmp, messageType,
+				CompressionCodec.ZSTD, true))
+		{
+			writer.writeRowGroup(1, rowGroupWriter -> rowGroupWriter.writeValues(
+					chunkWriter -> chunkWriter.writeColumn(columnDescriptor, new double[] { 1 })));
+
+			double[] randomNums = new double[] { 1, -100, 4, 9394, 3412, 323265 };
+			Random rand = new Random();
+			double[] randChunkData = IntStream.range(0, 10_000)
+					.mapToDouble(i -> randomNums[rand.nextInt(randomNums.length)]).toArray();
+
+			writer.writeRowGroup(randChunkData.length, rowGroupWriter -> rowGroupWriter.writeValues(
+					chunkWriter -> chunkWriter.writeColumn(columnDescriptor, randChunkData)));
+			writer.finishAndWriteFooterMetadata();
+		}
+	}
 }

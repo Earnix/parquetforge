@@ -4,7 +4,7 @@ import org.apache.parquet.format.FileMetaData;
 import org.apache.parquet.schema.MessageType;
 
 /**
- * Some stats about a parquet file that was written
+ * Information about a parquet file that was persisted.
  */
 public class ParquetFileInfo
 {
@@ -40,7 +40,8 @@ public class ParquetFileInfo
 	}
 
 	/**
-	 * Get the footer metadata of the parquet file
+	 * Get the footer metadata of the parquet file. Note that this is called {@link FileMetaData} in the parquet thrift
+	 * specification
 	 *
 	 * @return the footer metadata of the parquet file
 	 */
