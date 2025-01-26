@@ -1,6 +1,9 @@
-package com.earnix.parquet.columnar.writer;
+package com.earnix.parquet.columnar.file.writer;
 
 import com.earnix.parquet.columnar.utils.ParquetMagicUtils;
+import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
+import com.earnix.parquet.columnar.writer.ParquetFileInfo;
+import com.earnix.parquet.columnar.writer.ParquetWriterUtils;
 import com.earnix.parquet.columnar.writer.rowgroup.ColumnChunkInfo;
 import com.earnix.parquet.columnar.writer.rowgroup.FileRowGroupWriterImpl;
 import com.earnix.parquet.columnar.writer.rowgroup.RowGroupInfo;

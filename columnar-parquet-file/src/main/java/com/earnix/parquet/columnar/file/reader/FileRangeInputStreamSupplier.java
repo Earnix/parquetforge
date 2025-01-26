@@ -1,4 +1,4 @@
-package com.earnix.parquet.columnar.reader;
+package com.earnix.parquet.columnar.file.reader;
 
 import org.apache.commons.io.input.BoundedInputStream;
 

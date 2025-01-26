@@ -1,6 +1,7 @@
 package com.earnix.parquet.columnar.file;
 
-import com.earnix.parquet.columnar.reader.ParquetColumnarFileReader;
+import com.earnix.parquet.columnar.file.writer.ParquetFileColumnarWriterFactory;
+import com.earnix.parquet.columnar.file.reader.ParquetColumnarFileReader;
 import com.earnix.parquet.columnar.reader.chunk.ChunkValuesReader;
 import com.earnix.parquet.columnar.reader.chunk.InMemRowGroup;
 import com.earnix.parquet.columnar.reader.chunk.internal.ChunkValuesReaderFactory;
@@ -9,7 +10,6 @@ import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
 import com.earnix.parquet.columnar.reader.processors.ParquetColumnarProcessors;
 import com.earnix.parquet.columnar.utils.ColumnChunkForTesting;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
-import com.earnix.parquet.columnar.writer.ParquetFileColumnarWriterFactory;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.ColumnChunk;
 import org.apache.parquet.schema.PrimitiveType;

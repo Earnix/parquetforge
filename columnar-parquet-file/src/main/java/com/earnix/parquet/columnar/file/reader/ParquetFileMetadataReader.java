@@ -1,4 +1,4 @@
-package com.earnix.parquet.columnar.reader;
+package com.earnix.parquet.columnar.file.reader;
 
 import com.earnix.parquet.columnar.utils.ParquetMagicUtils;
 import org.apache.commons.io.IOUtils;

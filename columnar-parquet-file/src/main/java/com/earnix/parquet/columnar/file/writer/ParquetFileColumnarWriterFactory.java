@@ -1,5 +1,6 @@
-package com.earnix.parquet.columnar.writer;
+package com.earnix.parquet.columnar.file.writer;
 
+import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;

@@ -1,11 +1,9 @@
 package com.earnix.parquet.columnar.s3.assembler;
 
-import com.earnix.parquet.columnar.reader.ParquetFileMetadataReader;
+import com.earnix.parquet.columnar.file.reader.ParquetFileMetadataReader;
 import com.earnix.parquet.columnar.reader.ParquetMetadataUtils;
-import com.google.common.collect.Maps;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.ColumnChunk;
-import org.apache.parquet.format.ColumnMetaData;
 import org.apache.parquet.format.FileMetaData;
 import org.apache.parquet.format.RowGroup;
 import org.apache.parquet.schema.MessageType;

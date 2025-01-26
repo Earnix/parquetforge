@@ -1,12 +1,11 @@
 package com.earnix.parquet.columnar.file;
 
-import com.earnix.parquet.columnar.ParquetColumnChunkReader;
-import com.earnix.parquet.columnar.reader.IndexedParquetColumnarFileReader;
+import com.earnix.parquet.columnar.file.writer.ParquetFileColumnarWriterFactory;
+import com.earnix.parquet.columnar.file.reader.IndexedParquetColumnarFileReader;
 import com.earnix.parquet.columnar.reader.chunk.ChunkValuesReader;
 import com.earnix.parquet.columnar.reader.chunk.internal.ChunkValuesReaderImpl;
 import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
-import com.earnix.parquet.columnar.writer.ParquetFileColumnarWriterFactory;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.CompressionCodec;

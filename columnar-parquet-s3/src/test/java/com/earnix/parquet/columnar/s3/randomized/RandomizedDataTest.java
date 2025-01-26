@@ -1,7 +1,6 @@
 package com.earnix.parquet.columnar.s3.randomized;
 
-import com.earnix.parquet.columnar.reader.IndexedParquetColumnarFileReader;
-import com.earnix.parquet.columnar.reader.ParquetColumnarFileReader;
+import com.earnix.parquet.columnar.file.reader.ParquetColumnarFileReader;
 import com.earnix.parquet.columnar.reader.chunk.ChunkValuesReader;
 import com.earnix.parquet.columnar.reader.chunk.InMemRowGroup;
 import com.earnix.parquet.columnar.reader.chunk.internal.ChunkValuesReaderFactory;
@@ -14,14 +13,11 @@ import com.earnix.parquet.columnar.s3.downloader.S3ParquetFilePartDownloader;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import com.earnix.parquet.columnar.writer.ParquetFileInfo;
 import com.google.common.math.IntMath;
-import com.google.common.primitives.Ints;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.file.PathUtils;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.format.CompressionCodec;
-import org.apache.parquet.format.FileMetaData;
 import org.apache.parquet.format.RowGroup;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
@@ -48,8 +44,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiFunction;
-import java.util.function.IntFunction;
 import java.util.stream.IntStream;
 
 @RunWith(Parameterized.class)

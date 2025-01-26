@@ -1,7 +1,7 @@
 package com.earnix.parquet.columnar.s3;
 
-import com.earnix.parquet.columnar.reader.IndexedParquetColumnarFileReader;
-import com.earnix.parquet.columnar.reader.ParquetColumnarFileReader;
+import com.earnix.parquet.columnar.file.reader.IndexedParquetColumnarFileReader;
+import com.earnix.parquet.columnar.file.reader.ParquetColumnarFileReader;
 import com.earnix.parquet.columnar.reader.chunk.ChunkValuesReader;
 import com.earnix.parquet.columnar.reader.chunk.internal.ChunkValuesReaderFactory;
 import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
@@ -10,7 +10,7 @@ import com.earnix.parquet.columnar.s3.assembler.ParquetRowGroupSupplier;
 import com.earnix.parquet.columnar.s3.assembler.S3ParquetAssembleAndUpload;
 import com.earnix.parquet.columnar.s3.buffering.S3KeyUploader;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
-import com.earnix.parquet.columnar.writer.ParquetFileColumnarWriterFactory;
+import com.earnix.parquet.columnar.file.writer.ParquetFileColumnarWriterFactory;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.format.CompressionCodec;

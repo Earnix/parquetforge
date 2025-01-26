@@ -1,5 +1,6 @@
-package com.earnix.parquet.columnar.reader;
+package com.earnix.parquet.columnar.file.reader;
 
+import com.earnix.parquet.columnar.reader.ParquetMetadataUtils;
 import com.earnix.parquet.columnar.reader.chunk.InMemRowGroup;
 import com.earnix.parquet.columnar.reader.chunk.internal.ChunkDecompressToPageStoreFactory;
 import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;

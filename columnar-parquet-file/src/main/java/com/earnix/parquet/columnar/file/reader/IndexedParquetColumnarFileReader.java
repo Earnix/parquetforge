@@ -1,4 +1,4 @@
-package com.earnix.parquet.columnar.reader;
+package com.earnix.parquet.columnar.file.reader;
 
 import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
 import org.apache.commons.lang3.tuple.ImmutablePair;

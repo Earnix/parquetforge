@@ -1,7 +1,7 @@
 package com.earnix.parquet.columnar.s3.assembler;
 
-import com.earnix.parquet.columnar.reader.FileRangeInputStreamSupplier;
-import com.earnix.parquet.columnar.reader.IndexedParquetColumnarFileReader;
+import com.earnix.parquet.columnar.file.reader.FileRangeInputStreamSupplier;
+import com.earnix.parquet.columnar.file.reader.IndexedParquetColumnarFileReader;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.ColumnChunk;
