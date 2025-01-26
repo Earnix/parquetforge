@@ -5,6 +5,7 @@ import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.column.page.DataPage;
 import org.apache.parquet.column.page.DataPageV2;
 import org.apache.parquet.column.page.DictionaryPage;
+import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.format.DataPageHeaderV2;
 import org.apache.parquet.format.DictionaryPageHeader;
 import org.apache.parquet.format.Encoding;
@@ -40,9 +41,12 @@ public class ChunkPages
 	private final long numValues;
 	private final long uncompressedBytes;
 	private final long compressedBytes;
+	private final CompressionCodec compressionCodec;
 
-	public ChunkPages(DictionaryPage dictionaryPage, List<? extends DataPage> dataPages)
+	public ChunkPages(DictionaryPage dictionaryPage, List<? extends DataPage> dataPages,
+			CompressionCodec compressionCodec)
 	{
+		this.compressionCodec = compressionCodec;
 		int numPages = dictionaryPage == null ? dataPages.size() : dataPages.size() + 1;
 		this.headersAndPages = new ArrayList<>(2 * numPages);
 		long uncompressedBytes = 0;
@@ -220,5 +224,13 @@ public class ChunkPages
 	public Set<Encoding> getEncodingSet()
 	{
 		return Collections.unmodifiableSet(encodingSet);
+	}
+
+	/**
+	 * @return the compression codec used for these chunk pages
+	 */
+	public CompressionCodec getCompressionCodec()
+	{
+		return compressionCodec;
 	}
 }

@@ -62,6 +62,11 @@ public class InMemPageWriter implements PageWriter
 		}
 	}
 
+	public CompressionCodec getCompressionCodec()
+	{
+		return compressionCodec;
+	}
+
 	@Override
 	public void writePage(BytesInput bytesInput, int valueCount, Statistics statistics, Encoding rlEncoding,
 			Encoding dlEncoding, Encoding valuesEncoding) throws IOException

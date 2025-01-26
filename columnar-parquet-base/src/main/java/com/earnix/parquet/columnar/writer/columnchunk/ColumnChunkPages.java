@@ -19,6 +19,7 @@ import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.page.DataPage;
 import org.apache.parquet.column.page.DataPageV2;
 import org.apache.parquet.column.page.DictionaryPage;
+import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.format.DataPageHeaderV2;
 import org.apache.parquet.format.DictionaryPageHeader;
 import org.apache.parquet.format.Encoding;
@@ -34,9 +35,9 @@ public class ColumnChunkPages extends ChunkPages
 	private final ColumnDescriptor columnDescriptor;
 
 	public ColumnChunkPages(ColumnDescriptor columnDescriptor, DictionaryPage dictionaryPage,
-			List<? extends DataPage> dataPages)
+			List<? extends DataPage> dataPages, CompressionCodec compressionCodec)
 	{
-		super(dictionaryPage, dataPages);
+		super(dictionaryPage, dataPages, compressionCodec);
 		this.columnDescriptor = columnDescriptor;
 	}
 

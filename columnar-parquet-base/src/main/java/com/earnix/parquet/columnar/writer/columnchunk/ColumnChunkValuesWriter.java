@@ -88,7 +88,7 @@ public class ColumnChunkValuesWriter implements AutoCloseable
 					writeStore.flush();
 
 					pages = new ColumnChunkPages(columnDescriptor, inMemPageWriter.getDictionaryPage(),
-							inMemPageWriter.getPages());
+							inMemPageWriter.getPages(), inMemPageWriter.getCompressionCodec());
 					close();
 				}
 			}

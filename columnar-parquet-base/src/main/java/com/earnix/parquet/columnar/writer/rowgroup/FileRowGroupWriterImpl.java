@@ -5,7 +5,6 @@ import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages;
 import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkWriter;
 import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkWriterImpl;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.io.function.Uncheck;
 import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.ParquetProperties;
@@ -90,7 +89,7 @@ public class FileRowGroupWriterImpl implements RowGroupWriter
 			}
 		}
 		validateNumRows(pages);
-		chunkInfoList.add(new PartialColumnChunkInfo(pages, computeStartingOffset(writeOffset), compressionCodec));
+		chunkInfoList.add(new PartialColumnChunkInfo(pages, computeStartingOffset(writeOffset)));
 		assertNotClosed();
 	}
 

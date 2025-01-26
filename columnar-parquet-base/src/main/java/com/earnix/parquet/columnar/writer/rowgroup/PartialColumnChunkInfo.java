@@ -15,11 +15,11 @@ public class PartialColumnChunkInfo extends ColumnChunkInfo
 	private final ColumnChunkPages pages;
 	private final CompressionCodec compressionCodec;
 
-	public PartialColumnChunkInfo(ColumnChunkPages pages, long startPos, CompressionCodec compressionCodec)
+	public PartialColumnChunkInfo(ColumnChunkPages pages, long startPos)
 	{
 		super(startPos);
 		this.pages = pages;
-		this.compressionCodec = compressionCodec;
+		this.compressionCodec = pages.getCompressionCodec();
 	}
 
 	@Override
