@@ -75,6 +75,12 @@ public class FileRowGroupWriterImpl implements RowGroupWriter
 	public void writeValues(ChunkValuesWritingFunction writer) throws IOException
 	{
 		ColumnChunkPages pages = writer.apply(columnChunkWriter);
+		writeValues(pages);
+	}
+
+	@Override
+	public void writeValues(ColumnChunkPages pages) throws IOException
+	{
 		long totalBytes = pages.totalBytesForStorage();
 		long writeOffset = this.currOffset.getAndAdd(totalBytes);
 		if (this.output != null)
