@@ -214,6 +214,11 @@ public class ParquetColumnarFileReader
 		return new InMemChunk(inMemChunkPageStore);
 	}
 
+	public List<ColumnDescriptor> getColumnDescriptors()
+	{
+		return columnDescriptors;
+	}
+
 	public ColumnDescriptor getDescriptor(int colOffset) throws IOException
 	{
 		if (columnDescriptors == null)

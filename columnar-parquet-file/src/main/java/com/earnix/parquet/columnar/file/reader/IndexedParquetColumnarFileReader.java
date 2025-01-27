@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -30,6 +31,7 @@ import java.util.Objects;
  */
 public class IndexedParquetColumnarFileReader extends ParquetColumnarFileReader
 {
+	Map<List<String>, ColumnDescriptor> descriptorByPathMap;
 	List<Map<ColumnDescriptor, ColumnChunk>> rowGroupToIndexedMetadata;
 
 	/**
@@ -57,6 +59,12 @@ public class IndexedParquetColumnarFileReader extends ParquetColumnarFileReader
 				assertNoDuplicateColumnChunks(old, descriptor);
 			}
 			rowGroupToIndexedMetadata.add(columnDescriptorColumnMetaDataMap);
+		}
+
+		descriptorByPathMap = new HashMap<>();
+		for (ColumnDescriptor descriptor : getColumnDescriptors())
+		{
+			descriptorByPathMap.put(Arrays.asList(descriptor.getPath()), descriptor);
 		}
 	}
 
@@ -147,5 +155,10 @@ public class IndexedParquetColumnarFileReader extends ParquetColumnarFileReader
 		InMemChunk inMemChunk = readInMemChunk(descriptor, chunk.getRight().get(), chunk.getRight().getNumBytesToRead(),
 				chunk.getLeft().getMeta_data().getCodec());
 		return inMemChunk;
+	}
+
+	public ColumnDescriptor getDescriptorByPath(String... path)
+	{
+		return descriptorByPathMap.get(Arrays.asList(path));
 	}
 }
