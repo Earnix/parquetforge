@@ -45,7 +45,11 @@ public class ChunkValuesReaderImpl implements ChunkValuesReader
 		// skip is a misleading name for this method by the parquet people.
 		// What it actually does it check to see if we read a value in the data column yet, and if not, we skip over
 		// the current value in the data column
-		columnReader.skip();
+		if (!isNull())
+			columnReader.skip();
+
+		// consume is also misleading and the documentation is wrong. It consumes the Repetition and Definition level.
+		// It does NOT consume the data value, which sometimes should NOT be consumed if it is null.
 		columnReader.consume();
 		return true;
 	}
