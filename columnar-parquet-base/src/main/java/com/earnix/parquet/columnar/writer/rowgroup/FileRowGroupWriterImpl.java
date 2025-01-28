@@ -167,7 +167,7 @@ public class FileRowGroupWriterImpl implements RowGroupWriter
 		if (pages.getNumValues() != numRows)
 		{
 			throw new IllegalStateException(
-					"The number of rows in the chunk is not the one that was declared for the row group"
+					"The number of rows in the chunk is not the one that was declared for the row group "
 							+ pages.getColumnDescriptor().getPrimitiveType().getName());
 		}
 	}

@@ -227,7 +227,9 @@ public class ColumnChunkValuesWriter implements AutoCloseable
 	{
 		if (columnDescriptor.getPrimitiveType().getRepetition() == Type.Repetition.REQUIRED)
 			throw new IllegalStateException("Field is required!");
+		assertNotFinished();
 		columnWriter.writeNull(0, 0);
+		wroteValue();
 	}
 
 	private void wroteValue()

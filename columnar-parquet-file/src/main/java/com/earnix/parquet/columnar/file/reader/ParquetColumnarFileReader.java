@@ -214,12 +214,19 @@ public class ParquetColumnarFileReader
 		return new InMemChunk(inMemChunkPageStore);
 	}
 
-	public List<ColumnDescriptor> getColumnDescriptors()
+	public List<ColumnDescriptor> getColumnDescriptors() throws IOException
 	{
+		ensureDescriptorsInitialized();
 		return columnDescriptors;
 	}
 
 	public ColumnDescriptor getDescriptor(int colOffset) throws IOException
+	{
+		ensureDescriptorsInitialized();
+		return columnDescriptors.get(colOffset);
+	}
+
+	protected void ensureDescriptorsInitialized() throws IOException
 	{
 		if (columnDescriptors == null)
 		{
@@ -231,7 +238,6 @@ public class ParquetColumnarFileReader
 				}
 			}
 		}
-		return columnDescriptors.get(colOffset);
 	}
 
 	protected ColumnDescriptor buildDescriptor(ColumnMetaData columnMetaData) throws IOException
