@@ -2,6 +2,8 @@ package com.earnix.parquet.columnar.s3;
 
 import com.adobe.testing.s3mock.S3MockApplication;
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
+import software.amazon.awssdk.core.checksums.RequestChecksumCalculation;
+import software.amazon.awssdk.core.checksums.ResponseChecksumValidation;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
@@ -45,6 +47,8 @@ public class S3MockUtils {
                 .credentialsProvider(AnonymousCredentialsProvider.create()) //
                 .forcePathStyle(true) //
                 .region(Region.US_EAST_1) // who cares, as we're using an explicit endpoint
+                .responseChecksumValidation(ResponseChecksumValidation.WHEN_REQUIRED)
+                .requestChecksumCalculation(RequestChecksumCalculation.WHEN_REQUIRED)
                 .build();
     }
 }
