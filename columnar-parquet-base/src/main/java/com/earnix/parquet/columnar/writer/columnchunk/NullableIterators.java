@@ -157,7 +157,7 @@ public class NullableIterators
 		}
 	}
 
-	interface NullableIterator
+	public interface NullableIterator
 	{
 		/**
 		 * Returns whether the current value is null

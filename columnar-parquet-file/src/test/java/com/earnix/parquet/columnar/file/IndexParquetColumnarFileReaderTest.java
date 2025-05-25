@@ -92,7 +92,8 @@ public class IndexParquetColumnarFileReaderTest
 		for (int i = 0; i < expected.length; i++)
 		{
 			Assert.assertEquals(expected[i], chunkValuesReader.getInteger());
-			Assert.assertEquals(i < expected.length - 1, chunkValuesReader.next());
+			boolean notLastElement = i < expected.length - 1;
+			Assert.assertEquals(notLastElement, chunkValuesReader.next());
 		}
 		Assert.assertFalse(chunkValuesReader.next());
 	}
