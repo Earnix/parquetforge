@@ -8,6 +8,7 @@ import org.apache.commons.io.output.CountingOutputStream;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.ColumnChunk;
 import org.apache.parquet.format.FileMetaData;
+import org.apache.parquet.format.KeyValue;
 import org.apache.parquet.format.RowGroup;
 import org.apache.parquet.format.SchemaElement;
 import org.apache.parquet.format.Util;
@@ -57,6 +58,9 @@ public class ParquetWriterUtils
 		fileMetaData.setNum_rows(totalNumRows);
 		// TODO: what version are we actually??
 		fileMetaData.setVersion(1);
+		fileMetaData.setKey_value_metadata(new ArrayList<>());
+		fileMetaData.getKey_value_metadata()
+				.add(new KeyValue("original.created.by").setValue("ColumnarParquetTool Alpha"));
 
 		fileMetaData.setRow_groups(getRowGroupList(rowGroupInfos));
 		return fileMetaData;
