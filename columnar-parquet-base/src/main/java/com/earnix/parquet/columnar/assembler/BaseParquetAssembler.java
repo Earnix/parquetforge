@@ -44,9 +44,9 @@ public class BaseParquetAssembler
 			rowGroupInfos.add(rowGroupInfo);
 		}
 
-		List<SchemaElement> schemaElements = ParquetWriterUtils.getSchemaElements(new MessageType("root",
-				columnDescriptors.stream().map(ColumnDescriptor::getPrimitiveType).collect(Collectors.toList())));
-		FileMetaData parquetFooterMetadata = ParquetWriterUtils.getFileMetaData(rowGroupInfos, schemaElements);
+		MessageType messageType = new MessageType("root",
+				columnDescriptors.stream().map(ColumnDescriptor::getPrimitiveType).collect(Collectors.toList()));
+		FileMetaData parquetFooterMetadata = ParquetWriterUtils.getFileMetaData(messageType, rowGroupInfos);
 		UnsynchronizedByteArrayOutputStream byteArrayOutputStream = UnsynchronizedByteArrayOutputStream.builder().get();
 
 		try

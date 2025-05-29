@@ -21,7 +21,11 @@ import java.nio.ByteOrder;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -42,12 +46,22 @@ public class ParquetWriterUtils
 	/**
 	 * Build Parquet Parquet Footer metadata
 	 *
-	 * @param rowGroupInfos     the info on the row groups
-	 * @param schemaElementList the schema of the parquet file
+	 * @param messageType   the schema info
+	 * @param rowGroupInfos the info on the row groups
 	 * @return the built file metadata
 	 */
-	public static FileMetaData getFileMetaData(List<RowGroupInfo> rowGroupInfos, List<SchemaElement> schemaElementList)
+	public static FileMetaData getFileMetaData(MessageType messageType, List<RowGroupInfo> rowGroupInfos)
 	{
+		List<SchemaElement> schemaElementList = ParquetWriterUtils.getSchemaElements(messageType);
+
+		Map<ColumnDescriptor, Integer> schemaOrder = new HashMap<>();
+		int idx = 0;
+		for (ColumnDescriptor descriptor : messageType.getColumns())
+		{
+			schemaOrder.put(descriptor, idx++);
+		}
+
+
 		if (rowGroupInfos.isEmpty())
 			throw new IllegalStateException("No groups written");
 
@@ -62,29 +76,36 @@ public class ParquetWriterUtils
 		fileMetaData.getKey_value_metadata()
 				.add(new KeyValue("original.created.by").setValue("ColumnarParquetTool Alpha"));
 
-		fileMetaData.setRow_groups(getRowGroupList(rowGroupInfos));
+		fileMetaData.setRow_groups(getRowGroupList(schemaOrder, rowGroupInfos));
 		return fileMetaData;
 	}
 
-	private static List<RowGroup> getRowGroupList(List<RowGroupInfo> rowGroupInfos)
+	private static List<RowGroup> getRowGroupList(Map<ColumnDescriptor, Integer> schemaOrder,
+			List<RowGroupInfo> rowGroupInfos)
 	{
-		return rowGroupInfos.stream().map(ParquetWriterUtils::getRowGroup).collect(Collectors.toList());
+		return rowGroupInfos.stream().map(rgi -> ParquetWriterUtils.getRowGroup(schemaOrder, rgi))
+				.collect(Collectors.toList());
 	}
 
-	private static RowGroup getRowGroup(RowGroupInfo rowGroupInfo)
+	private static RowGroup getRowGroup(Map<ColumnDescriptor, Integer> schemaOrder, RowGroupInfo rowGroupInfo)
 	{
 		RowGroup rowGroup = new RowGroup();
 		rowGroup.setFile_offset(rowGroupInfo.getStartingOffset());
 		rowGroup.setNum_rows(rowGroupInfo.getNumRows());
-		rowGroup.setColumns(getChunks(rowGroupInfo));
+		rowGroup.setColumns(getChunks(schemaOrder, rowGroupInfo));
 		rowGroup.setTotal_compressed_size(rowGroupInfo.getCompressedSize());
 		rowGroup.setTotal_byte_size(rowGroupInfo.getUncompressedSize());
 		return rowGroup;
 	}
 
-	private static List<ColumnChunk> getChunks(RowGroupInfo rowGroupInfo)
+	private static List<ColumnChunk> getChunks(Map<ColumnDescriptor, Integer> schemaOrder, RowGroupInfo rowGroupInfo)
 	{
-		return rowGroupInfo.getCols().stream().map(ColumnChunkInfo::buildChunkFromInfo).collect(Collectors.toList());
+		ColumnChunk[] ret = new ColumnChunk[schemaOrder.size()];
+		for (ColumnChunkInfo info : rowGroupInfo.getCols())
+		{
+			ret[schemaOrder.get(info.getDescriptor())] = info.buildChunkFromInfo();
+		}
+		return Collections.unmodifiableList(Arrays.asList(ret));
 	}
 
 	public static void writeLittleEndianInt(OutputStream os, int byteCount) throws IOException
@@ -94,7 +115,7 @@ public class ParquetWriterUtils
 		os.write(toWrite);
 	}
 
-	public static List<SchemaElement> getSchemaElements(MessageType messageType)
+	private static List<SchemaElement> getSchemaElements(MessageType messageType)
 	{
 		List<SchemaElement> schemaElementList = new ArrayList<>(1 + messageType.getColumns().size());
 

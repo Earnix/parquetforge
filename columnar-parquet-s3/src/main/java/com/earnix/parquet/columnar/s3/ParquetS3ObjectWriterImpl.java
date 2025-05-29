@@ -191,8 +191,7 @@ public class ParquetS3ObjectWriterImpl implements ParquetColumnarWriter
 		if (buffer == null)
 			makeNewBuffer();
 
-		List<SchemaElement> schemaElements = ParquetWriterUtils.getSchemaElements(messageType);
-		FileMetaData fileMetaData = ParquetWriterUtils.getFileMetaData(rowGroupInfos, schemaElements);
+		FileMetaData fileMetaData = ParquetWriterUtils.getFileMetaData(messageType, rowGroupInfos);
 		ParquetWriterUtils.writeFooterMetadataAndMagic(buffer.getTmpFileChannel(), fileMetaData);
 		uploadBufferedData(new long[] { buffer.getTmpFileChannel().position() }, true);
 
