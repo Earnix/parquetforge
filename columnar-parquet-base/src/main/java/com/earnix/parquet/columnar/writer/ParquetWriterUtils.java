@@ -53,13 +53,8 @@ public class ParquetWriterUtils
 	public static FileMetaData getFileMetaData(MessageType messageType, List<RowGroupInfo> rowGroupInfos)
 	{
 		List<SchemaElement> schemaElementList = ParquetWriterUtils.getSchemaElements(messageType);
-
-		Map<ColumnDescriptor, Integer> schemaOrder = new HashMap<>();
-		int idx = 0;
-		for (ColumnDescriptor descriptor : messageType.getColumns())
-		{
-			schemaOrder.put(descriptor, idx++);
-		}
+		// C++ parquet driver requires row group columns to be in the same order as the schema.
+		Map<ColumnDescriptor, Integer> schemaOrder = computeOrderingFromSchema(messageType);
 
 
 		if (rowGroupInfos.isEmpty())
@@ -78,6 +73,17 @@ public class ParquetWriterUtils
 
 		fileMetaData.setRow_groups(getRowGroupList(schemaOrder, rowGroupInfos));
 		return fileMetaData;
+	}
+
+	private static Map<ColumnDescriptor, Integer> computeOrderingFromSchema(MessageType messageType)
+	{
+		Map<ColumnDescriptor, Integer> schemaOrder = new HashMap<>();
+		int idx = 0;
+		for (ColumnDescriptor descriptor : messageType.getColumns())
+		{
+			schemaOrder.put(descriptor, idx++);
+		}
+		return schemaOrder;
 	}
 
 	private static List<RowGroup> getRowGroupList(Map<ColumnDescriptor, Integer> schemaOrder,

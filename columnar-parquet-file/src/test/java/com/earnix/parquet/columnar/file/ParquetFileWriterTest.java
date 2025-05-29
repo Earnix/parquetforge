@@ -12,7 +12,12 @@ import com.earnix.parquet.columnar.utils.ColumnChunkForTesting;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.ColumnChunk;
+import org.apache.parquet.format.FileMetaData;
+import org.apache.parquet.format.RowGroup;
+import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
+import org.apache.parquet.schema.Type;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -22,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +38,8 @@ import java.util.stream.Collectors;
 import static com.earnix.parquet.columnar.file.GeneralColumnReader.getValue;
 import static com.earnix.parquet.columnar.file.ParquetFileFiller.fillWithRowGroups;
 import static com.earnix.parquet.columnar.utils.FileUtils.processPath;
+import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -171,7 +179,7 @@ public class ParquetFileWriterTest
 			InputStream chunkInput, ColumnChunk columnChunk)
 	{
 		try (ParquetColumnarWriter parquetColumnarWriter = ParquetFileColumnarWriterFactory.createWriter(outputPath,
-				Arrays.asList(descriptor.getPrimitiveType()), false))
+				asList(descriptor.getPrimitiveType()), false))
 		{
 			parquetColumnarWriter.writeRowGroup(columnChunk.getMeta_data().getNum_values(),
 					rowGroupWriter -> rowGroupWriter.writeCopyOfChunk(descriptor, columnChunk, chunkInput));
@@ -212,4 +220,53 @@ public class ParquetFileWriterTest
 		return ret;
 	}
 
+
+	/**
+	 * The C++ parquet driver assumes that column ordering in row groups is in identical order of
+	 * {@link org.apache.parquet.format.SchemaElement} This tests checks that it is reordered as expected.
+	 */
+	@Test
+	public void testSchemaOrdering() throws IOException
+	{
+
+		Path parquetFile = Files.createTempFile("parquetfile", ".parquet");
+
+		List<PrimitiveType> cols = asList(
+				new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.DOUBLE, "double"),
+				new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.BOOLEAN, "boolean"));
+		MessageType messageType = new MessageType("root", Collections.unmodifiableList(cols));
+		try
+		{
+			try (ParquetColumnarWriter rowGroupWriter = ParquetFileColumnarWriterFactory.createWriter(parquetFile, cols,
+					false))
+			{
+
+				rowGroupWriter.writeRowGroup(1, rgw -> {
+					// write columns in order opposite to the schema.
+					rgw.writeValues(
+							writer -> writer.writeColumn(messageType.getColumnDescription(new String[] { "boolean" }),
+									new boolean[] { true }));
+					rgw.writeValues(
+							writer -> writer.writeColumn(messageType.getColumnDescription(new String[] { "double" }),
+									new double[] { 3 }));
+				});
+				rowGroupWriter.finishAndWriteFooterMetadata();
+			}
+			ParquetColumnarFileReader reader = new ParquetColumnarFileReader(parquetFile);
+			FileMetaData md = reader.readMetaData();
+			Assert.assertEquals("root", md.schema.get(0).getName());
+			Assert.assertEquals("double", md.schema.get(1).getName());
+			Assert.assertEquals("boolean", md.schema.get(2).getName());
+
+			RowGroup rowGroup = md.getRow_groups().get(0);
+			Assert.assertEquals(singletonList("double"),
+					rowGroup.getColumns().get(0).getMeta_data().getPath_in_schema());
+			Assert.assertEquals(singletonList("boolean"),
+					rowGroup.getColumns().get(1).getMeta_data().getPath_in_schema());
+		}
+		finally
+		{
+			Files.deleteIfExists(parquetFile);
+		}
+	}
 }
