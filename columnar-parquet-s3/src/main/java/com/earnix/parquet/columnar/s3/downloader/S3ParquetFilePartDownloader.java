@@ -36,7 +36,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Download an s3 file into parts
+ * Download a Parquet file store on s3 file into one parquet file per row group. Naming of the downloaded files is
+ * determined via the {@link RowGroupToPath} callback
  */
 public class S3ParquetFilePartDownloader
 {
@@ -417,7 +418,7 @@ public class S3ParquetFilePartDownloader
 		/**
 		 * Compute the path for a row group on disk
 		 *
-		 * @param rowgroupOffset the rowgroup offset in the parquet files footer metadata
+		 * @param rowgroupOffset the index of the rowgroup, starting from zero
 		 * @param rowGroup       the row group data - do NOT modify
 		 * @return the path to store the rowgroup on disk.
 		 */
