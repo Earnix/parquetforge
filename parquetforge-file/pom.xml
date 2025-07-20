@@ -10,7 +10,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>parquetforge-file</artifactId>
-    <name>parquet-columnar-file</name>
+    <name>parquetforge-file</name>
 
     <dependencies>
         <dependency>

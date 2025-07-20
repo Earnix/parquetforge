@@ -10,7 +10,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>parquetforge-s3</artifactId>
-    <name>parquet-columnar-s3</name>
+    <name>parquetforge-s3</name>
 
     <dependencyManagement>
         <dependencies>
@@ -44,7 +44,7 @@
         <!-- currently we use the file writer for row groups internally for uploading to S3 -->
         <dependency>
             <groupId>com.earnix</groupId>
-            <artifactId>parquet-columnar-file</artifactId>
+            <artifactId>parquetforge-file</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
