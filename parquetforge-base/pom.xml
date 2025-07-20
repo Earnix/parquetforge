@@ -5,32 +5,42 @@
 
     <parent>
         <groupId>com.earnix</groupId>
-        <artifactId>parquet-columnar-tools</artifactId>
+        <artifactId>parquetforge-parent</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
-    <artifactId>parquet-columnar-file</artifactId>
-    <name>parquet-columnar-file</name>
+    <artifactId>parquetforge-base</artifactId>
 
     <dependencies>
         <dependency>
-            <groupId>com.earnix</groupId>
-            <artifactId>parquet-columnar-base</artifactId>
-            <version>${project.version}</version>
+            <groupId>org.apache.parquet</groupId>
+            <artifactId>parquet-format-structures</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.earnix</groupId>
-            <artifactId>parquet-columnar-base</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-            <type>test-jar</type>
+            <groupId>org.apache.parquet</groupId>
+            <artifactId>parquet-column</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.xerial.snappy</groupId>
+            <artifactId>snappy-java</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.luben</groupId>
+            <artifactId>zstd-jni</artifactId>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
         </dependency>
     </dependencies>
-
     <build>
         <plugins>
             <plugin>
