@@ -1,7 +1,9 @@
-Parquet Columnar Tools
+Parquet Forge
 ======================
 
 An innovative new low level driver to manipulate Parquet files.
+
+![Parquet Forge Logo](parquetforge_logo.jpg)
 
 ## Motivation:
 
