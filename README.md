@@ -29,28 +29,28 @@ An innovative new low level driver to manipulate Parquet files.
 * Create Parquet file from raw values
     * Base interface is
       [
-      `ParquetColumnarWriter`](columnar-parquet-base/src/main/java/com/earnix/parquet/columnar/writer/ParquetColumnarWriter.java)
+      `ParquetColumnarWriter`](parquetforge-base/src/main/java/com/earnix/parquet/columnar/writer/ParquetColumnarWriter.java)
     * Creation is done column by column
     * Parallel creation of columns within the same row group is supported
     * Creation to filesystem and S3 are supported
     * S3 implementation can begin uploading data via multipart upload API before file is completely created
 * Assemble Parquet file from existing parquet files
     * Base class
-      is [BaseParquetAssembler](columnar-parquet-base/src/main/java/com/earnix/parquet/columnar/assembler/BaseParquetAssembler.java)
+      is [BaseParquetAssembler](parquetforge-base/src/main/java/com/earnix/parquet/columnar/assembler/BaseParquetAssembler.java)
     * Binary copy, no raw value encoding supported
     * Only supports for S3 currently. Assembly of local files is not yet built
     * Parquet file creation on S3 is done without local buffering using multiple connections with multipart upload
 * Split Parquet file from into one Parquet file per row group
     * Currently only supported when downloading a file from S3
     * Implementation
-      in [S3ParquetFilePartDownloader](columnar-parquet-s3/src/main/java/com/earnix/parquet/columnar/s3/downloader/S3ParquetFilePartDownloader.java)
+      in [S3ParquetFilePartDownloader](parquetforge-s3/src/main/java/com/earnix/parquet/columnar/s3/downloader/S3ParquetFilePartDownloader.java)
     * Zero copy - blocks are downloaded directly into their destination files
 
 ## Usage
 
 The best way to get started is to read the unit tests.
 For the most basic example of creating a parquet file by
-columns, [see this unit test](columnar-parquet-file/src/test/java/com/earnix/parquet/columnar/file/SampleCreateParquetFileTest.java)
+columns, [see this unit test](parquetforge-file/src/test/java/com/earnix/parquet/columnar/file/SampleCreateParquetFileTest.java)
 
 ## High Level Design Principles Used
 
