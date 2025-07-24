@@ -36,21 +36,24 @@ import java.util.stream.Collectors;
  */
 public class ChunkPages
 {
+	private static final int NO_DICT_BYTES = Integer.MIN_VALUE;
 	private final Set<Encoding> encodingSet = EnumSet.noneOf(Encoding.class);
 	private final List<byte[]> headersAndPages;
 	private final long numValues;
 	private final long uncompressedBytes;
 	private final long compressedBytes;
 	private final CompressionCodec compressionCodec;
+	private final boolean hasDictPage;
 
 	public ChunkPages(DictionaryPage dictionaryPage, List<? extends DataPage> dataPages,
 			CompressionCodec compressionCodec)
 	{
 		this.compressionCodec = compressionCodec;
-		int numPages = dictionaryPage == null ? dataPages.size() : dataPages.size() + 1;
+		this.hasDictPage = dictionaryPage != null;
+		int numPages = this.hasDictPage ? dataPages.size() + 1 : dataPages.size();
 		this.headersAndPages = new ArrayList<>(2 * numPages);
 		long uncompressedBytes = 0;
-		if (dictionaryPage != null)
+		if (hasDictPage)
 		{
 			DictionaryPageHeader dictionaryPageHeader = new DictionaryPageHeader();
 			Encoding enc = ParquetEnumUtils.convert(dictionaryPage.getEncoding());
@@ -88,6 +91,24 @@ public class ChunkPages
 		this.uncompressedBytes = uncompressedBytes;
 		this.compressedBytes = this.headersAndPages.stream().mapToLong(Array::getLength).sum();
 		this.numValues = numValues;
+	}
+
+	/**
+	 * @return whether this chunk has a dictionary page
+	 */
+	public boolean hasDictPage()
+	{
+		return hasDictPage;
+	}
+
+	/**
+	 * @return the number of bytes in the dictionary page including the Dictionary Page Header
+	 */
+	public int dictPageLength()
+	{
+		if (!hasDictPage)
+			return NO_DICT_BYTES;
+		return Math.addExact(this.headersAndPages.get(0).length, this.headersAndPages.get(1).length);
 	}
 
 	/**

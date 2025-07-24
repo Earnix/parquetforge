@@ -28,8 +28,6 @@ public class BaseParquetAssembler
 		long currOffsetInFile = ParquetMagicUtils.PARQUET_MAGIC.length();
 		for (ParquetRowGroupSupplier prgs : rowGroupSuppliers)
 		{
-			// Why is this unused?!?!
-			long rowGroupStartOffset = currOffsetInFile;
 			List<ColumnChunkInfo> chunkInfoList = new ArrayList<>(columnDescriptors.size());
 			for (ColumnDescriptor columnDescriptor : columnDescriptors)
 			{

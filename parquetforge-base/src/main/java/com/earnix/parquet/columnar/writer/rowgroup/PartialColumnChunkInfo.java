@@ -41,7 +41,14 @@ public class PartialColumnChunkInfo extends ColumnChunkInfo
 	{
 		ColumnMetaData columnMetaData = new ColumnMetaData();
 
-		columnMetaData.setData_page_offset(getStartingOffset());
+		if (pages.hasDictPage())
+		{
+			columnMetaData.setDictionary_page_offset(getStartingOffset());
+			columnMetaData.setData_page_offset(getStartingOffset() + pages.dictPageLength());
+		}
+		else
+			columnMetaData.setData_page_offset(getStartingOffset());
+
 		columnMetaData.setTotal_compressed_size(pages.totalBytesForStorage());
 		columnMetaData.setTotal_uncompressed_size(pages.getUncompressedBytes());
 		columnMetaData.setNum_values(pages.getNumValues());

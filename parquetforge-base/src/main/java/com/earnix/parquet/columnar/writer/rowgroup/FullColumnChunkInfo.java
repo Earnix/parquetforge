@@ -33,7 +33,19 @@ public class FullColumnChunkInfo extends ColumnChunkInfo
 	public ColumnChunk buildChunkFromInfo()
 	{
 		ColumnChunk columnChunkCopy = columnChunk.deepCopy();
-		columnChunkCopy.getMeta_data().setData_page_offset(getStartingOffset());
+		if (columnChunkCopy.getMeta_data().isSetDictionary_page_offset()
+				&& columnChunkCopy.getMeta_data().getDictionary_page_offset() > 0)
+		{
+			int dictPageLen = Math.toIntExact(
+					columnChunkCopy.getMeta_data().getData_page_offset() - columnChunkCopy.getMeta_data()
+							.getDictionary_page_offset());
+			columnChunkCopy.getMeta_data().setDictionary_page_offset(getStartingOffset());
+			columnChunkCopy.getMeta_data().setData_page_offset(getStartingOffset() + dictPageLen);
+		}
+		else
+		{
+			columnChunkCopy.getMeta_data().setData_page_offset(getStartingOffset());
+		}
 		return columnChunkCopy;
 	}
 
