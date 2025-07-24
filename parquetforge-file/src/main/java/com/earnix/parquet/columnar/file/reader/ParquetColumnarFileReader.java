@@ -130,7 +130,14 @@ public class ParquetColumnarFileReader
 
 	protected static long getStartOffset(ColumnChunk columnChunk)
 	{
-		long startOffset = columnChunk.getFile_offset() + columnChunk.getMeta_data().getData_page_offset();
+		long startOffset = columnChunk.getFile_offset();
+
+		if (columnChunk.getMeta_data().isSetDictionary_page_offset())
+			startOffset += columnChunk.getMeta_data().getDictionary_page_offset();
+
+		if (startOffset <= 0)
+			startOffset += columnChunk.getMeta_data().getData_page_offset();
+
 		return startOffset;
 	}
 
@@ -214,6 +221,14 @@ public class ParquetColumnarFileReader
 		return new InMemChunk(inMemChunkPageStore);
 	}
 
+	public int getNumRowGroups() throws IOException
+	{
+		return readMetaData().getRow_groupsSize();
+	}
+
+	/**
+	 * @return a list of the column descriptors present in this parquet file
+	 */
 	public List<ColumnDescriptor> getColumnDescriptors() throws IOException
 	{
 		ensureDescriptorsInitialized();

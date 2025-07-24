@@ -63,6 +63,7 @@ public class ChunkValuesReaderTest
 			writeValues(tmpFile, messageType, vals);
 
 			IndexedParquetColumnarFileReader reader = new IndexedParquetColumnarFileReader(tmpFile);
+			Assert.assertEquals(1, reader.getNumRowGroups());
 			InMemChunk inMemChunk = reader.readInMem(0, messageType.getColumnDescription(new String[] { colName }));
 			ChunkValuesReader chunkValuesReader = ChunkValuesReaderFactory.createChunkReader(inMemChunk);
 			for (int i = 0; i < vals.length; i++)
