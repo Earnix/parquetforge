@@ -35,4 +35,6 @@ public interface ColumnChunkWriter
 	ColumnChunkPages writeColumn(ColumnDescriptor columnDescriptor, String[] vals);
 
 	ColumnChunkPages writeStringColumn(ColumnDescriptor columnDescriptor, Iterator<String> vals);
+
+	ColumnChunkPages writeBinaryColumn(ColumnDescriptor columnDescriptor, Iterator<byte[]> vals);
 }

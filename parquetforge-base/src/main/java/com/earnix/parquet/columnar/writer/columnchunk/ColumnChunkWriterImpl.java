@@ -135,6 +135,14 @@ public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer
 	}
 
 	@Override
+	public ColumnChunkPages writeBinaryColumn(ColumnDescriptor column, Iterator<byte[]> vals)
+	{
+		return internalWriteColumn(column, NullableIterators.wrapStringIterator(vals),
+				(columnWriter, stringIterator) -> columnWriter.write(
+						Binary.fromReusedByteArray(stringIterator.getValue())));
+	}
+
+	@Override
 	public ColumnChunkPages writeColumn(ColumnDescriptor column, boolean[] vals)
 	{
 		return writeColumn(column, new Iterator<Boolean>()

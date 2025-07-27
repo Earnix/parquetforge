@@ -76,7 +76,15 @@ public class ParquetFileMetadataReader
 		return fileMetaData;
 	}
 
-	private static long validateMagicAndFindFooterStartOffset(FileChannel fc) throws IOException
+	/**
+	 * Validate the Parquet magic at the end of the file and find the starting offset in the parquet file of the footer
+	 * metadata
+	 *
+	 * @param fc the file channel open of the parquet file
+	 * @return the offset of the footer metadata start offset
+	 * @throws IOException on failure to read the file.
+	 */
+	public static long validateMagicAndFindFooterStartOffset(FileChannel fc) throws IOException
 	{
 		// we want to read the integer length of the footer, and then the magic bytes.
 		int numBytesToRead = Integer.BYTES + magicBytes.length;

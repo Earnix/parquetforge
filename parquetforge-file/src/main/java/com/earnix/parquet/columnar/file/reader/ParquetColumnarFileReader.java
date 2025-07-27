@@ -39,6 +39,7 @@ public class ParquetColumnarFileReader
 	private volatile FileMetaData metaData;
 	private volatile MessageType messageType;
 	private volatile List<ColumnDescriptor> columnDescriptors;
+	private volatile long[] rgStartRows = null;
 
 	public ParquetColumnarFileReader(Path parquetFilePath)
 	{
@@ -224,6 +225,61 @@ public class ParquetColumnarFileReader
 	public int getNumRowGroups() throws IOException
 	{
 		return readMetaData().getRow_groupsSize();
+	}
+
+	public long getNumRowsInRowGroup(int rowGroup) throws IOException
+	{
+		return readMetaData().getRow_groups().get(rowGroup).getNum_rows();
+	}
+
+	public long getTotalNumRows() throws IOException
+	{
+		return readMetaData().getNum_rows();
+	}
+
+	public long startRow(int rowGrpIdx) throws IOException
+	{
+		if (this.rgStartRows == null)
+		{
+			synchronized (this)
+			{
+				if (this.rgStartRows == null)
+				{
+					// the start row of the row group.
+					long[] computedStartRows = new long[getNumRowGroups()];
+
+					computedStartRows[0] = 0;
+					for (int i = 1; i < getNumRowGroups(); i++)
+					{
+						computedStartRows[i] =
+								computedStartRows[i - 1] + readMetaData().getRow_groups().get(i - 1).getNum_rows();
+					}
+					this.rgStartRows = computedStartRows;
+				}
+			}
+		}
+		return this.rgStartRows[rowGrpIdx];
+	}
+
+	/**
+	 * @return an array containing the number of rows per row group.
+	 */
+	public long[] rowsPerRowGroup() throws IOException
+	{
+		long[] ret = new long[getNumRowGroups()];
+
+		for (int i = 0; i < ret.length; i++)
+			ret[i] = getNumRowsInRowGroup(i);
+
+		return ret;
+	}
+
+	/**
+	 * @return the schema of this parquet file.
+	 */
+	public MessageType getMessageType()
+	{
+		return messageType;
 	}
 
 	/**
