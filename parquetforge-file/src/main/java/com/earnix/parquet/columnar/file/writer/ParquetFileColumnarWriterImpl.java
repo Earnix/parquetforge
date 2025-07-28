@@ -173,10 +173,11 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 		if (lastWriter != null)
 			throw new IllegalStateException("Last writer was not closed");
 
+		long footerMetadataOffset = offsetInFile;
 		FileMetaData fileMetaData = ParquetWriterUtils.getFileMetaData(messageType, rowGroupInfos);
 		writeToFile(fc -> ParquetWriterUtils.writeFooterMetadataAndMagic(fc, fileMetaData));
 
-		return new ParquetFileInfo(offsetInFile, messageType, fileMetaData);
+		return new ParquetFileInfo(footerMetadataOffset, offsetInFile, messageType, fileMetaData);
 	}
 
 	@Override

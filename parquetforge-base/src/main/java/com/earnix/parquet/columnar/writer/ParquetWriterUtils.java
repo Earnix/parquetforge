@@ -33,7 +33,15 @@ import java.util.stream.Collectors;
  */
 public class ParquetWriterUtils
 {
-	public static void writeFooterMetadataAndMagic(WritableByteChannel fileChannel, FileMetaData fileMetaData)
+	/**
+	 * Write the footer metadata to the file channel
+	 *
+	 * @param fileChannel  the file channel to write the footer metadata to
+	 * @param fileMetaData the footer metadata to write
+	 * @return the number of bytes written INCLUDING the magic
+	 * @throws IOException on failure to write
+	 */
+	public static int writeFooterMetadataAndMagic(WritableByteChannel fileChannel, FileMetaData fileMetaData)
 			throws IOException
 	{
 		CountingOutputStream os = new CountingOutputStream(Channels.newOutputStream(fileChannel));
@@ -41,6 +49,7 @@ public class ParquetWriterUtils
 		int byteCount = Math.toIntExact(os.getByteCount());
 		writeLittleEndianInt(os, byteCount);
 		ParquetMagicUtils.writeMagicBytes(fileChannel);
+		return byteCount + Integer.BYTES + ParquetMagicUtils.PARQUET_MAGIC.length();
 	}
 
 	/**

@@ -192,12 +192,13 @@ public class ParquetS3ObjectWriterImpl implements ParquetColumnarWriter
 			makeNewBuffer();
 
 		FileMetaData fileMetaData = ParquetWriterUtils.getFileMetaData(messageType, rowGroupInfos);
-		ParquetWriterUtils.writeFooterMetadataAndMagic(buffer.getTmpFileChannel(), fileMetaData);
+		int numFooterBytes = ParquetWriterUtils.writeFooterMetadataAndMagic(buffer.getTmpFileChannel(), fileMetaData);
 		uploadBufferedData(new long[] { buffer.getTmpFileChannel().position() }, true);
 
 		waitForAsyncUploadJobs();
 		s3KeyUploader.finish();
-		return new ParquetFileInfo(offsetOfCurrentFile, messageType, fileMetaData);
+		return new ParquetFileInfo(offsetOfCurrentFile - numFooterBytes, offsetOfCurrentFile, messageType,
+				fileMetaData);
 	}
 
 	private void waitForAsyncUploadJobs() throws IOException

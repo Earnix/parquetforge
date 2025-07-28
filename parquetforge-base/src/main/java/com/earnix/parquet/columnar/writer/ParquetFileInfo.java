@@ -8,15 +8,26 @@ import org.apache.parquet.schema.MessageType;
  */
 public class ParquetFileInfo
 {
+	private final long footerMetadataStartOffset;
 	private final long totalParquetFileSize;
 	private final MessageType messageType;
 	private final FileMetaData fileMetaData;
 
-	public ParquetFileInfo(long totalParquetFileSize, MessageType messageType, FileMetaData fileMetaData)
+	public ParquetFileInfo(long footerMetadataStartOffset, long totalParquetFileSize, MessageType messageType,
+			FileMetaData fileMetaData)
 	{
+		this.footerMetadataStartOffset = footerMetadataStartOffset;
 		this.totalParquetFileSize = totalParquetFileSize;
 		this.messageType = messageType;
 		this.fileMetaData = fileMetaData;
+	}
+
+	/**
+	 * @return The start offset of the footer metadata in the parquet file.
+	 */
+	public long getFooterMetadataStartOffset()
+	{
+		return footerMetadataStartOffset;
 	}
 
 	/**
