@@ -1,16 +1,9 @@
 package com.earnix.parquet.columnar.writer.columnchunk;
 
-import com.earnix.parquet.columnar.writer.page.InMemPageWriter;
 import org.apache.parquet.column.ColumnDescriptor;
-import org.apache.parquet.column.ColumnWriteStore;
-import org.apache.parquet.column.ColumnWriter;
 import org.apache.parquet.column.ParquetProperties;
-import org.apache.parquet.column.impl.ColumnWriteStoreV2;
-import org.apache.parquet.column.page.PageWriteStore;
 import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.io.api.Binary;
-import org.apache.parquet.schema.MessageType;
-import org.apache.parquet.schema.Type;
 
 import java.util.Arrays;
 import java.util.Iterator;
@@ -135,11 +128,17 @@ public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer
 	}
 
 	@Override
-	public ColumnChunkPages writeBinaryColumn(ColumnDescriptor column, Iterator<byte[]> vals)
+	public ColumnChunkPages writeBinaryColumnBytes(ColumnDescriptor columnDescriptor, Iterator<byte[]> vals)
 	{
-		return internalWriteColumn(column, NullableIterators.wrapStringIterator(vals),
-				(columnWriter, stringIterator) -> columnWriter.write(
-						Binary.fromReusedByteArray(stringIterator.getValue())));
+		return internalWriteColumn(columnDescriptor, NullableIterators.wrapStringIterator(vals),
+				(columnWriter, it) -> columnWriter.write(Binary.fromReusedByteArray(it.getValue())));
+	}
+
+	@Override
+	public ColumnChunkPages writeBinaryColumn(ColumnDescriptor columnDescriptor, Iterator<Binary> vals)
+	{
+		return internalWriteColumn(columnDescriptor, NullableIterators.wrapStringIterator(vals),
+				(columnWriter, it) -> columnWriter.write(it.getValue()));
 	}
 
 	@Override

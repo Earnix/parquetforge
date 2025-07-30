@@ -1,6 +1,7 @@
 package com.earnix.parquet.columnar.writer.columnchunk;
 
 import org.apache.parquet.column.ColumnDescriptor;
+import org.apache.parquet.io.api.Binary;
 
 import java.util.Iterator;
 import java.util.PrimitiveIterator;
@@ -36,5 +37,7 @@ public interface ColumnChunkWriter
 
 	ColumnChunkPages writeStringColumn(ColumnDescriptor columnDescriptor, Iterator<String> vals);
 
-	ColumnChunkPages writeBinaryColumn(ColumnDescriptor columnDescriptor, Iterator<byte[]> vals);
+	ColumnChunkPages writeBinaryColumnBytes(ColumnDescriptor columnDescriptor, Iterator<byte[]> vals);
+
+	ColumnChunkPages writeBinaryColumn(ColumnDescriptor columnDescriptor, Iterator<Binary> vals);
 }
