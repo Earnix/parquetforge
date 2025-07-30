@@ -1,5 +1,7 @@
 package com.earnix.parquet.columnar.writer.columnchunk;
 
+import shaded.parquet.it.unimi.dsi.fastutil.floats.FloatIterator;
+
 import java.util.Iterator;
 import java.util.PrimitiveIterator;
 
@@ -148,6 +150,39 @@ public class NullableIterators
 		}
 	}
 
+	static NullableFloatIterator wrapFloatIterator(FloatIterator it)
+	{
+		return new FloatIteratorWrapper(it);
+	}
+
+	static class FloatIteratorWrapper extends BaseIteratorWrapper implements NullableFloatIterator
+	{
+		private final FloatIterator it;
+		private float val;
+
+		public FloatIteratorWrapper(FloatIterator it)
+		{
+			this.it = it;
+		}
+
+		@Override
+		public float getValue()
+		{
+			return val;
+		}
+
+		@Override
+		public boolean next()
+		{
+			if (it.hasNext())
+			{
+				val = it.nextFloat();
+				return true;
+			}
+			return false;
+		}
+	}
+
 	static abstract class BaseIteratorWrapper implements NullableIterator
 	{
 		@Override
@@ -182,6 +217,11 @@ public class NullableIterators
 	public interface NullableIntegerIterator extends NullableIterator
 	{
 		int getValue();
+	}
+
+	public interface NullableFloatIterator extends NullableIterator
+	{
+		float getValue();
 	}
 
 	public interface NullableLongIterator extends NullableIterator

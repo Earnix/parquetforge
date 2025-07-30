@@ -2,6 +2,7 @@ package com.earnix.parquet.columnar.writer.columnchunk;
 
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.io.api.Binary;
+import shaded.parquet.it.unimi.dsi.fastutil.floats.FloatIterator;
 
 import java.util.Iterator;
 import java.util.PrimitiveIterator;
@@ -22,6 +23,12 @@ public interface ColumnChunkWriter
 	ColumnChunkPages writeColumn(ColumnDescriptor columnDescriptor, PrimitiveIterator.OfInt iterator);
 
 	ColumnChunkPages writeColumn(ColumnDescriptor columnDescriptor, NullableIterators.NullableIntegerIterator iterator);
+
+	ColumnChunkPages writeColumn(ColumnDescriptor columnDescriptor, float[] vals);
+
+	ColumnChunkPages writeColumn(ColumnDescriptor columnDescriptor, FloatIterator iterator);
+
+	ColumnChunkPages writeColumn(ColumnDescriptor columnDescriptor, NullableIterators.NullableFloatIterator iterator);
 
 	ColumnChunkPages writeColumn(ColumnDescriptor columnDescriptor, long[] vals);
 

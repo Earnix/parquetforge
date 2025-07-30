@@ -1,7 +1,8 @@
 package com.earnix.parquet.columnar.file;
 
-import com.earnix.parquet.columnar.file.writer.ParquetFileColumnarWriterFactory;
+import com.earnix.parquet.columnar.file.reader.IndexedParquetColumnarFileReader;
 import com.earnix.parquet.columnar.file.reader.ParquetColumnarFileReader;
+import com.earnix.parquet.columnar.file.writer.ParquetFileColumnarWriterFactory;
 import com.earnix.parquet.columnar.reader.chunk.ChunkValuesReader;
 import com.earnix.parquet.columnar.reader.chunk.InMemRowGroup;
 import com.earnix.parquet.columnar.reader.chunk.internal.ChunkValuesReaderFactory;
@@ -26,7 +27,6 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -228,7 +228,6 @@ public class ParquetFileWriterTest
 	@Test
 	public void testSchemaOrdering() throws IOException
 	{
-
 		Path parquetFile = Files.createTempFile("parquetfile", ".parquet");
 
 		List<PrimitiveType> cols = asList(
@@ -263,6 +262,86 @@ public class ParquetFileWriterTest
 					rowGroup.getColumns().get(0).getMeta_data().getPath_in_schema());
 			Assert.assertEquals(singletonList("boolean"),
 					rowGroup.getColumns().get(1).getMeta_data().getPath_in_schema());
+		}
+		finally
+		{
+			Files.deleteIfExists(parquetFile);
+		}
+	}
+
+	/**
+	 * Test float datatype
+	 */
+	@Test
+	public void testFloatColumn() throws IOException
+	{
+		Path parquetFile = Files.createTempFile("parquetfile", ".parquet");
+
+		List<PrimitiveType> cols = asList(
+				new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.FLOAT, "float"));
+		MessageType messageType = new MessageType("root", Collections.unmodifiableList(cols));
+		try
+		{
+			try (ParquetColumnarWriter rowGroupWriter = ParquetFileColumnarWriterFactory.createWriter(parquetFile, cols,
+					false))
+			{
+
+				rowGroupWriter.writeRowGroup(2, rgw -> {
+					// write columns in order opposite to the schema.
+					rgw.writeValues(
+							writer -> writer.writeColumn(messageType.getColumnDescription(new String[] { "float" }),
+									new float[] { 1f, .1f }));
+				});
+				rowGroupWriter.finishAndWriteFooterMetadata();
+			}
+			IndexedParquetColumnarFileReader reader = new IndexedParquetColumnarFileReader(parquetFile);
+
+			InMemChunk inMemChunk = reader.readInMem(0, messageType.getColumnDescription(new String[] { "float" }));
+			ChunkValuesReader chunkReader = ChunkValuesReaderFactory.createChunkReader(inMemChunk);
+			Assert.assertEquals(1f, chunkReader.getFloat(), 1e-15);
+			Assert.assertTrue(chunkReader.next());
+			Assert.assertEquals(.1f, chunkReader.getFloat(), 1e-15);
+		}
+		finally
+		{
+			Files.deleteIfExists(parquetFile);
+		}
+	}
+
+	/**
+	 * Test fixed len binary datatype
+	 */
+	@Test
+	public void testFixedLenBinColumn() throws IOException
+	{
+		Path parquetFile = Files.createTempFile("parquetfile", ".parquet");
+
+		int fixBinLen = 4;
+		List<PrimitiveType> cols = asList(
+				new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY,
+						fixBinLen, "fixed_len"));
+		MessageType messageType = new MessageType("root", Collections.unmodifiableList(cols));
+		try
+		{
+			try (ParquetColumnarWriter rowGroupWriter = ParquetFileColumnarWriterFactory.createWriter(parquetFile, cols,
+					false))
+			{
+
+				rowGroupWriter.writeRowGroup(2, rgw -> {
+					// write columns in order opposite to the schema.
+					rgw.writeValues(
+							writer -> writer.writeColumn(messageType.getColumnDescription(new String[] { "fixed_len" }),
+									new String[] { "abcd", "efgh" }));
+				});
+				rowGroupWriter.finishAndWriteFooterMetadata();
+			}
+			IndexedParquetColumnarFileReader reader = new IndexedParquetColumnarFileReader(parquetFile);
+
+			InMemChunk inMemChunk = reader.readInMem(0, messageType.getColumnDescription(new String[] { "fixed_len" }));
+			ChunkValuesReader chunkReader = ChunkValuesReaderFactory.createChunkReader(inMemChunk);
+			Assert.assertEquals("abcd", chunkReader.getBinary().toStringUsingUTF8());
+			Assert.assertTrue(chunkReader.next());
+			Assert.assertEquals("efgh", chunkReader.getBinary().toStringUsingUTF8());
 		}
 		finally
 		{

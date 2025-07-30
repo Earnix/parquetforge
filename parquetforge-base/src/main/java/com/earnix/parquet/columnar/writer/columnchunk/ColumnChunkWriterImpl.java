@@ -4,6 +4,8 @@ import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.io.api.Binary;
+import shaded.parquet.it.unimi.dsi.fastutil.floats.FloatArrayList;
+import shaded.parquet.it.unimi.dsi.fastutil.floats.FloatIterator;
 
 import java.util.Arrays;
 import java.util.Iterator;
@@ -92,6 +94,24 @@ public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer
 
 	@Override
 	public ColumnChunkPages writeColumn(ColumnDescriptor column, NullableIterators.NullableIntegerIterator iterator)
+	{
+		return internalWriteColumn(column, iterator, (colWriter, it) -> colWriter.write(it.getValue()));
+	}
+
+	@Override
+	public ColumnChunkPages writeColumn(ColumnDescriptor column, float[] vals)
+	{
+		return writeColumn(column, FloatArrayList.wrap(vals).iterator());
+	}
+
+	@Override
+	public ColumnChunkPages writeColumn(ColumnDescriptor column, FloatIterator iterator)
+	{
+		return writeColumn(column, NullableIterators.wrapFloatIterator(iterator));
+	}
+
+	@Override
+	public ColumnChunkPages writeColumn(ColumnDescriptor column, NullableIterators.NullableFloatIterator iterator)
 	{
 		return internalWriteColumn(column, iterator, (colWriter, it) -> colWriter.write(it.getValue()));
 	}
