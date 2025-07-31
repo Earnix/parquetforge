@@ -13,6 +13,7 @@ import org.apache.parquet.format.RowGroup;
 import org.apache.parquet.format.SchemaElement;
 import org.apache.parquet.format.Util;
 import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.PrimitiveType;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -145,8 +146,16 @@ public class ParquetWriterUtils
 			SchemaElement schemaElement = new SchemaElement();
 			String colName = descriptor.getPath()[descriptor.getPath().length - 1];
 			schemaElement.setName(colName);
-			schemaElement.setType(ParquetEnumUtils.convert(descriptor.getPrimitiveType().getPrimitiveTypeName()));
+			PrimitiveType.PrimitiveTypeName primitiveTypeName = descriptor.getPrimitiveType().getPrimitiveTypeName();
+			schemaElement.setType(ParquetEnumUtils.convert(primitiveTypeName));
+			if (primitiveTypeName == PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY)
+			{
+				if (descriptor.getPrimitiveType().getTypeLength() <= 0)
+					throw new IllegalStateException("fixed binary len must be greater than zero");
+				schemaElement.setType_length(descriptor.getPrimitiveType().getTypeLength());
+			}
 			schemaElement.setRepetition_type(ParquetEnumUtils.convert(descriptor.getPrimitiveType().getRepetition()));
+
 			schemaElementList.add(schemaElement);
 		}
 		return schemaElementList;

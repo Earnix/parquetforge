@@ -335,8 +335,10 @@ public class ParquetFileWriterTest
 				});
 				rowGroupWriter.finishAndWriteFooterMetadata();
 			}
-			IndexedParquetColumnarFileReader reader = new IndexedParquetColumnarFileReader(parquetFile);
 
+			IndexedParquetColumnarFileReader reader = new IndexedParquetColumnarFileReader(parquetFile);
+			Assert.assertEquals(fixBinLen,
+					reader.getMessageType().getColumns().get(0).getPrimitiveType().getTypeLength());
 			InMemChunk inMemChunk = reader.readInMem(0, messageType.getColumnDescription(new String[] { "fixed_len" }));
 			ChunkValuesReader chunkReader = ChunkValuesReaderFactory.createChunkReader(inMemChunk);
 			Assert.assertEquals("abcd", chunkReader.getBinary().toStringUsingUTF8());

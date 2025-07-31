@@ -49,8 +49,19 @@ public class ParquetMetadataUtils
 			}
 			PrimitiveType.PrimitiveTypeName primitiveTypeName = ParquetEnumUtils.convert(schemaElement.getType());
 
-			PrimitiveType primitiveType = new PrimitiveType(
-					ParquetEnumUtils.convert(schemaElement.getRepetition_type()), primitiveTypeName, nameKey);
+			PrimitiveType primitiveType;
+			if (primitiveTypeName == PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY)
+			{
+				if (!schemaElement.isSetType_length() || schemaElement.getType_length() <= 0)
+					throw new IllegalStateException("fixed length binary must have a valid len");
+				primitiveType = new PrimitiveType(ParquetEnumUtils.convert(schemaElement.getRepetition_type()),
+						primitiveTypeName, schemaElement.getType_length(), nameKey);
+			}
+			else
+			{
+				primitiveType = new PrimitiveType(ParquetEnumUtils.convert(schemaElement.getRepetition_type()),
+						primitiveTypeName, nameKey);
+			}
 
 			primitiveTypeList.add(primitiveType);
 		}
