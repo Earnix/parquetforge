@@ -134,7 +134,11 @@ public class ParquetColumnarFileReader
 		long startOffset = columnChunk.getFile_offset();
 
 		if (columnChunk.getMeta_data().isSetDictionary_page_offset())
+		{
+			if (columnChunk.getMeta_data().getDictionary_page_offset() < 0)
+				throw new IllegalStateException("Dictionary page offset cannot be negative");
 			startOffset += columnChunk.getMeta_data().getDictionary_page_offset();
+		}
 
 		if (startOffset <= 0)
 			startOffset += columnChunk.getMeta_data().getData_page_offset();

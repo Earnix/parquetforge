@@ -217,6 +217,19 @@ public class S3ParquetFilePartDownloader
 			while (it.hasNext())
 			{
 				ColumnChunk columnChunk = it.next();
+
+				if (columnChunk.getMeta_data().isSetIndex_page_offset())
+				{
+					columnChunk.getMeta_data()
+							.setData_page_offset(columnChunk.getMeta_data().getIndex_page_offset() + delta);
+				}
+
+				if (columnChunk.getMeta_data().isSetDictionary_page_offset())
+				{
+					columnChunk.getMeta_data()
+							.setData_page_offset(columnChunk.getMeta_data().getDictionary_page_offset() + delta);
+				}
+
 				columnChunk.getMeta_data()
 						.setData_page_offset(columnChunk.getMeta_data().getData_page_offset() + delta);
 			}
