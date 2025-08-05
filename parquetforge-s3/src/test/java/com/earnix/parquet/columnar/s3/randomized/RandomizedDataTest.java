@@ -277,9 +277,7 @@ public class RandomizedDataTest
 				ParquetColumnarFileReader reader = new ParquetColumnarFileReader(rgPath);
 				Assert.assertEquals(1, reader.readMetaData().getRow_groupsSize());
 
-				reader.processFile((ParquetColumnarProcessors.RowGroupProcessor) rowGroup -> {
-					assertNextValuesEqual(rowGroup);
-				});
+				reader.processFile(this::assertNextValuesEqual);
 			}
 		}
 		finally

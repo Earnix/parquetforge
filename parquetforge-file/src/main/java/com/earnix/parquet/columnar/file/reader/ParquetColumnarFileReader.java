@@ -6,6 +6,7 @@ import com.earnix.parquet.columnar.reader.chunk.internal.ChunkDecompressToPageSt
 import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
 import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunkPageStore;
 import com.earnix.parquet.columnar.reader.processors.ParquetColumnarProcessors;
+import com.earnix.parquet.columnar.utils.ParquetMagicUtils;
 import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.commons.io.input.CountingInputStream;
 import org.apache.parquet.column.ColumnDescriptor;
@@ -131,17 +132,19 @@ public class ParquetColumnarFileReader
 
 	protected static long getStartOffset(ColumnChunk columnChunk)
 	{
-		long startOffset = columnChunk.getFile_offset();
+		long startOffset = columnChunk.getMeta_data().getData_page_offset();
 
-		if (columnChunk.getMeta_data().isSetDictionary_page_offset())
+		// only use the dictionary as the start offset if it is valid. This should match the logic in the open source
+		// java parquet driver in ParquetMetadataConverter.getOffset()
+		if (columnChunk.getMeta_data().isSetDictionary_page_offset()
+				&& columnChunk.getMeta_data().getDictionary_page_offset() > 0L
+				&& columnChunk.getMeta_data().getDictionary_page_offset() < startOffset)
 		{
-			if (columnChunk.getMeta_data().getDictionary_page_offset() < 0)
-				throw new IllegalStateException("Dictionary page offset cannot be negative");
-			startOffset += columnChunk.getMeta_data().getDictionary_page_offset();
+			startOffset = columnChunk.getMeta_data().getDictionary_page_offset();
 		}
 
-		if (startOffset <= 0)
-			startOffset += columnChunk.getMeta_data().getData_page_offset();
+		if (startOffset < ParquetMagicUtils.PARQUET_MAGIC.length())
+			throw new IllegalArgumentException("Corrupted chunk metadata invalid startOffset.");
 
 		return startOffset;
 	}

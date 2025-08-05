@@ -14,6 +14,7 @@ import software.amazon.awssdk.services.s3.model.ObjectPart;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.Channels;
@@ -206,7 +207,6 @@ public class S3ParquetFilePartDownloader
 
 		waitForFutures(futs);
 
-		//TODO: write footer metadata in each of the created files
 		for (int rowGrpNum = 0; rowGrpNum < rowGroupPath.length; rowGrpNum++)
 		{
 			FileMetaData newFooterMetadata = footerMetadata.deepCopy();
@@ -218,20 +218,49 @@ public class S3ParquetFilePartDownloader
 			{
 				ColumnChunk columnChunk = it.next();
 
+				long endRowGroupOffset = rg.getFile_offset() + rg.getTotal_compressed_size();
+
+				if (columnChunk.getMeta_data().isSetBloom_filter_offset())
+				{
+					long adjustedIndexPageOffset = columnChunk.getMeta_data().getBloom_filter_offset() + delta;
+
+					// bloomfilters are legal to put with each row group or at the end of the file:
+					// https://parquet.apache.org/docs/file-format/bloomfilter/
+					if (isInRangeOfRowGroup(adjustedIndexPageOffset, endRowGroupOffset))
+					{
+						// bloomfilters stored within row group pages are supported
+						columnChunk.getMeta_data().setBloom_filter_offset(adjustedIndexPageOffset);
+					}
+					else
+					{
+						// the bloomfilter is stored after all row groups data. Code to remap these into the file parts
+						// is not yet written.
+						columnChunk.getMeta_data().unsetBloom_filter_offset();
+					}
+				}
+
 				if (columnChunk.getMeta_data().isSetIndex_page_offset())
 				{
-					columnChunk.getMeta_data()
-							.setData_page_offset(columnChunk.getMeta_data().getIndex_page_offset() + delta);
+					// page indices are at the bottom of the file next to the footer as per
+					// https://parquet.apache.org/docs/file-format/pageindex/
+					// We do not support remapping them yet.
+					columnChunk.getMeta_data().unsetIndex_page_offset();
 				}
 
 				if (columnChunk.getMeta_data().isSetDictionary_page_offset())
 				{
 					columnChunk.getMeta_data()
-							.setData_page_offset(columnChunk.getMeta_data().getDictionary_page_offset() + delta);
+							.setDictionary_page_offset(columnChunk.getMeta_data().getDictionary_page_offset() + delta);
+					sanityCheck(isInRangeOfRowGroup(columnChunk.getMeta_data().getDictionary_page_offset(), endRowGroupOffset),
+							"invalid data page offset in chunk " + columnChunk.getMeta_data().getPath_in_schema()
+									+ " row group " + rowGrpNum);
 				}
 
 				columnChunk.getMeta_data()
 						.setData_page_offset(columnChunk.getMeta_data().getData_page_offset() + delta);
+				sanityCheck(isInRangeOfRowGroup(columnChunk.getMeta_data().getData_page_offset(), endRowGroupOffset),
+						"invalid data page offset in chunk " + columnChunk.getMeta_data().getPath_in_schema()
+								+ " row group " + rowGrpNum);
 			}
 
 			// this is the only row group
@@ -242,6 +271,12 @@ public class S3ParquetFilePartDownloader
 				ParquetWriterUtils.writeFooterMetadataAndMagic(fc, newFooterMetadata);
 			}
 		}
+	}
+
+	private static boolean isInRangeOfRowGroup(long startOffset, long endRowGroupOffset)
+	{
+		// note that we check that strictly less endOffset - it's illegal to not have at least one byte of data
+		return startOffset >= ParquetMagicUtils.PARQUET_MAGIC.length() && startOffset < endRowGroupOffset;
 	}
 
 	private static void waitForFutures(Future<?>[] futs) throws InterruptedException, IOException
@@ -311,6 +346,8 @@ public class S3ParquetFilePartDownloader
 		while (it.hasNext())
 		{
 			RowGroup rg = it.next();
+			sanityCheck(rg.isSetFile_offset(), "Row group offset must be set");
+			sanityCheck(rg.isSetTotal_compressed_size(), "Row group size must be set");
 			sanityCheck(rg.getFile_offset() == expectedOffset, "Row group start at unexpected place");
 			sanityCheck(rg.getTotal_compressed_size() > 0, "Row group compressed size invalid");
 			expectedOffset += rg.getTotal_compressed_size();
