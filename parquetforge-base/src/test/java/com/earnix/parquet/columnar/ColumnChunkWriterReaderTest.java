@@ -31,19 +31,33 @@ public class ColumnChunkWriterReaderTest
 	{
 		double[] vals = { 1.0, 2.0, 3.0 };
 		validateWriteRead(vals);
+		Assert.assertFalse(getChunkValuesReader(vals).isDictionaryIdSupported());
 	}
 
 	@Test
 	public void testWriteReadWithDictScenario() throws Exception
 	{
-		double[] vals = new double[1_000_000];
 		Random r = new Random();
+		double[] dict = r.doubles(100).toArray();
+		double[] vals = new double[1_000_000];
+
 		for (int i = 0; i < vals.length; i++)
 		{
-			vals[i] = r.nextInt(100);
+			vals[i] = dict[r.nextInt(100)];
 		}
 
 		validateWriteRead(vals);
+
+		ChunkValuesReader reader = getChunkValuesReader(vals);
+		int valuesRead = 0;
+		do
+		{
+			Assert.assertTrue(reader.isDictionaryIdSupported());
+			Assert.assertTrue(reader.getDictionaryId() < dict.length);
+			valuesRead++;
+		}
+		while (reader.next());
+		Assert.assertEquals(vals.length, valuesRead);
 	}
 
 	@Test
@@ -71,6 +85,10 @@ public class ColumnChunkWriterReaderTest
 
 		reader.skip(2);
 		assertEquals(4.4, reader.getDouble(), 0);
+		assertEquals(4.4, reader.getDouble(), 0);
+
+		// skipping zero rows should be a noop
+		reader.skip(0);
 		assertEquals(4.4, reader.getDouble(), 0);
 
 		reader.skip(1);

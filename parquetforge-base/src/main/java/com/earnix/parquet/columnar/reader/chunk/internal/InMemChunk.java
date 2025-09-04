@@ -79,14 +79,9 @@ public class InMemChunk implements Serializable
 		return descriptor;
 	}
 
-	public Dictionary getDictionary()
+	public MemPageReader getDataPages()
 	{
-		return dictionary;
-	}
-
-	public PageReader getDataPages()
-	{
-		return new MemPageReader(null, new DataPageIterator(this.dataPages.iterator()), getTotalValues());
+		return new MemPageReader(dictionary, new DataPageIterator(this.dataPages.iterator()), getTotalValues());
 	}
 
 	public long getTotalValues()

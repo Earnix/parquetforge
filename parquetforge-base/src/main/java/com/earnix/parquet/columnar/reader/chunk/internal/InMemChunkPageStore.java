@@ -57,9 +57,10 @@ public class InMemChunkPageStore
 		return totalPageBytes;
 	}
 
-	public PageReader toMemPageReader()
+	public MemPageReader toMemPageReader()
 	{
 		Iterator<Supplier<DataPage>> dataPageIterator = this.dataPageList.iterator();
-		return new MemPageReader(dictionaryPage.get(), new DataPageIterator(dataPageIterator), totalValues);
+		return new MemPageReader(dictionaryPage.get().decode(descriptor), new DataPageIterator(dataPageIterator),
+				totalValues);
 	}
 }

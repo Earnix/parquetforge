@@ -15,65 +15,46 @@ import java.lang.reflect.Field;
  * This class is a great example of how *not* to handle encapsulation. However, the alternative would be copy/pasting a
  * lot of code which is probably worse. <br>
  * <p>
- * This class shouldn't be directly used. Use {@link ChunkValuesReaderImpl}
- * instead
+ * This class shouldn't be directly used. Use {@link ChunkValuesReaderImpl} instead
  * </p>
  * <p>
  * This code allows us to construct a column reader impl using a shared dictionary - so multiple readers can read a
  * column without having the dict copied multiple places in memory
  * </p>
  */
-public class HackyParquetExtendedColumnReader extends ColumnReaderImpl
+public class ParquetExtendedColumnReader extends ColumnReaderImpl
 {
 	private static final DummyConverter dummyConverter = new DummyConverter();
 
 	// a dummy parsed version - won't trigger corrupted file logic. Reading corrupted parquet files is a non goal.
 	private static final VersionParser.ParsedVersion dummyParsedVersion = new VersionParser.ParsedVersion("earnix",
 			"0.1", "????????");
+	private final MemPageReader memPageReader;
 
-	private boolean finishedConstructor = false;
-
-	HackyParquetExtendedColumnReader(InMemChunkPageStore inMemChunkPageStore)
+	ParquetExtendedColumnReader(InMemChunkPageStore inMemChunkPageStore)
 	{
-		this(inMemChunkPageStore.getDescriptor(), inMemChunkPageStore.toMemPageReader(), null, dummyParsedVersion);
+		this(inMemChunkPageStore.getDescriptor(), inMemChunkPageStore.toMemPageReader(), dummyParsedVersion);
 	}
 
-	HackyParquetExtendedColumnReader(InMemChunk inMemChunk)
+	ParquetExtendedColumnReader(InMemChunk inMemChunk)
 	{
-		this(inMemChunk.getDescriptor(), inMemChunk.getDataPages(), inMemChunk.getDictionary(), dummyParsedVersion);
+		this(inMemChunk.getDescriptor(), inMemChunk.getDataPages(), dummyParsedVersion);
 	}
 
-	private HackyParquetExtendedColumnReader(ColumnDescriptor path, PageReader pageReader, Dictionary dictionary,
+	private ParquetExtendedColumnReader(ColumnDescriptor path, MemPageReader pageReader,
 			VersionParser.ParsedVersion writerVersion)
 	{
 		super(path, pageReader, dummyConverter, writerVersion);
-		setDictionary(dictionary);
-
-		this.finishedConstructor = true;
-		consume();
+		this.memPageReader = pageReader;
 	}
 
-	private void setDictionary(Dictionary dictionary)
+	/**
+	 * @return whether the current page being read uses a dictionary encoding. This must not be called after all values
+	 * 		are read.
+	 */
+	public boolean currentPageUsesDictionary()
 	{
-		// set dictionary field via reflection as it is final. This is not ideal, but seems better than forking the
-		// parquet-column project.
-		try
-		{
-			Class<? super ColumnReaderImpl> baseClass = ColumnReaderImpl.class.getSuperclass();
-			Field field = baseClass.getDeclaredField("dictionary");
-			FieldUtils.writeField(field, this, dictionary, true);
-		}
-		catch (Exception ex)
-		{
-			throw new RuntimeException(ex);
-		}
-	}
-
-	@Override
-	public void consume()
-	{
-		if (finishedConstructor)
-			super.consume();
+		return memPageReader.getValuesEncoding().usesDictionary();
 	}
 
 	private static class DummyConverter extends PrimitiveConverter
@@ -106,6 +87,25 @@ public class HackyParquetExtendedColumnReader extends ColumnReaderImpl
 		@Override
 		public void addLong(long value)
 		{
+		}
+
+		@Override
+		public boolean hasDictionarySupport()
+		{
+			// support dictionary otherwise getCurrentValueDictionaryID() will not work
+			return true;
+		}
+
+		@Override
+		public void setDictionary(Dictionary dictionary)
+		{
+			//ignore
+		}
+
+		@Override
+		public void addValueFromDictionary(int dictionaryId)
+		{
+			// ignore
 		}
 	}
 }

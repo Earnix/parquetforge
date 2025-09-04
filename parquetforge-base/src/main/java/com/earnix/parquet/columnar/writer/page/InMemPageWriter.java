@@ -19,6 +19,7 @@ import org.apache.parquet.column.page.DictionaryPage;
 import org.apache.parquet.column.page.PageWriter;
 import org.apache.parquet.column.statistics.SizeStatistics;
 import org.apache.parquet.column.statistics.Statistics;
+import org.apache.parquet.column.statistics.geospatial.GeospatialStatistics;
 import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.io.ParquetEncodingException;
 import org.slf4j.Logger;
@@ -163,6 +164,15 @@ public class InMemPageWriter implements PageWriter
 	public void writePageV2(int rowCount, int nullCount, int valueCount, BytesInput repetitionLevels,
 			BytesInput definitionLevels, Encoding dataEncoding, BytesInput data, Statistics<?> statistics,
 			SizeStatistics sizeStatistics) throws IOException
+	{
+		writePageV2(rowCount, nullCount, valueCount, repetitionLevels, definitionLevels, dataEncoding, data,
+				statistics);
+	}
+
+	@Override
+	public void writePageV2(int rowCount, int nullCount, int valueCount, BytesInput repetitionLevels,
+			BytesInput definitionLevels, Encoding dataEncoding, BytesInput data, Statistics<?> statistics,
+			SizeStatistics sizeStatistics, GeospatialStatistics geospatialStatistics) throws IOException
 	{
 		writePageV2(rowCount, nullCount, valueCount, repetitionLevels, definitionLevels, dataEncoding, data,
 				statistics);
