@@ -52,6 +52,16 @@ public class MemPageReader implements PageReader
 		};
 	}
 
+	/**
+	 * @return the dictionary for this column chunk. Note that a non-null value does not imply the all pages use the
+	 * 		dictionary. See <a href="https://issues.apache.org/jira/browse/PARQUET-2221">here<a> and <a
+	 * 		href="https://github.com/apache/parquet-format/issues/404">here</a>
+	 */
+	public Dictionary getDictionary()
+	{
+		return dictionary;
+	}
+
 	@Override
 	public long getTotalValueCount()
 	{

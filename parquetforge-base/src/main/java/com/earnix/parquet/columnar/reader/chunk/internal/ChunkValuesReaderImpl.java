@@ -1,6 +1,7 @@
 package com.earnix.parquet.columnar.reader.chunk.internal;
 
 import com.earnix.parquet.columnar.reader.chunk.ChunkValuesReader;
+import org.apache.parquet.column.Dictionary;
 import org.apache.parquet.io.api.Binary;
 
 import java.util.NoSuchElementException;
@@ -123,19 +124,17 @@ public class ChunkValuesReaderImpl implements ChunkValuesReader
 	}
 
 	@Override
+	public Dictionary getDictionary()
+	{
+		return columnReader.getDictionary();
+	}
+
+	@Override
 	public boolean isDictionaryIdSupported()
 	{
 		return columnReader.currentPageUsesDictionary();
 	}
 
-	/**
-	 * Get the dictionary id of the current value if it is supported. Note that you MUST call
-	 * {@link #isDictionaryIdSupported()} before each call to this. The parquet specification (as far as I can tell)
-	 * does not require that all pages in a Column Chunk use the Dictionary if it is there. That means in theory a
-	 * ColumnChunk could have a data page that is RLE
-	 *
-	 * @return whether the dictionary id is supported for this id
-	 */
 	@Override
 	public int getDictionaryId()
 	{

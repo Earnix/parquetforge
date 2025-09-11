@@ -57,6 +57,15 @@ public class ParquetExtendedColumnReader extends ColumnReaderImpl
 		return memPageReader.getValuesEncoding().usesDictionary();
 	}
 
+	/**
+	 * @return the dictionary for this column or null if there is none. Note that a non-null value does NOT imply the
+	 * 		current page uses the dictionary.
+	 */
+	public Dictionary getDictionary()
+	{
+		return memPageReader.getDictionary();
+	}
+
 	private static class DummyConverter extends PrimitiveConverter
 	{
 		@Override

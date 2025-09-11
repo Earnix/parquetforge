@@ -54,6 +54,8 @@ public class ColumnChunkWriterReaderTest
 		{
 			Assert.assertTrue(reader.isDictionaryIdSupported());
 			Assert.assertTrue(reader.getDictionaryId() < dict.length);
+			Assert.assertEquals(reader.getDouble(), reader.getDictionary().decodeToDouble(reader.getDictionaryId()),
+					0.0d);
 			valuesRead++;
 		}
 		while (reader.next());
