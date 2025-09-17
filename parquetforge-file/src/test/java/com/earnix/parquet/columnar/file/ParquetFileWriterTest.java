@@ -45,6 +45,8 @@ import static org.junit.Assert.fail;
 
 public class ParquetFileWriterTest
 {
+	private static final boolean DEBUG = false;
+
 	@Test
 	public void sanityCreateCheck() throws IOException
 	{
@@ -55,14 +57,16 @@ public class ParquetFileWriterTest
 
 			ParquetColumnarFileReader reader = new ParquetColumnarFileReader(parquetFile);
 			reader.processFile((ParquetColumnarProcessors.ChunkProcessor) chunk -> {
-				System.out.println(chunk.getDescriptor() + " TotalValues:" + chunk.getTotalValues());
+				if (DEBUG)
+					System.out.println(chunk.getDescriptor() + " TotalValues:" + chunk.getTotalValues());
 				if (chunk.getDescriptor().getPrimitiveType().getPrimitiveTypeName()
 						== PrimitiveType.PrimitiveTypeName.DOUBLE)
 				{
 					ChunkValuesReader colReader = ChunkValuesReaderFactory.createChunkReader(chunk);
 					for (int i = 0; i < chunk.getTotalValues(); i++)
 					{
-						System.out.println(chunk.getDescriptor() + " Value: " + colReader.getDouble());
+						if (DEBUG)
+							System.out.println(chunk.getDescriptor() + " Value: " + colReader.getDouble());
 						colReader.next();
 					}
 				}
