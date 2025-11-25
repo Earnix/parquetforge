@@ -1,8 +1,9 @@
 package com.earnix.parquet.columnar.file;
 
-import com.earnix.parquet.columnar.file.reader.IndexedParquetColumnarFileReader;
 import com.earnix.parquet.columnar.file.reader.ParquetColumnarFileReader;
+import com.earnix.parquet.columnar.file.reader.ParquetFileReaderFactory;
 import com.earnix.parquet.columnar.file.writer.ParquetFileColumnarWriterFactory;
+import com.earnix.parquet.columnar.reader.IndexedParquetColumnarReader;
 import com.earnix.parquet.columnar.reader.chunk.ChunkValuesReader;
 import com.earnix.parquet.columnar.reader.chunk.InMemRowGroup;
 import com.earnix.parquet.columnar.reader.chunk.internal.ChunkValuesReaderFactory;
@@ -298,7 +299,7 @@ public class ParquetFileWriterTest
 				});
 				rowGroupWriter.finishAndWriteFooterMetadata();
 			}
-			IndexedParquetColumnarFileReader reader = new IndexedParquetColumnarFileReader(parquetFile);
+			IndexedParquetColumnarReader reader = ParquetFileReaderFactory.createIndexedColumnarFileReader(parquetFile);
 
 			InMemChunk inMemChunk = reader.readInMem(0, messageType.getColumnDescription(new String[] { "float" }));
 			ChunkValuesReader chunkReader = ChunkValuesReaderFactory.createChunkReader(inMemChunk);
@@ -340,7 +341,7 @@ public class ParquetFileWriterTest
 				rowGroupWriter.finishAndWriteFooterMetadata();
 			}
 
-			IndexedParquetColumnarFileReader reader = new IndexedParquetColumnarFileReader(parquetFile);
+			IndexedParquetColumnarReader reader = ParquetFileReaderFactory.createIndexedColumnarFileReader(parquetFile);
 			Assert.assertEquals(fixBinLen,
 					reader.getMessageType().getColumns().get(0).getPrimitiveType().getTypeLength());
 			InMemChunk inMemChunk = reader.readInMem(0, messageType.getColumnDescription(new String[] { "fixed_len" }));

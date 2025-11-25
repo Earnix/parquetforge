@@ -204,7 +204,7 @@ public class NullableIterators
 		/**
 		 * Iterator to the next element
 		 *
-		 * @return whether the next element exists
+		 * @return true if moved to the next element and false otherwise
 		 */
 		boolean next();
 	}

@@ -1,10 +1,10 @@
 package com.earnix.parquet.columnar.file;
 
-import com.earnix.parquet.columnar.file.reader.IndexedParquetColumnarFileReader;
+import com.earnix.parquet.columnar.file.reader.ParquetFileReaderFactory;
 import com.earnix.parquet.columnar.file.writer.ParquetFileColumnarWriterFactory;
+import com.earnix.parquet.columnar.reader.IndexedParquetColumnarReader;
 import com.earnix.parquet.columnar.reader.chunk.ChunkValuesReader;
 import com.earnix.parquet.columnar.reader.chunk.internal.ChunkValuesReaderFactory;
-import com.earnix.parquet.columnar.reader.chunk.internal.ChunkValuesReaderImpl;
 import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import com.earnix.parquet.columnar.writer.columnchunk.NullableIterators;
@@ -62,7 +62,7 @@ public class ChunkValuesReaderTest
 					new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT32, colName));
 			writeValues(tmpFile, messageType, vals);
 
-			IndexedParquetColumnarFileReader reader = new IndexedParquetColumnarFileReader(tmpFile);
+			IndexedParquetColumnarReader reader = ParquetFileReaderFactory.createIndexedColumnarFileReader(tmpFile);
 			Assert.assertEquals(1, reader.getNumRowGroups());
 			InMemChunk inMemChunk = reader.readInMem(0, messageType.getColumnDescription(new String[] { colName }));
 			ChunkValuesReader chunkValuesReader = ChunkValuesReaderFactory.createChunkReader(inMemChunk);

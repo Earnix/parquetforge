@@ -1,14 +1,13 @@
 package com.earnix.parquet.columnar.file.reader;
 
+import com.earnix.parquet.columnar.RowGroupRowIndex;
+import com.earnix.parquet.columnar.reader.ParquetColumnarReader;
 import com.earnix.parquet.columnar.reader.ParquetMetadataUtils;
+import com.earnix.parquet.columnar.reader.ParquetReaderUtils;
 import com.earnix.parquet.columnar.reader.chunk.InMemRowGroup;
-import com.earnix.parquet.columnar.reader.chunk.internal.ChunkDecompressToPageStoreFactory;
 import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
-import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunkPageStore;
 import com.earnix.parquet.columnar.reader.processors.ParquetColumnarProcessors;
-import com.earnix.parquet.columnar.utils.ParquetMagicUtils;
 import org.apache.commons.io.input.BoundedInputStream;
-import org.apache.commons.io.input.CountingInputStream;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.ColumnChunk;
 import org.apache.parquet.format.ColumnMetaData;
@@ -30,33 +29,39 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static com.earnix.parquet.columnar.reader.ParquetReaderUtils.getLen;
+import static com.earnix.parquet.columnar.reader.ParquetReaderUtils.getStartOffset;
+
 /**
  * Read a parquet file column by column rather than row by row, and support different row processors as are defined in
  * {@link ParquetColumnarProcessors}
  */
-public class ParquetColumnarFileReader
+public class ParquetColumnarFileReader implements ParquetColumnarReader
 {
 	private final Path parquetFilePath;
 	private volatile FileMetaData metaData;
 	private volatile MessageType messageType;
 	private volatile List<ColumnDescriptor> columnDescriptors;
-	private volatile long[] rgStartRows = null;
+	private volatile RowGroupRowIndex rowGroupRowIndex;
 
 	public ParquetColumnarFileReader(Path parquetFilePath)
 	{
 		this.parquetFilePath = parquetFilePath;
 	}
 
+	@Override
 	public void processFile(ParquetColumnarProcessors.RowGroupProcessor processor)
 	{
 		processFile(processor, null, null);
 	}
 
+	@Override
 	public void processFile(ParquetColumnarProcessors.ChunkProcessor processor)
 	{
 		processFile(null, processor, null);
 	}
 
+	@Override
 	public void processFile(ParquetColumnarProcessors.ProcessRawChunkBytes processor)
 	{
 		processFile(null, null, processor);
@@ -95,6 +100,7 @@ public class ParquetColumnarFileReader
 		return chunksNeededForRowGroupProcessing ? Optional.of(chunks) : Optional.empty();
 	}
 
+	@Override
 	public FileMetaData readMetaData() throws IOException
 	{
 		if (metaData == null)
@@ -103,10 +109,7 @@ public class ParquetColumnarFileReader
 			{
 				if (metaData == null)
 				{
-					try (FileChannel fc = FileChannel.open(parquetFilePath))
-					{
-						metaData = ParquetFileMetadataReader.readMetadata(fc);
-					}
+					metaData = ParquetFileMetadataReader.readFileMetadata(parquetFilePath);
 				}
 			}
 		}
@@ -123,30 +126,6 @@ public class ParquetColumnarFileReader
 		long startOffset = getStartOffset(columnChunk);
 		fc.position(startOffset);
 		return new BoundedInputStream(Channels.newInputStream(fc), getLen(columnChunk));
-	}
-
-	protected static long getLen(ColumnChunk columnChunk)
-	{
-		return columnChunk.getMeta_data().getTotal_compressed_size();
-	}
-
-	protected static long getStartOffset(ColumnChunk columnChunk)
-	{
-		long startOffset = columnChunk.getMeta_data().getData_page_offset();
-
-		// only use the dictionary as the start offset if it is valid. This should match the logic in the open source
-		// java parquet driver in ParquetMetadataConverter.getOffset()
-		if (columnChunk.getMeta_data().isSetDictionary_page_offset()
-				&& columnChunk.getMeta_data().getDictionary_page_offset() > 0L
-				&& columnChunk.getMeta_data().getDictionary_page_offset() < startOffset)
-		{
-			startOffset = columnChunk.getMeta_data().getDictionary_page_offset();
-		}
-
-		if (startOffset < ParquetMagicUtils.PARQUET_MAGIC.length())
-			throw new IllegalArgumentException("Corrupted chunk metadata invalid startOffset.");
-
-		return startOffset;
 	}
 
 	private static ColumnMetaData getAndValidateMetaData(ColumnChunk columnChunk) throws UnsupportedEncodingException
@@ -204,7 +183,7 @@ public class ParquetColumnarFileReader
 
 		if (chunksNeededForRowGroupProcessing(chunkProcessor, chunkBytesProcessor))
 		{
-			return Optional.of(readInMemChunk(descriptor, is, chunkLen, compressionCodec));
+			return Optional.of(ParquetReaderUtils.readInMemChunk(descriptor, is, chunkLen, compressionCodec));
 		}
 
 		return Optional.empty();
@@ -216,88 +195,64 @@ public class ParquetColumnarFileReader
 	{
 		if (chunkProcessor != null)
 		{
-			chunkProcessor.processChunk(readInMemChunk(colDescriptor, is, chunkLen, compressionCodec));
+			chunkProcessor.processChunk(
+					ParquetReaderUtils.readInMemChunk(colDescriptor, is, chunkLen, compressionCodec));
 		}
 	}
 
-	protected InMemChunk readInMemChunk(ColumnDescriptor colDescriptor, InputStream is, long chunkLen,
-			CompressionCodec compressionCodec) throws IOException
-	{
-		InMemChunkPageStore inMemChunkPageStore = ChunkDecompressToPageStoreFactory.buildColumnChunkPageStore(
-				colDescriptor, BoundedInputStream.builder().setInputStream(is).setMaxCount(chunkLen).get(), chunkLen,
-				compressionCodec);
-		return new InMemChunk(inMemChunkPageStore);
-	}
-
+	@Override
 	public int getNumRowGroups() throws IOException
 	{
 		return readMetaData().getRow_groupsSize();
 	}
 
+	@Override
 	public long getNumRowsInRowGroup(int rowGroup) throws IOException
 	{
 		return readMetaData().getRow_groups().get(rowGroup).getNum_rows();
 	}
 
+	@Override
 	public long getTotalNumRows() throws IOException
 	{
 		return readMetaData().getNum_rows();
 	}
 
-	public long startRow(int rowGrpIdx) throws IOException
+	@Override
+	public RowGroupRowIndex getRowGroupRowIndex() throws IOException
 	{
-		if (this.rgStartRows == null)
+		return rgRowStart();
+	}
+
+	private RowGroupRowIndex rgRowStart()throws IOException
+	{
+		if (rowGroupRowIndex == null)
 		{
 			synchronized (this)
 			{
-				if (this.rgStartRows == null)
+				if (rowGroupRowIndex == null)
 				{
-					// the start row of the row group.
-					long[] computedStartRows = new long[getNumRowGroups()];
-
-					computedStartRows[0] = 0;
-					for (int i = 1; i < getNumRowGroups(); i++)
-					{
-						computedStartRows[i] =
-								computedStartRows[i - 1] + readMetaData().getRow_groups().get(i - 1).getNum_rows();
-					}
-					this.rgStartRows = computedStartRows;
+					rowGroupRowIndex = new RowGroupRowIndex(readMetaData());
 				}
 			}
 		}
-		return this.rgStartRows[rowGrpIdx];
+		return rowGroupRowIndex;
 	}
 
-	/**
-	 * @return an array containing the number of rows per row group.
-	 */
-	public long[] rowsPerRowGroup() throws IOException
-	{
-		long[] ret = new long[getNumRowGroups()];
-
-		for (int i = 0; i < ret.length; i++)
-			ret[i] = getNumRowsInRowGroup(i);
-
-		return ret;
-	}
-
-	/**
-	 * @return the schema of this parquet file.
-	 */
+	@Override
 	public MessageType getMessageType()
 	{
 		return messageType;
 	}
 
-	/**
-	 * @return a list of the column descriptors present in this parquet file
-	 */
+	@Override
 	public List<ColumnDescriptor> getColumnDescriptors() throws IOException
 	{
 		ensureDescriptorsInitialized();
 		return columnDescriptors;
 	}
 
+	@Override
 	public ColumnDescriptor getDescriptor(int colOffset) throws IOException
 	{
 		ensureDescriptorsInitialized();

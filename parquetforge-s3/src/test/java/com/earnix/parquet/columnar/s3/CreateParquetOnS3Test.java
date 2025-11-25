@@ -1,20 +1,20 @@
 package com.earnix.parquet.columnar.s3;
 
-import com.earnix.parquet.columnar.file.reader.IndexedParquetColumnarFileReader;
+import com.earnix.parquet.columnar.assembler.ParquetRowGroupSupplier;
+import com.earnix.parquet.columnar.file.assembler.ParquetFileChunkSupplier;
 import com.earnix.parquet.columnar.file.reader.ParquetColumnarFileReader;
+import com.earnix.parquet.columnar.file.reader.ParquetFileReaderFactory;
+import com.earnix.parquet.columnar.file.writer.ParquetFileColumnarWriterFactory;
+import com.earnix.parquet.columnar.reader.IndexedParquetColumnarReader;
 import com.earnix.parquet.columnar.reader.chunk.ChunkValuesReader;
 import com.earnix.parquet.columnar.reader.chunk.internal.ChunkValuesReaderFactory;
 import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
-import com.earnix.parquet.columnar.file.assembler.ParquetFileChunkSupplier;
-import com.earnix.parquet.columnar.assembler.ParquetRowGroupSupplier;
 import com.earnix.parquet.columnar.s3.assembler.S3ParquetAssembleAndUpload;
 import com.earnix.parquet.columnar.s3.buffering.S3KeyUploader;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
-import com.earnix.parquet.columnar.file.writer.ParquetFileColumnarWriterFactory;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.format.CompressionCodec;
-import org.apache.parquet.format.RowGroup;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
@@ -84,7 +84,8 @@ public class CreateParquetOnS3Test
 		}
 
 		// assemble and upload
-		IndexedParquetColumnarFileReader localReader = new IndexedParquetColumnarFileReader(sourceFilePath);
+		IndexedParquetColumnarReader localReader = ParquetFileReaderFactory.createIndexedColumnarFileReader(
+				sourceFilePath);
 
 		String keyOnS3 = "test.parquet";
 
@@ -121,22 +122,23 @@ public class CreateParquetOnS3Test
 			Files.copy(resp, tmpFile, StandardCopyOption.REPLACE_EXISTING);
 		}
 
-		IndexedParquetColumnarFileReader reader = new IndexedParquetColumnarFileReader(tmpFile);
-		Assert.assertEquals(colName, reader.readMetaData().getSchema().get(1).getName());
+		IndexedParquetColumnarReader reader = ParquetFileReaderFactory.createIndexedColumnarFileReader(tmpFile);
+		Assert.assertEquals(colName, reader.getDescriptor(0).getPath()[0]);
 
 		// make sure that we're pointing at different places.
 		Assert.assertNotEquals(reader.getColumnChunk(0, descriptor).getMeta_data().getData_page_offset(),
 				reader.getColumnChunk(1, descriptor).getMeta_data().getData_page_offset());
-		for (RowGroup rowGroup : reader.readMetaData().getRow_groups())
+
+		for (int i = 0; i < reader.getNumRowGroups(); i++)
 		{
-			Assert.assertEquals(1, rowGroup.getNum_rows());
+			Assert.assertEquals(1, reader.getNumRowsInRowGroup(i));
 		}
 
 		assertValue(reader, descriptor, 0, 2.0d);
 		assertValue(reader, descriptor, 1, 1.0d);
 	}
 
-	private static void assertValue(IndexedParquetColumnarFileReader reader, ColumnDescriptor descriptor, int rowGrp,
+	private static void assertValue(IndexedParquetColumnarReader reader, ColumnDescriptor descriptor, int rowGrp,
 			double expected) throws IOException
 	{
 		InMemChunk chunk = reader.readInMem(rowGrp, descriptor);

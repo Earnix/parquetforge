@@ -1,7 +1,8 @@
 package com.earnix.parquet.columnar.file;
 
+import com.earnix.parquet.columnar.file.reader.ParquetFileReaderFactory;
 import com.earnix.parquet.columnar.file.writer.ParquetFileColumnarWriterFactory;
-import com.earnix.parquet.columnar.file.reader.IndexedParquetColumnarFileReader;
+import com.earnix.parquet.columnar.reader.IndexedParquetColumnarReader;
 import com.earnix.parquet.columnar.reader.chunk.ChunkValuesReader;
 import com.earnix.parquet.columnar.reader.chunk.internal.ChunkValuesReaderFactory;
 import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
@@ -63,8 +64,7 @@ public class IndexParquetColumnarFileReaderTest
 				CompressionCodec.ZSTD, true))
 		{
 			fileWriter.writeRowGroup(1, writer -> {
-				writer.writeValues(colWriter -> colWriter.writeColumn(colDescriptors.get(0),
-						new int[] { 0 }));
+				writer.writeValues(colWriter -> colWriter.writeColumn(colDescriptors.get(0), new int[] { 0 }));
 				writer.writeValues(colWriter -> colWriter.writeColumn(colDescriptors.get(1), new int[] { 1 }));
 			});
 
@@ -76,7 +76,7 @@ public class IndexParquetColumnarFileReaderTest
 			fileWriter.finishAndWriteFooterMetadata();
 		}
 
-		IndexedParquetColumnarFileReader fileReader = new IndexedParquetColumnarFileReader(parquetFile);
+		IndexedParquetColumnarReader fileReader = ParquetFileReaderFactory.createIndexedColumnarFileReader(parquetFile);
 
 		assertExpected(fileReader, 0, 0, new int[] { 0 });
 		assertExpected(fileReader, 1, 0, new int[] { 2 });
@@ -84,7 +84,7 @@ public class IndexParquetColumnarFileReaderTest
 		assertExpected(fileReader, 1, 1, new int[] { 3 });
 	}
 
-	private static void assertExpected(IndexedParquetColumnarFileReader fileReader, int rowGroup, int colOffset,
+	private static void assertExpected(IndexedParquetColumnarReader fileReader, int rowGroup, int colOffset,
 			int[] expected) throws IOException
 	{
 		InMemChunk chunk = fileReader.readInMem(rowGroup, fileReader.getDescriptor(colOffset));

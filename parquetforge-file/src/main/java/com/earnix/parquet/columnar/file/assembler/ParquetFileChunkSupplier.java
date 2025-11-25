@@ -1,8 +1,9 @@
 package com.earnix.parquet.columnar.file.assembler;
 
 import com.earnix.parquet.columnar.assembler.ParquetColumnChunkSupplier;
-import com.earnix.parquet.columnar.file.reader.FileRangeInputStreamSupplier;
-import com.earnix.parquet.columnar.file.reader.IndexedParquetColumnarFileReader;
+import com.earnix.parquet.columnar.file.reader.ParquetFileReaderFactory;
+import com.earnix.parquet.columnar.reader.IndexedParquetColumnarReader;
+import org.apache.commons.io.function.IOSupplier;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.ColumnChunk;
@@ -20,15 +21,15 @@ public class ParquetFileChunkSupplier implements ParquetColumnChunkSupplier
 	// lazily populated
 	private volatile boolean initialized;
 	private ColumnChunk columnChunk;
-	private FileRangeInputStreamSupplier inputStreamSupplier;
+	private IOSupplier<InputStream> inputStreamSupplier;
 
-	public ParquetFileChunkSupplier(IndexedParquetColumnarFileReader reader, ColumnDescriptor columnDescriptor,
-			int rowGroup)
+	public ParquetFileChunkSupplier(IndexedParquetColumnarReader parquetColumnarReader,
+			ColumnDescriptor columnDescriptor, int rowGroup)
 	{
-		this.parquetFilePath = reader.getParquetFilePath();
+		this.parquetFilePath = null; // we don't need it as we already have the reader..
 		this.columnDescriptor = columnDescriptor;
 		this.rowGroup = rowGroup;
-		initFromReader(reader);
+		initFromReader(parquetColumnarReader);
 	}
 
 	/**
@@ -63,19 +64,20 @@ public class ParquetFileChunkSupplier implements ParquetColumnChunkSupplier
 			{
 				if (!initialized)
 				{
-					IndexedParquetColumnarFileReader reader = new IndexedParquetColumnarFileReader(parquetFilePath);
+					IndexedParquetColumnarReader reader = ParquetFileReaderFactory.createIndexedColumnarFileReader(
+							parquetFilePath);
 					initFromReader(reader);
 				}
 			}
 		}
 	}
 
-	private void initFromReader(IndexedParquetColumnarFileReader reader)
+	private void initFromReader(IndexedParquetColumnarReader reader)
 	{
-		Pair<ColumnChunk, FileRangeInputStreamSupplier> chunk = reader.getInputStreamSupplier(rowGroup,
-				columnDescriptor);
+		Pair<ColumnChunk, IOSupplier<InputStream>> chunk = reader.getInputStreamSupplier(rowGroup, columnDescriptor);
 		this.columnChunk = chunk.getLeft();
-		// data page offset is meaningless - MUST be set externally.
+		// dict and data page offset is meaningless - MUST be set externally.
+		this.columnChunk.getMeta_data().unsetDictionary_page_offset();
 		this.columnChunk.getMeta_data().unsetData_page_offset();
 		this.inputStreamSupplier = chunk.getRight();
 		initialized = true;

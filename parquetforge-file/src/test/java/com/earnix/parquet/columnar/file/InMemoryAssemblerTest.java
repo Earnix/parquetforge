@@ -3,7 +3,8 @@ package com.earnix.parquet.columnar.file;
 import com.earnix.parquet.columnar.assembler.InMemoryParquetAssembler;
 import com.earnix.parquet.columnar.assembler.ParquetRowGroupSupplier;
 import com.earnix.parquet.columnar.file.assembler.ParquetFileChunkSupplier;
-import com.earnix.parquet.columnar.file.reader.IndexedParquetColumnarFileReader;
+import com.earnix.parquet.columnar.file.reader.ParquetFileReaderFactory;
+import com.earnix.parquet.columnar.reader.IndexedParquetColumnarReader;
 import org.apache.parquet.schema.MessageType;
 import org.junit.Test;
 
@@ -27,14 +28,14 @@ public class InMemoryAssemblerTest
 			// write a basic single double column parquet file
 			ParquetFileFiller.basicSingleDoubleColumnParquetFile(tmp);
 
-			IndexedParquetColumnarFileReader reader = new IndexedParquetColumnarFileReader(tmp);
+			IndexedParquetColumnarReader reader = ParquetFileReaderFactory.createIndexedColumnarFileReader(tmp);
 			InMemoryParquetAssembler assembler = new InMemoryParquetAssembler(
 					new MessageType("root", reader.getDescriptor(0).getPrimitiveType()));
 			byte[] parquetBytes = assembler.assemble(Arrays.asList(ParquetRowGroupSupplier.builder()
 					.addChunkSupplier(new ParquetFileChunkSupplier(reader, reader.getDescriptor(0), 0)).build()));
 
 			Files.write(tmp2, parquetBytes, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);
-			IndexedParquetColumnarFileReader reader2 = new IndexedParquetColumnarFileReader(tmp2);
+			IndexedParquetColumnarReader reader2 = ParquetFileReaderFactory.createIndexedColumnarFileReader(tmp2);
 
 
 			ColEqualityCheckerUtils.assertDoubleColumnEqual(reader.readInMem(0, reader.getDescriptor(0)),

@@ -1,6 +1,7 @@
 package com.earnix.parquet.columnar.file;
 
-import com.earnix.parquet.columnar.file.reader.IndexedParquetColumnarFileReader;
+import com.earnix.parquet.columnar.file.reader.ParquetFileReaderFactory;
+import com.earnix.parquet.columnar.reader.IndexedParquetColumnarReader;
 import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
 import org.apache.commons.lang3.SerializationUtils;
 import org.junit.Assert;
@@ -19,7 +20,7 @@ public class InMemChunkSerializationTest
 		try
 		{
 			ParquetFileFiller.basicSingleDoubleColumnParquetFile(tmp);
-			IndexedParquetColumnarFileReader reader = new IndexedParquetColumnarFileReader(tmp);
+			IndexedParquetColumnarReader reader = ParquetFileReaderFactory.createIndexedColumnarFileReader(tmp);
 			int rowGroup = 0;
 			assertEquals(reader, rowGroup);
 			rowGroup = 1;
@@ -31,7 +32,7 @@ public class InMemChunkSerializationTest
 		}
 	}
 
-	private static void assertEquals(IndexedParquetColumnarFileReader reader, int rowGroup) throws IOException
+	private static void assertEquals(IndexedParquetColumnarReader reader, int rowGroup) throws IOException
 	{
 		InMemChunk inMemChunk = reader.readInMem(rowGroup, reader.getDescriptor(0));
 		InMemChunk copied = SerializationUtils.clone(inMemChunk);

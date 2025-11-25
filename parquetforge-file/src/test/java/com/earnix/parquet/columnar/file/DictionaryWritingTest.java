@@ -1,13 +1,12 @@
 package com.earnix.parquet.columnar.file;
 
-import com.earnix.parquet.columnar.file.reader.IndexedParquetColumnarFileReader;
+import com.earnix.parquet.columnar.file.reader.ParquetFileReaderFactory;
 import com.earnix.parquet.columnar.file.writer.ParquetFileColumnarWriterFactory;
+import com.earnix.parquet.columnar.reader.IndexedParquetColumnarReader;
 import com.earnix.parquet.columnar.utils.ParquetMagicUtils;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import org.apache.parquet.format.ColumnChunk;
 import org.apache.parquet.format.CompressionCodec;
-import org.apache.parquet.format.FileMetaData;
-import org.apache.parquet.format.RowGroup;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
@@ -15,11 +14,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -47,16 +43,14 @@ public class DictionaryWritingTest
 		{
 			writeParquet(tmpFile, messageType, notDict, yesDict);
 
-			IndexedParquetColumnarFileReader reader = new IndexedParquetColumnarFileReader(tmpFile);
-			FileMetaData md = reader.readMetaData();
-			Assert.assertEquals(1, md.getRow_groupsSize());
-			RowGroup rg = md.getRow_groups().get(0);
-			ColumnChunk cc1 = rg.getColumns().get(0);
+			IndexedParquetColumnarReader reader = ParquetFileReaderFactory.createIndexedColumnarFileReader(tmpFile);
+			Assert.assertEquals(1, reader.getNumRowGroups());
+			ColumnChunk cc1 = reader.getColumnChunk(0, reader.getDescriptor(0));
 			Assert.assertEquals(asList(notDict), cc1.getMeta_data().getPath_in_schema());
 			Assert.assertFalse(cc1.getMeta_data().isSetDictionary_page_offset());
 			Assert.assertTrue(cc1.getMeta_data().getData_page_offset() >= ParquetMagicUtils.PARQUET_MAGIC.length());
 
-			ColumnChunk cc2 = rg.getColumns().get(1);
+			ColumnChunk cc2 = reader.getColumnChunk(0, reader.getDescriptor(1));
 			Assert.assertEquals(asList(yesDict), cc2.getMeta_data().getPath_in_schema());
 			Assert.assertTrue(cc2.getMeta_data().isSetDictionary_page_offset());
 			Assert.assertTrue("Dict page offset must be set, and after the parquet magic",

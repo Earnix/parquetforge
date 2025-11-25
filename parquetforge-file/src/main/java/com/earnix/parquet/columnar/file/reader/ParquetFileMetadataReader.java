@@ -121,4 +121,12 @@ public class ParquetFileMetadataReader
 		if (!ParquetMagicUtils.expectMagic(buf))
 			throw new IllegalStateException("Parquet file did not contain expected magic");
 	}
+
+	public static FileMetaData readFileMetadata(Path parquetFilePath) throws IOException
+	{
+		try (FileChannel fc = FileChannel.open(parquetFilePath))
+		{
+			return readMetadata(fc);
+		}
+	}
 }
