@@ -115,12 +115,30 @@ public class S3KeyDownloader
 	public void downloadRange(long startOffsetInclusive, long endOffsetExclusive,
 			RespCallBack<ResponseInputStream<GetObjectResponse>> callback) throws IOException
 	{
-		String byteRange = getByteRangeHttpHeaderValue(startOffsetInclusive, endOffsetExclusive);
-		try (ResponseInputStream<GetObjectResponse> response = s3Client.getObject(
-				builder -> builder.bucket(bucket).key(key).range(byteRange)))
+		try (ResponseInputStream<GetObjectResponse> response = openRange(startOffsetInclusive,
+				endOffsetExclusive - startOffsetInclusive))
 		{
 			callback.callback(response);
 		}
+	}
+
+	/**
+	 * Open an input stream for a specific byte range. Caller
+	 * is responsible for closing the returned stream.
+	 *
+	 * @param startOffsetInclusive the first byte in the range (inclusive)
+	 * @param numBytesToRead       number of bytes to read starting at startOffsetInclusive
+	 * @return an {@link InputStream} positioned at the requested range
+	 */
+	public ResponseInputStream<GetObjectResponse> openRange(long startOffsetInclusive, long numBytesToRead)
+	{
+		if (numBytesToRead <= 0)
+		{
+			throw new IllegalArgumentException("numBytesToRead must be > 0");
+		}
+		long endOffsetExclusive = startOffsetInclusive + numBytesToRead;
+		String byteRange = getByteRangeHttpHeaderValue(startOffsetInclusive, endOffsetExclusive);
+		return s3Client.getObject(builder -> builder.bucket(bucket).key(key).range(byteRange));
 	}
 
 	public long getObjectSize()

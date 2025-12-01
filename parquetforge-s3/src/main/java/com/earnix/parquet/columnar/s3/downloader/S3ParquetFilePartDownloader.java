@@ -1,5 +1,6 @@
 package com.earnix.parquet.columnar.s3.downloader;
 
+import com.earnix.parquet.columnar.s3.reader.S3ParquetMetadataReaderUtils;
 import com.earnix.parquet.columnar.utils.ParquetMagicUtils;
 import com.earnix.parquet.columnar.writer.ParquetWriterUtils;
 import com.google.common.util.concurrent.RateLimiter;
@@ -8,16 +9,12 @@ import org.apache.commons.io.IOUtils;
 import org.apache.parquet.format.ColumnChunk;
 import org.apache.parquet.format.FileMetaData;
 import org.apache.parquet.format.RowGroup;
-import org.apache.parquet.format.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.s3.model.ObjectPart;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
@@ -77,17 +74,9 @@ public class S3ParquetFilePartDownloader
 			{
 				if (footerMetadata == null)
 				{
-					int lenAndMagicFooter = Integer.BYTES + ParquetMagicUtils.PARQUET_MAGIC.length();
-					byte[] lastBytes = s3KeyDownloader.getLastBytes(lenAndMagicFooter);
-					ByteBuffer buf = ByteBuffer.wrap(lastBytes).order(ByteOrder.LITTLE_ENDIAN);
-					int footerMetadataLen = buf.getInt();
-					// sanity check metadata that this indeed is a parquet file
-					ParquetMagicUtils.expectMagic(buf);
-
-					byte[] footerMetadataBytes = s3KeyDownloader.getLastBytes(footerMetadataLen + lenAndMagicFooter);
 					try
 					{
-						footerMetadata = Util.readFileMetaData(new ByteArrayInputStream(footerMetadataBytes));
+						footerMetadata = S3ParquetMetadataReaderUtils.readFileMetadata(s3KeyDownloader);
 					}
 					catch (IOException ex)
 					{
