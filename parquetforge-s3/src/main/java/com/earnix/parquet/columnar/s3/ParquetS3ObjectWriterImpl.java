@@ -12,7 +12,6 @@ import org.apache.commons.io.file.DeletingPathVisitor;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.format.FileMetaData;
-import org.apache.parquet.format.SchemaElement;
 import org.apache.parquet.schema.MessageType;
 
 import java.io.IOException;

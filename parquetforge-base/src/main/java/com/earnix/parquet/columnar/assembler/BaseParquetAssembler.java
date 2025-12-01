@@ -8,7 +8,6 @@ import com.earnix.parquet.columnar.writer.rowgroup.RowGroupInfo;
 import org.apache.commons.io.output.UnsynchronizedByteArrayOutputStream;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.FileMetaData;
-import org.apache.parquet.format.SchemaElement;
 import org.apache.parquet.format.Util;
 import org.apache.parquet.schema.MessageType;
 

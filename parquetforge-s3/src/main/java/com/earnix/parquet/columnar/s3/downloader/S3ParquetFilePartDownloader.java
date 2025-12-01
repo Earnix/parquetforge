@@ -9,12 +9,13 @@ import org.apache.parquet.format.ColumnChunk;
 import org.apache.parquet.format.FileMetaData;
 import org.apache.parquet.format.RowGroup;
 import org.apache.parquet.format.Util;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.s3.model.ObjectPart;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.Channels;
@@ -44,6 +45,7 @@ public class S3ParquetFilePartDownloader
 {
 	private static final AtomicLong threadPoolIDNumber = new AtomicLong();
 	private static final int DEFAULT_DOWNLOAD_THREADS = 5;
+	private static final Logger LOG = LoggerFactory.getLogger(S3ParquetFilePartDownloader.class);
 	private final S3KeyDownloader s3KeyDownloader;
 	private final int numDownloadThreads;
 	private final RateLimiter rateLimiter;
@@ -140,7 +142,10 @@ public class S3ParquetFilePartDownloader
 				try
 				{
 					service.shutdown();
-					service.awaitTermination(365, TimeUnit.DAYS);
+					if (!service.awaitTermination(365, TimeUnit.DAYS))
+					{
+						LOG.warn("S3 Part Downloader executor service did not shutdown {}", service);
+					}
 				}
 				catch (InterruptedException ex)
 				{

@@ -8,7 +8,6 @@ import java.io.InputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
-import java.util.function.Supplier;
 
 /**
  * A class that supples an input stream for a limited byte range within a file

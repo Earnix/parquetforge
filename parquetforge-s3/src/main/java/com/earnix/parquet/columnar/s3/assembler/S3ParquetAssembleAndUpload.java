@@ -10,6 +10,8 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.commons.io.output.UnsynchronizedByteArrayOutputStream;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.schema.MessageType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -32,6 +34,7 @@ import java.util.function.Supplier;
  */
 public class S3ParquetAssembleAndUpload extends BaseParquetAssembler
 {
+	private static final Logger LOG = LoggerFactory.getLogger(S3ParquetAssembleAndUpload.class);
 	private static final AtomicLong threadPoolIDNumber = new AtomicLong();
 
 	private final MessageType schema;
@@ -112,7 +115,21 @@ public class S3ParquetAssembleAndUpload extends BaseParquetAssembler
 		}
 		finally
 		{
-			service.shutdownNow();
+			service.shutdown();
+			try
+			{
+				if (!service.awaitTermination(365, TimeUnit.DAYS))
+				{
+					LOG.warn("S3 Parquet Assembler Uploader executor service did not shutdown {}", service);
+				}
+			}
+			catch (InterruptedException exception)
+			{
+				LOG.warn("S3 Parquet Assembler Uploader executor service did not shutdown due to interrupt {}",
+						service);
+				Thread.currentThread().interrupt();
+			}
+
 			if (!success)
 			{
 				try

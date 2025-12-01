@@ -1,6 +1,5 @@
 package com.earnix.parquet.columnar.s3.buffering;
 
-import com.earnix.parquet.columnar.s3.S3Constants;
 import org.apache.commons.io.input.BoundedInputStream;
 
 import java.io.IOException;
@@ -12,7 +11,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;

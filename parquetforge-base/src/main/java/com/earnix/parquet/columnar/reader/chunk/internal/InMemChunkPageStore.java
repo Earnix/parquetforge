@@ -7,7 +7,6 @@ import java.util.function.Supplier;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.page.DataPage;
 import org.apache.parquet.column.page.DictionaryPage;
-import org.apache.parquet.column.page.PageReader;
 
 /**
  * An in memory store for pages in a chunk. This class stores suppliers for the pages so they can be safely used

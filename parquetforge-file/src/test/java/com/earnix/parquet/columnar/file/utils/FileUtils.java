@@ -1,4 +1,4 @@
-package com.earnix.parquet.columnar.utils;
+package com.earnix.parquet.columnar.file.utils;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;

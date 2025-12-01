@@ -197,7 +197,6 @@ public class ChunkPages
 
 		final int headerSizeInBytes = storeHeaderBytes(pageHeader);
 
-		dataPage.getUncompressedSize();
 		addBytes(dataPage.getRepetitionLevels());
 		addBytes(dataPage.getDefinitionLevels());
 

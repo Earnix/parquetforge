@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
 
 import static com.earnix.parquet.columnar.file.GeneralColumnReader.getValue;
 import static com.earnix.parquet.columnar.file.ParquetFileFiller.fillWithRowGroups;
-import static com.earnix.parquet.columnar.utils.FileUtils.processPath;
+import static com.earnix.parquet.columnar.file.utils.FileUtils.processPath;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.junit.Assert.assertEquals;

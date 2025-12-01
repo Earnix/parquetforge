@@ -47,7 +47,7 @@ public class IndexParquetColumnarFileReaderTest
 	/**
 	 * A simple test of the indexed parquet file reader
 	 *
-	 * @throws Exception
+	 * @throws Exception on failure
 	 */
 	@Test
 	public void simpleTest() throws Exception

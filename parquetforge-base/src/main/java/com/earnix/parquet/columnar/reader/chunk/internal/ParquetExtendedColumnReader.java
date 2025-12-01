@@ -1,15 +1,11 @@
 package com.earnix.parquet.columnar.reader.chunk.internal;
 
-import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.parquet.VersionParser;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.Dictionary;
 import org.apache.parquet.column.impl.ColumnReaderImpl;
-import org.apache.parquet.column.page.PageReader;
 import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.io.api.PrimitiveConverter;
-
-import java.lang.reflect.Field;
 
 /**
  * This class is a great example of how *not* to handle encapsulation. However, the alternative would be copy/pasting a

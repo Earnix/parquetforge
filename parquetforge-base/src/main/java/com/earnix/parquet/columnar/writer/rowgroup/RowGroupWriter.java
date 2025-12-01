@@ -3,7 +3,6 @@ package com.earnix.parquet.columnar.writer.rowgroup;
 import java.io.IOException;
 import java.io.InputStream;
 
-import com.earnix.parquet.columnar.writer.columnchunk.ChunkPages;
 import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.ColumnChunk;

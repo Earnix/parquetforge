@@ -2,7 +2,6 @@ package com.earnix.parquet.columnar.assembler;
 
 import com.earnix.parquet.columnar.utils.ParquetMagicUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.io.function.Uncheck;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.schema.MessageType;
 

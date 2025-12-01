@@ -4,7 +4,6 @@ import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages;
 import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkWriter;
 
 import java.io.IOException;
-import java.util.function.Function;
 
 @FunctionalInterface
 public interface ChunkValuesWritingFunction

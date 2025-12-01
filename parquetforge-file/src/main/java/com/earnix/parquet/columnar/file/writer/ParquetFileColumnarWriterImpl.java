@@ -13,7 +13,6 @@ import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.format.FileMetaData;
-import org.apache.parquet.format.SchemaElement;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.Type;
 
