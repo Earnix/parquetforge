@@ -1,9 +1,12 @@
 package com.earnix.parquet.columnar.reader;
 
 import com.earnix.parquet.columnar.utils.ParquetEnumUtils;
+import com.earnix.parquet.columnar.utils.ParquetMetadataConverterUtils;
 import org.apache.parquet.format.FieldRepetitionType;
 import org.apache.parquet.format.FileMetaData;
 import org.apache.parquet.format.SchemaElement;
+import org.apache.parquet.schema.DecimalMetadata;
+import org.apache.parquet.schema.LogicalTypeAnnotation;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
@@ -12,6 +15,8 @@ import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+
+import static com.earnix.parquet.columnar.utils.ParquetEnumUtils.convert;
 
 /**
  * Utils for processing parquet metadata
@@ -47,20 +52,36 @@ public class ParquetMetadataUtils
 				throw new UnsupportedEncodingException(
 						"Field: " + nameKey + " Unsupported: " + schemaElement.getRepetition_type());
 			}
-			PrimitiveType.PrimitiveTypeName primitiveTypeName = ParquetEnumUtils.convert(schemaElement.getType());
-
+			PrimitiveType.PrimitiveTypeName primitiveTypeName = convert(schemaElement.getType());
 			PrimitiveType primitiveType;
 			if (primitiveTypeName == PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY)
 			{
 				if (!schemaElement.isSetType_length() || schemaElement.getType_length() <= 0)
 					throw new IllegalStateException("fixed length binary must have a valid len");
-				primitiveType = new PrimitiveType(ParquetEnumUtils.convert(schemaElement.getRepetition_type()),
+				primitiveType = new PrimitiveType(convert(schemaElement.getRepetition_type()),
 						primitiveTypeName, schemaElement.getType_length(), nameKey);
 			}
 			else
 			{
-				primitiveType = new PrimitiveType(ParquetEnumUtils.convert(schemaElement.getRepetition_type()),
+				primitiveType = new PrimitiveType(convert(schemaElement.getRepetition_type()),
 						primitiveTypeName, nameKey);
+			}
+
+			if (schemaElement.isSetLogicalType())
+			{
+				// todo - logical type conversion
+				primitiveType = primitiveType.withLogicalTypeAnnotation(
+						ParquetMetadataConverterUtils.getLogicalTypeAnnotation(schemaElement.getLogicalType()));
+			}
+			else if (schemaElement.isSetConverted_type())
+			{
+				// deprecated old convertedType
+				int scale = (schemaElement.isSetScale() ? 0 : schemaElement.scale);
+				int precision = (schemaElement.isSetPrecision() ? 0 : schemaElement.precision);
+				DecimalMetadata decimalMetadata = new DecimalMetadata(scale, precision);
+				primitiveType = primitiveType.withLogicalTypeAnnotation(
+						LogicalTypeAnnotation.fromOriginalType(convert(schemaElement.getConverted_type()),
+								decimalMetadata));
 			}
 
 			primitiveTypeList.add(primitiveType);

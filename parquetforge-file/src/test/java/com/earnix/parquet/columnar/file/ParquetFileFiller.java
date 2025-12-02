@@ -7,6 +7,7 @@ import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import com.earnix.parquet.columnar.writer.rowgroup.RowGroupWriter;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.CompressionCodec;
+import org.apache.parquet.schema.LogicalTypeAnnotation;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
@@ -28,6 +29,7 @@ import static com.earnix.parquet.columnar.utils.ColumnWritingUtil.writeBooleanCo
 import static com.earnix.parquet.columnar.utils.ColumnWritingUtil.writeDoubleColumn;
 import static com.earnix.parquet.columnar.utils.ColumnWritingUtil.writeInt32Column;
 import static com.earnix.parquet.columnar.utils.ColumnWritingUtil.writeInt64Column;
+import static org.apache.parquet.schema.LogicalTypeAnnotation.stringType;
 
 public class ParquetFileFiller
 {
@@ -61,7 +63,8 @@ public class ParquetFileFiller
 			new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.BOOLEAN, COL_BOOLEAN_2_NAME),
 			new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.INT32, COL_3_INT_32_NAME),
 			new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT64, COL_4_INT_64_NAME),
-			new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.BINARY, COL_5_BINARY_NAME));
+			new PrimitiveType(Type.Repetition.REQUIRED, PrimitiveType.PrimitiveTypeName.BINARY,
+					COL_5_BINARY_NAME).withLogicalTypeAnnotation(stringType()));
 
 	// List is copied so generics is happy.
 	private static final MessageType messageType = new MessageType("root", new ArrayList<>(PARQUET_COLUMNS));

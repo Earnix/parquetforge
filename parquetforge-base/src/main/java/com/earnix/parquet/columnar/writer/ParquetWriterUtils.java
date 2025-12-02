@@ -2,17 +2,32 @@ package com.earnix.parquet.columnar.writer;
 
 import com.earnix.parquet.columnar.utils.ParquetEnumUtils;
 import com.earnix.parquet.columnar.utils.ParquetMagicUtils;
+import com.earnix.parquet.columnar.utils.ParquetMetadataConverterUtils;
 import com.earnix.parquet.columnar.writer.rowgroup.ColumnChunkInfo;
 import com.earnix.parquet.columnar.writer.rowgroup.RowGroupInfo;
 import org.apache.commons.io.output.CountingOutputStream;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.ColumnChunk;
+import org.apache.parquet.format.EdgeInterpolationAlgorithm;
 import org.apache.parquet.format.FileMetaData;
+import org.apache.parquet.format.GeographyType;
+import org.apache.parquet.format.GeometryType;
+import org.apache.parquet.format.IntType;
 import org.apache.parquet.format.KeyValue;
+import org.apache.parquet.format.LogicalType;
+import org.apache.parquet.format.LogicalTypes;
+import org.apache.parquet.format.MicroSeconds;
+import org.apache.parquet.format.MilliSeconds;
+import org.apache.parquet.format.NanoSeconds;
 import org.apache.parquet.format.RowGroup;
 import org.apache.parquet.format.SchemaElement;
+import org.apache.parquet.format.TimeType;
+import org.apache.parquet.format.TimeUnit;
+import org.apache.parquet.format.TimestampType;
 import org.apache.parquet.format.Util;
+import org.apache.parquet.schema.LogicalTypeAnnotation;
 import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.OriginalType;
 import org.apache.parquet.schema.PrimitiveType;
 
 import java.io.IOException;
@@ -27,7 +42,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
+
+import static java.util.Optional.of;
 
 /**
  * Utility class for functions that assist in writing parquet files
@@ -89,9 +107,16 @@ public class ParquetWriterUtils
 	{
 		Map<ColumnDescriptor, Integer> schemaOrder = new HashMap<>();
 		int idx = 0;
-		for (ColumnDescriptor descriptor : messageType.getColumns())
+		List<ColumnDescriptor> colList = messageType.getColumns();
+		for (ColumnDescriptor descriptor : colList)
 		{
-			schemaOrder.put(descriptor, idx++);
+			Integer hopefullyNull = schemaOrder.put(descriptor, idx++);
+			if (hopefullyNull != null)
+			{
+				throw new IllegalStateException(
+						"Duplicate column descriptor in message type. " + colList.get(hopefullyNull) + " "
+								+ descriptor);
+			}
 		}
 		return schemaOrder;
 	}
@@ -148,6 +173,20 @@ public class ParquetWriterUtils
 			schemaElement.setName(colName);
 			PrimitiveType.PrimitiveTypeName primitiveTypeName = descriptor.getPrimitiveType().getPrimitiveTypeName();
 			schemaElement.setType(ParquetEnumUtils.convert(primitiveTypeName));
+
+			// for compatibility set original type
+			OriginalType originalType = descriptor.getPrimitiveType().getOriginalType();
+			if (originalType != null)
+			{
+				schemaElement.setConverted_type(ParquetEnumUtils.convert(originalType));
+				// need to set scale / precision
+			}
+			LogicalTypeAnnotation logicalTypeAnnotation = descriptor.getPrimitiveType().getLogicalTypeAnnotation();
+			if (logicalTypeAnnotation != null)
+			{
+				schemaElement.setLogicalType(ParquetMetadataConverterUtils.convertToLogicalType(logicalTypeAnnotation));
+			}
+
 			if (primitiveTypeName == PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY)
 			{
 				if (descriptor.getPrimitiveType().getTypeLength() <= 0)

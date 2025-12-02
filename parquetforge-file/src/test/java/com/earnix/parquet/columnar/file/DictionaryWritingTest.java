@@ -8,8 +8,8 @@ import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import org.apache.parquet.format.ColumnChunk;
 import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.schema.MessageType;
-import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
+import org.apache.parquet.schema.Types;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Random;
 
 import static java.util.Arrays.asList;
+import static org.apache.parquet.schema.LogicalTypeAnnotation.intType;
+import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32;
 
 public class DictionaryWritingTest
 {
@@ -28,14 +30,13 @@ public class DictionaryWritingTest
 	 * making sure that dict offset in the metadata gets set correctly.
 	 */
 	@Test
-	public void testWriteDict() throws IOException
+	public void testWriteIntDict() throws IOException
 	{
-
 		String notDict = "NotDict";
 		String yesDict = "YesDict";
 		List<Type> parquetCols = asList(
-				new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT32, notDict),
-				new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT32, yesDict));
+				Types.optional(INT32).named(notDict).withLogicalTypeAnnotation(intType(Integer.SIZE)),
+				Types.optional(INT32).named(yesDict));
 
 		MessageType messageType = new MessageType("root", parquetCols);
 		Path tmpFile = Files.createTempFile("testDict", ".parquet");
@@ -45,6 +46,12 @@ public class DictionaryWritingTest
 
 			IndexedParquetColumnarReader reader = ParquetFileReaderFactory.createIndexedColumnarFileReader(tmpFile);
 			Assert.assertEquals(1, reader.getNumRowGroups());
+
+			// assert types were decoded correctly.
+			Assert.assertEquals(intType(Integer.SIZE),
+					reader.getDescriptor(0).getPrimitiveType().getLogicalTypeAnnotation());
+			Assert.assertNull(reader.getDescriptor(1).getPrimitiveType().getLogicalTypeAnnotation());
+
 			ColumnChunk cc1 = reader.getColumnChunk(0, reader.getDescriptor(0));
 			Assert.assertEquals(asList(notDict), cc1.getMeta_data().getPath_in_schema());
 			Assert.assertFalse(cc1.getMeta_data().isSetDictionary_page_offset());

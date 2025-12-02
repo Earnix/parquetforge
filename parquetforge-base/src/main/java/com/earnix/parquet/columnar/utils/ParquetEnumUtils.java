@@ -1,13 +1,14 @@
 package com.earnix.parquet.columnar.utils;
 
+import org.apache.parquet.format.ConvertedType;
 import org.apache.parquet.format.Encoding;
 import org.apache.parquet.format.FieldRepetitionType;
+import org.apache.parquet.schema.OriginalType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
 
 public class ParquetEnumUtils
 {
-
 	public static Encoding convert(org.apache.parquet.column.Encoding encoding)
 	{
 		return Encoding.valueOf(encoding.name());
@@ -45,5 +46,15 @@ public class ParquetEnumUtils
 	public static Type.Repetition convert(FieldRepetitionType repetition)
 	{
 		return Type.Repetition.valueOf(repetition.name());
+	}
+
+	public static ConvertedType convert(OriginalType originalType)
+	{
+		return ConvertedType.valueOf(originalType.toString());
+	}
+
+	public static OriginalType convert(ConvertedType convertedType)
+	{
+		return OriginalType.valueOf(convertedType.toString());
 	}
 }
