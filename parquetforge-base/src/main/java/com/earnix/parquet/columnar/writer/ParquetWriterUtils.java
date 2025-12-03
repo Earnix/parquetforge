@@ -25,6 +25,7 @@ import org.apache.parquet.format.TimeType;
 import org.apache.parquet.format.TimeUnit;
 import org.apache.parquet.format.TimestampType;
 import org.apache.parquet.format.Util;
+import org.apache.parquet.schema.DecimalMetadata;
 import org.apache.parquet.schema.LogicalTypeAnnotation;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.OriginalType;
@@ -179,7 +180,13 @@ public class ParquetWriterUtils
 			if (originalType != null)
 			{
 				schemaElement.setConverted_type(ParquetEnumUtils.convert(originalType));
-				// need to set scale / precision
+
+				DecimalMetadata decimalMetadata = descriptor.getPrimitiveType().getDecimalMetadata();
+				if (decimalMetadata != null)
+				{
+					schemaElement.setScale(decimalMetadata.getScale());
+					schemaElement.setScale(decimalMetadata.getPrecision());
+				}
 			}
 			LogicalTypeAnnotation logicalTypeAnnotation = descriptor.getPrimitiveType().getLogicalTypeAnnotation();
 			if (logicalTypeAnnotation != null)

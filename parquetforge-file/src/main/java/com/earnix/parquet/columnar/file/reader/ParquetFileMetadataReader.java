@@ -122,6 +122,13 @@ public class ParquetFileMetadataReader
 			throw new IllegalStateException("Parquet file did not contain expected magic");
 	}
 
+	/**
+	 * Read the footer metadata from the specified parquet file
+	 *
+	 * @param parquetFilePath the parquet file on disk
+	 * @return the decoded metadata
+	 * @throws IOException on failure reading the file
+	 */
 	public static FileMetaData readFileMetadata(Path parquetFilePath) throws IOException
 	{
 		try (FileChannel fc = FileChannel.open(parquetFilePath))

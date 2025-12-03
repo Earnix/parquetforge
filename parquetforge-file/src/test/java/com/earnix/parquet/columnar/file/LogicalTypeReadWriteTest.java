@@ -36,6 +36,9 @@ import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.FLOAT;
 import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32;
 import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT64;
 
+/**
+ * Test logical type and original type is written and read correctly.
+ */
 public class LogicalTypeReadWriteTest
 {
 	private static final List<PrimitiveType> PARQUET_COLUMNS = Arrays.asList(//

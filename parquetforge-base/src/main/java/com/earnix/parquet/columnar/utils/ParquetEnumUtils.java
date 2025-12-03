@@ -7,6 +7,9 @@ import org.apache.parquet.schema.OriginalType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
 
+/**
+ * Parquet-Column duplicates enums produced by the thrift compiler in parquet-format. This util translates between them
+ */
 public class ParquetEnumUtils
 {
 	public static Encoding convert(org.apache.parquet.column.Encoding encoding)

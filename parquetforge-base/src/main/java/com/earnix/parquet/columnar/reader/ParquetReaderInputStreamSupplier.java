@@ -15,5 +15,13 @@ public interface ParquetReaderInputStreamSupplier
 	 */
 	FileMetaData readMetaData() throws IOException;
 
+	/**
+	 * Create a new {@link InputStream} for the start offset to read the specified number of bytes
+	 *
+	 * @param startOffset    the start offset of the input stream
+	 * @param numBytesToRead the number of bytes to read
+	 * @return the created {@link InputStream}. The caller MUST close the returned stream
+	 * @throws IOException on failure accessing the parquet bytes
+	 */
 	InputStream createInputStream(long startOffset, long numBytesToRead) throws IOException;
 }

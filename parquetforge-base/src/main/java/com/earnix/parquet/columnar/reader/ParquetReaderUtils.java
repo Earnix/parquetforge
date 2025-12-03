@@ -46,6 +46,16 @@ public class ParquetReaderUtils
 		return startOffset;
 	}
 
+	/**
+	 * Read the specified column chunk into memory
+	 *
+	 * @param colDescriptor    the column descriptor
+	 * @param is               the {@link InputStream} containing the bytes for this chunk
+	 * @param chunkLen         the number of bytes in this chunk
+	 * @param compressionCodec the compression codec used for this chunk
+	 * @return the decompressed chunk loaded into memory
+	 * @throws IOException on failure reading from {@link InputStream} or decompressing
+	 */
 	public static InMemChunk readInMemChunk(ColumnDescriptor colDescriptor, InputStream is, long chunkLen,
 			CompressionCodec compressionCodec) throws IOException
 	{
