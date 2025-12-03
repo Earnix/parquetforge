@@ -19,6 +19,9 @@ import java.util.List;
 
 public class S3ParquetReaderFactoryTest
 {
+	/**
+	 * Tests {@link IndexedParquetColumnarReader} backed directly from s3 correctly reads column data.
+	 */
 	@Test
 	public void createReaderFromS3ClientReadsValues() throws Exception
 	{
@@ -35,9 +38,9 @@ public class S3ParquetReaderFactoryTest
 			Assert.assertEquals(uploaded.messageType, reader.getMessageType());
 			Assert.assertEquals(uploaded.numRowGroups(), reader.getNumRowGroups());
 
-			Assert.assertEquals(Arrays.asList(1.0, 2.0), readValues(reader, uploaded.descriptor, 0));
-			Assert.assertEquals(Arrays.asList(3.0), readValues(reader, uploaded.descriptor, 1));
-			Assert.assertEquals(uploaded.descriptor, reader.getDescriptorByPath(S3ReaderTestUtils.COLUMN_NAME));
+			Assert.assertEquals(Arrays.asList(1.0, 2.0), readValues(reader, uploaded.descriptor(), 0));
+			Assert.assertEquals(Arrays.asList(3.0), readValues(reader, uploaded.descriptor(), 1));
+			Assert.assertEquals(uploaded.descriptor(), reader.getDescriptorByPath(S3ReaderTestUtils.COLUMN_NAME));
 		}
 	}
 
@@ -55,8 +58,8 @@ public class S3ParquetReaderFactoryTest
 			IndexedParquetColumnarReader reader = S3ParquetReaderFactory.createIndexedColumnarS3Reader(downloader);
 
 			Assert.assertEquals(uploaded.totalRows(), reader.getTotalNumRows());
-			Assert.assertEquals(Arrays.asList(4.0), readValues(reader, uploaded.descriptor, 0));
-			Assert.assertEquals(Arrays.asList(5.0, 6.0), readValues(reader, uploaded.descriptor, 1));
+			Assert.assertEquals(Arrays.asList(4.0), readValues(reader, uploaded.descriptor(), 0));
+			Assert.assertEquals(Arrays.asList(5.0, 6.0), readValues(reader, uploaded.descriptor(), 1));
 		}
 	}
 

@@ -12,6 +12,9 @@ import java.util.Arrays;
 
 public class S3ParquetMetadataReaderUtilsTest
 {
+	/**
+	 * Sanity validation of footer metadata download from s3
+	 */
 	@Test
 	public void readFileMetadataReturnsFooterFromS3() throws Exception
 	{

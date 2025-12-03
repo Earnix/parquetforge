@@ -6,6 +6,7 @@ import com.earnix.parquet.columnar.s3.downloader.S3KeyDownloader;
 import org.apache.commons.io.IOUtils;
 import org.junit.Assert;
 import org.junit.Test;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 
 import java.io.ByteArrayInputStream;
@@ -14,6 +15,9 @@ import java.nio.charset.StandardCharsets;
 
 public class S3RangeInputStreamSupplierTest
 {
+	/**
+	 * Test range downloader works as intended
+	 */
 	@Test
 	public void getReturnsRequestedRange() throws Exception
 	{
@@ -23,16 +27,12 @@ public class S3RangeInputStreamSupplierTest
 		{
 			S3Client s3Client = service.getS3Client();
 			String key = "test";
-			try (S3KeyUploader uploader = new S3KeyUploader(s3Client, service.testBucket(), key))
-			{
-				uploader.uploadPart(1, payload.length, () -> new ByteArrayInputStream(payload));
-				uploader.finish();
-			}
+			s3Client.putObject(builder -> builder.bucket(service.testBucket()).key(key),
+					RequestBody.fromBytes(payload));
 
 			S3KeyDownloader downloader = new S3KeyDownloader(s3Client, service.testBucket(), key);
-			S3RangeInputStreamSupplier supplier = new S3RangeInputStreamSupplier(downloader, 5, 10);
 
-			try (InputStream is = supplier.get())
+			try (InputStream is = new S3RangeInputStreamSupplier(downloader, 5, 10).get())
 			{
 				byte[] data = IOUtils.toByteArray(is);
 				Assert.assertArrayEquals("56789abcde".getBytes(StandardCharsets.UTF_8), data);
