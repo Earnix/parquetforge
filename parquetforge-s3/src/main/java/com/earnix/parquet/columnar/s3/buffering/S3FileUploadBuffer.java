@@ -1,6 +1,9 @@
 package com.earnix.parquet.columnar.s3.buffering;
 
+import com.google.common.primitives.Longs;
 import org.apache.commons.io.input.BoundedInputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,6 +24,7 @@ import java.util.function.Supplier;
  */
 public class S3FileUploadBuffer
 {
+	private static final Logger LOG = LoggerFactory.getLogger(S3FileUploadBuffer.class);
 	private final int targetPartsPerRowGroup;
 	private final Path tmpFile;
 	private final FileChannel tmpFileChannel;
@@ -62,7 +66,7 @@ public class S3FileUploadBuffer
 		long[] possibleRanges = addZeroForStartRange(possibleUploadOffsets);
 		long[] parts = UploadPartUtils.computePartDivisions(targetPartsPerRowGroup, possibleRanges);
 
-		// in this case - we upload anyways because the last part has no minimum limit.
+		// in this case - we upload anyway because the last part has no minimum size.
 		if (parts == null && isLastPart)
 		{
 			parts = new long[] { 0, lastElement(possibleUploadOffsets) };
@@ -95,6 +99,9 @@ public class S3FileUploadBuffer
 
 	private List<Runnable> createRunnables(S3KeyUploader uploader, long[] parts)
 	{
+		LOG.debug("Uploading {} job parts for {} with boundaries {}", parts.length - 1, uploader.getS3UploadUri(),
+				Longs.asList(parts));
+
 		List<Runnable> uploadJobs = new ArrayList<>(parts.length - 1);
 		AtomicInteger countdown = new AtomicInteger(parts.length - 1);
 		for (int uploadPart = 1; uploadPart < parts.length; uploadPart++)
@@ -104,11 +111,15 @@ public class S3FileUploadBuffer
 			long dataPagesLen = parts[uploadPart] - startOffset;
 			Supplier<InputStream> inputStreamSupplier = () -> inputStreamInRange(this.tmpFile, startOffset,
 					dataPagesLen);
+			LOG.debug("Created upload job for {} partNum: {} startOffset: {} len: {}", uploader.getS3UploadUri(),
+					s3PartNum, startOffset, dataPagesLen);
 
 			Runnable uploadJob = () -> {
 				try
 				{
 					uploader.uploadPart(s3PartNum, dataPagesLen, inputStreamSupplier);
+					LOG.debug("Completed upload job for {} partNum: {} startOffset: {} len: {}", uploader.getS3UploadUri(),
+							s3PartNum, startOffset, dataPagesLen);
 				}
 				finally
 				{
@@ -119,10 +130,13 @@ public class S3FileUploadBuffer
 						try
 						{
 							this.close();
+							LOG.trace("Completed all upload jobs for {} in tmp file. Closing tmp file",
+									uploader.getS3UploadUri());
 						}
 						catch (IOException ex)
 						{
 							// exception deleting tmp file - nothing we can do.
+							LOG.warn("Error deleting temp file", ex);
 						}
 					}
 				}
@@ -152,8 +166,21 @@ public class S3FileUploadBuffer
 
 	public void close() throws IOException
 	{
-		closeChannel();
-		Files.deleteIfExists(tmpFile);
+		try
+		{
+			closeChannel();
+		}
+		finally
+		{
+			try
+			{
+				Files.deleteIfExists(tmpFile);
+			}
+			catch (IOException exception)
+			{
+				LOG.warn("Error deleting tmpFile " + tmpFile, exception);
+			}
+		}
 	}
 
 	public void closeChannel() throws IOException

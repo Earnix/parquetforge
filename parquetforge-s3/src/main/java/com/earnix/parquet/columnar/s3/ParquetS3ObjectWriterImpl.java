@@ -13,6 +13,8 @@ import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.format.FileMetaData;
 import org.apache.parquet.schema.MessageType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -21,7 +23,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -38,6 +42,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class ParquetS3ObjectWriterImpl implements ParquetColumnarWriter
 {
+	private static final Logger LOG = LoggerFactory.getLogger(ParquetS3ObjectWriterImpl.class);
 	private static final int DAYS_IN_A_YEAR = 365;
 
 	// These should be configurable.
@@ -61,6 +66,7 @@ public class ParquetS3ObjectWriterImpl implements ParquetColumnarWriter
 	private S3RowGroupWriterImpl lastWriter = null;
 
 	private S3FileUploadBuffer buffer;
+	private final List<Future<?>> uploadJobs = new ArrayList<>();
 
 	private static Path createTmpFolder() throws IOException
 	{
@@ -174,10 +180,10 @@ public class ParquetS3ObjectWriterImpl implements ParquetColumnarWriter
 			buffer.closeChannel();
 			buffer = null;
 
-			// TODO: we need to add error handling - if an upload job has an exception, it doesn't bubble back here.
 			for (Runnable uploadJob : uploadJobs.get())
 			{
-				executor.submit(uploadJob);
+				Future<?> uploadJobResult = executor.submit(uploadJob);
+				this.uploadJobs.add(uploadJobResult);
 			}
 
 			offsetOfCurrentFile += possibleSplitPoints[possibleSplitPoints.length - 1];
@@ -211,12 +217,28 @@ public class ParquetS3ObjectWriterImpl implements ParquetColumnarWriter
 			{
 				throw new IOException("upload timed out");
 			}
+
+			// all futures have completed because executor shutdown and await completes all pending jobs
+			for (Future<?> fut : this.uploadJobs)
+			{
+				try
+				{
+					fut.get();
+				}
+				catch (ExecutionException e)
+				{
+					throw new IOException(
+							"Failure in async upload job for " + this.s3KeyUploader.getS3UploadUri(), e);
+				}
+			}
 		}
 		catch (InterruptedException ex)
 		{
 			Thread.currentThread().interrupt();
 			throw new IOException("upload was interrupted");
 		}
+		LOG.debug("Async upload jobs for {} completed. Uploaded {} parts.", s3KeyUploader.getS3UploadUri(),
+				this.uploadJobs.size());
 	}
 
 	@Override

@@ -3,6 +3,8 @@ package com.earnix.parquet.columnar.s3.buffering;
 import com.earnix.parquet.columnar.s3.S3Constants;
 import com.google.common.util.concurrent.RateLimiter;
 import org.apache.commons.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import shaded.parquet.it.unimi.dsi.fastutil.objects.ObjectIntImmutablePair;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.http.ContentStreamProvider;
@@ -28,6 +30,8 @@ import java.util.function.Supplier;
  */
 public class S3KeyUploader implements AutoCloseable
 {
+	private static final Logger LOG = LoggerFactory.getLogger(S3KeyUploader.class);
+
 	private static final boolean ADD_ASSERTIONS = false;
 	// TODO: this should be made configurable
 	private static final int MAX_REQ_PER_SECOND = 500;
@@ -122,9 +126,7 @@ public class S3KeyUploader implements AutoCloseable
 		String createdUploadId = getOrCreateUploadId();
 		if (ADD_ASSERTIONS)
 		{
-			System.out.println(
-					"Upload Part key: " + key + " uploadId: " + createdUploadId + " partNumber: " + partNum + " len: "
-							+ len);
+			LOG.info("Upload Part key: {} uploadId: {} partNumber: {} len: {}", key, createdUploadId, partNum, len);
 			try
 			{
 				int computedLen = IOUtils.toByteArray(is.get()).length;
@@ -139,6 +141,8 @@ public class S3KeyUploader implements AutoCloseable
 
 		UploadPartResponse resp = s3Client.uploadPart(
 				builder -> builder.bucket(bucket).key(key).uploadId(createdUploadId).partNumber(partNum), requestBody);
+		LOG.debug("Finished upload for {} uploadId: {} partNum: {} resp: {}", getS3UploadUri(), uploadId, partNum,
+				resp);
 
 		uploadPartResponseList.add(new ObjectIntImmutablePair<>(resp, partNum));
 	}
@@ -160,6 +164,13 @@ public class S3KeyUploader implements AutoCloseable
 				.sorted(Comparator.comparingInt(ObjectIntImmutablePair::rightInt))//sort by part number
 				.map(resp -> CompletedPart.builder().partNumber(resp.rightInt()).eTag(resp.left().eTag()).build())
 				.toArray(CompletedPart[]::new);
+
+		LOG.debug("Found {} completed parts for {} uploadId: {}", completedParts.length, getS3UploadUri(),
+				uploadId);
+		for (CompletedPart completedPart : completedParts)
+		{
+			LOG.trace("S3Object: {} CompletedPart {}", getS3UploadUri(), completedPart);
+		}
 
 		CompletedMultipartUpload completedMultipartUpload = CompletedMultipartUpload.builder().parts(completedParts)
 				.build();
@@ -209,6 +220,14 @@ public class S3KeyUploader implements AutoCloseable
 			}
 		}
 		return uploadId;
+	}
+
+	/**
+	 * @return s3 upload URI (example: "s3://mybucket/parquetfile.parquet")
+	 */
+	public String getS3UploadUri()
+	{
+		return "s3://" + bucket + "/" + key;
 	}
 
 	@Override
