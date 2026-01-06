@@ -3,6 +3,7 @@ package com.earnix.parquet.columnar.s3;
 import com.earnix.parquet.columnar.s3.buffering.S3FileUploadBuffer;
 import com.earnix.parquet.columnar.s3.buffering.S3KeyUploader;
 import com.earnix.parquet.columnar.utils.ParquetMagicUtils;
+import com.earnix.parquet.columnar.writer.BaseParquetColumnarWriter;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import com.earnix.parquet.columnar.writer.ParquetFileInfo;
 import com.earnix.parquet.columnar.writer.ParquetWriterUtils;
@@ -40,7 +41,7 @@ import java.util.concurrent.TimeUnit;
  * a boundary between two column's data pages. But not necessarily between two RowGroups, as this isn't possible if a
  * RowGroup is less than {@link S3Constants#MIN_S3_PART_SIZE}
  */
-public class ParquetS3ObjectWriterImpl implements ParquetColumnarWriter
+public class ParquetS3ObjectWriterImpl extends BaseParquetColumnarWriter implements ParquetColumnarWriter
 {
 	private static final Logger LOG = LoggerFactory.getLogger(ParquetS3ObjectWriterImpl.class);
 	private static final int DAYS_IN_A_YEAR = 365;
@@ -52,17 +53,11 @@ public class ParquetS3ObjectWriterImpl implements ParquetColumnarWriter
 	private final S3KeyUploader s3KeyUploader;
 	private final int targetS3PartsPerRowGroup;
 
-	// TODO: this needs to be a base class or wrapped elsewhere - dupe code in file writer
-	private final MessageType messageType;
-	private final ParquetProperties parquetProperties;
-	private final CompressionCodec compressionCodec;
-
 	private final boolean deleteTmpFolder;
 	private final Path tmpFolder;
 
 	// offset from all previous buffers that have been uploaded.
 	private long offsetOfCurrentFile = 0L;
-	private final List<RowGroupInfo> rowGroupInfos = new ArrayList<>();
 	private S3RowGroupWriterImpl lastWriter = null;
 
 	private S3FileUploadBuffer buffer;
@@ -106,11 +101,9 @@ public class ParquetS3ObjectWriterImpl implements ParquetColumnarWriter
 			ParquetProperties parquetProperties, CompressionCodec compressionCodec, boolean deleteTmpFolder,
 			Path tmpFolder)
 	{
+		super(messageType, parquetProperties, compressionCodec);
 		this.s3KeyUploader = s3KeyUploader;
 		this.targetS3PartsPerRowGroup = targetPartsPerRowGroup;
-		this.messageType = messageType;
-		this.parquetProperties = parquetProperties;
-		this.compressionCodec = compressionCodec;
 		this.deleteTmpFolder = deleteTmpFolder;
 		this.tmpFolder = tmpFolder;
 
@@ -135,7 +128,7 @@ public class ParquetS3ObjectWriterImpl implements ParquetColumnarWriter
 			}
 		}
 
-		lastWriter = new S3RowGroupWriterImpl(messageType, compressionCodec, parquetProperties, numRows,
+		lastWriter = new S3RowGroupWriterImpl(getMessageType(), compressionCodec, parquetProperties, numRows,
 				buffer.getFilePath(), buffer.getTmpFileChannel(), buffer.getTmpFileChannel().position(),
 				offsetOfCurrentFile);
 		return lastWriter;
@@ -196,13 +189,13 @@ public class ParquetS3ObjectWriterImpl implements ParquetColumnarWriter
 		if (buffer == null)
 			makeNewBuffer();
 
-		FileMetaData fileMetaData = ParquetWriterUtils.getFileMetaData(messageType, rowGroupInfos);
+		FileMetaData fileMetaData = buildFileMetadata();
 		int numFooterBytes = ParquetWriterUtils.writeFooterMetadataAndMagic(buffer.getTmpFileChannel(), fileMetaData);
 		uploadBufferedData(new long[] { buffer.getTmpFileChannel().position() }, true);
 
 		waitForAsyncUploadJobs();
 		s3KeyUploader.finish();
-		return new ParquetFileInfo(offsetOfCurrentFile - numFooterBytes, offsetOfCurrentFile, messageType,
+		return new ParquetFileInfo(offsetOfCurrentFile - numFooterBytes, offsetOfCurrentFile, getMessageType(),
 				fileMetaData);
 	}
 

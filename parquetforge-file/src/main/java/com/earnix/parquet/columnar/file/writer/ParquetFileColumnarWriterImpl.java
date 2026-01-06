@@ -1,6 +1,7 @@
 package com.earnix.parquet.columnar.file.writer;
 
 import com.earnix.parquet.columnar.utils.ParquetMagicUtils;
+import com.earnix.parquet.columnar.writer.BaseParquetColumnarWriter;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import com.earnix.parquet.columnar.writer.ParquetFileInfo;
 import com.earnix.parquet.columnar.writer.ParquetWriterUtils;
@@ -22,25 +23,13 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
-import java.util.Set;
 
-import static org.apache.parquet.schema.Type.Repetition.OPTIONAL;
-import static org.apache.parquet.schema.Type.Repetition.REQUIRED;
-
-public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Closeable
+public class ParquetFileColumnarWriterImpl extends BaseParquetColumnarWriter implements ParquetColumnarWriter, Closeable
 {
-	private static final Set<Type.Repetition> supportedRepetition = EnumSet.of(REQUIRED, OPTIONAL);
-
-	// may be lazily populated
-	private MessageType messageType;
-
-	private final ParquetProperties parquetProperties;
-	private final CompressionCodec compressionCodec;
+	private static final String TABLE_ROOT_NAME = "root";
 
 	private FileRowGroupWriterImpl lastWriter = null;
-	private final List<RowGroupInfo> rowGroupInfos = new ArrayList<>();
 	private final Path outputFile;
 	private final FileChannel fileChannel;
 	private long offsetInFile;
@@ -48,13 +37,7 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 	ParquetFileColumnarWriterImpl(Path outputFile, MessageType messageType, CompressionCodec compressionCodec,
 			boolean cacheFileChannel) throws IOException
 	{
-		this.messageType = messageType;
-		if (messageType != null)
-			validateMessageType(messageType);
-
-		// this should be a constructor param
-		this.parquetProperties = ParquetProperties.builder().build();
-		this.compressionCodec = compressionCodec;
+		super(messageType, ParquetProperties.builder().build(), compressionCodec);
 
 		this.outputFile = outputFile;
 		// need to configure whether we want to hold the open channel
@@ -65,23 +48,6 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 		{
 			openCachedChannel().close();
 		}
-	}
-
-	private static void validateMessageType(MessageType messageType)
-	{
-		for (ColumnDescriptor desc : messageType.getColumns())
-		{
-			validateDescriptor(desc);
-		}
-	}
-
-	private static void validateDescriptor(ColumnDescriptor desc)
-	{
-		if (!supportedRepetition.contains(desc.getPrimitiveType().getRepetition()))
-			throw new IllegalStateException("Not supported repetition type: " + desc);
-
-		if (desc.getPath().length > 1)
-			throw new IllegalStateException("Nesting not supported : " + desc);
 	}
 
 	private FileChannel openCachedChannel() throws IOException
@@ -107,8 +73,8 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 			writeToFile(fc -> ParquetMagicUtils.writeMagicBytes(fc));
 		}
 
-		lastWriter = new FileRowGroupWriterImpl(messageType, compressionCodec, parquetProperties, numRows, outputFile,
-				fileChannel, offsetInFile);
+		lastWriter = new FileRowGroupWriterImpl(getMessageType(), compressionCodec, parquetProperties, numRows,
+				outputFile, fileChannel, offsetInFile);
 		return lastWriter;
 	}
 
@@ -142,7 +108,7 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 		offsetInFile += rowGrpInfo.getCompressedSize();
 		boolean isFirstRowGrp = rowGroupInfos.isEmpty();
 
-		if (isFirstRowGrp && messageType == null)
+		if (isFirstRowGrp && getMessageType() == null)
 		{
 			generateSchemaFromFirstRowGroup(rowGrpInfo);
 		}
@@ -153,17 +119,12 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 
 	private void generateSchemaFromFirstRowGroup(RowGroupInfo rowGrpInfo)
 	{
-		for (ColumnChunkInfo chunkInfo : rowGrpInfo.getCols())
-		{
-			validateDescriptor(chunkInfo.getDescriptor());
-		}
-
 		// lazily generate message schema.
 		Type[] cols = rowGrpInfo.getCols().stream()//
 				.map(ColumnChunkInfo::getDescriptor)//
 				.map(ColumnDescriptor::getPrimitiveType)//
 				.toArray(Type[]::new);
-		messageType = new MessageType("root", cols);
+		setMessageType(new MessageType(TABLE_ROOT_NAME, cols));
 	}
 
 	@Override
@@ -173,10 +134,10 @@ public class ParquetFileColumnarWriterImpl implements ParquetColumnarWriter, Clo
 			throw new IllegalStateException("Last writer was not closed");
 
 		long footerMetadataOffset = offsetInFile;
-		FileMetaData fileMetaData = ParquetWriterUtils.getFileMetaData(messageType, rowGroupInfos);
+		FileMetaData fileMetaData = buildFileMetadata();
 		writeToFile(fc -> ParquetWriterUtils.writeFooterMetadataAndMagic(fc, fileMetaData));
 
-		return new ParquetFileInfo(footerMetadataOffset, offsetInFile, messageType, fileMetaData);
+		return new ParquetFileInfo(footerMetadataOffset, offsetInFile, getMessageType(), fileMetaData);
 	}
 
 	@Override
