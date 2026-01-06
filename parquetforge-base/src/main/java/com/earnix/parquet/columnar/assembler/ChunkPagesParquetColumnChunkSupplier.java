@@ -40,7 +40,7 @@ public class ChunkPagesParquetColumnChunkSupplier implements ParquetColumnChunkS
 	}
 
 	@Override
-	public InputStream openInputStream() throws IOException
+	public InputStream openInputStream()
 	{
 		return pages.toInputStream();
 	}

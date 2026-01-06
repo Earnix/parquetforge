@@ -23,7 +23,7 @@ public class S3RangeInputStreamSupplier implements IOSupplier<InputStream>
 	}
 
 	@Override
-	public InputStream get() throws IOException
+	public InputStream get()
 	{
 		return s3KeyDownloader.openRange(startOffset, numBytesToRead);
 	}

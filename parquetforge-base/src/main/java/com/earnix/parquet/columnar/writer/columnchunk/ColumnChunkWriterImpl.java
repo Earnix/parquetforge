@@ -164,7 +164,7 @@ public class ColumnChunkWriterImpl implements com.earnix.parquet.columnar.writer
 	@Override
 	public ColumnChunkPages writeColumn(ColumnDescriptor column, boolean[] vals)
 	{
-		return writeColumn(column, new Iterator<Boolean>()
+		return writeColumn(column, new Iterator<>()
 		{
 			private int i = 0;
 

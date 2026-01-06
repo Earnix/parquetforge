@@ -69,7 +69,8 @@ public class S3ParquetAssembleAndUpload extends BaseParquetAssembler
 		int numColumns = rowGroups.get(0).getNumColumns();
 
 		List<ColumnDescriptor> orderedDescriptors = schema.getColumns();
-		UnsynchronizedByteArrayOutputStream serializedMetadata = BaseParquetAssembler.buildSerializedMetadata(orderedDescriptors, rowGroups);
+		UnsynchronizedByteArrayOutputStream serializedMetadata = BaseParquetAssembler.buildSerializedMetadata(
+				orderedDescriptors, rowGroups);
 
 		List<ParquetColumnChunkSupplier> orderedChunkSuppliers = orderChunkSuppliers(rowGroups, numColumns,
 				orderedDescriptors);
@@ -152,7 +153,7 @@ public class S3ParquetAssembleAndUpload extends BaseParquetAssembler
 		// out of file descriptors - only one file should be open at a time.
 		return () -> {
 			Iterator<Supplier<InputStream>> it = grp.iterator();
-			return new SequenceInputStream(new Enumeration<InputStream>()
+			return new SequenceInputStream(new Enumeration<>()
 			{
 				@Override
 				public boolean hasMoreElements()

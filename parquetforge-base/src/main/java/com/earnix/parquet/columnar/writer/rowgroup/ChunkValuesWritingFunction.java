@@ -8,5 +8,5 @@ import java.io.IOException;
 @FunctionalInterface
 public interface ChunkValuesWritingFunction
 {
-	ColumnChunkPages apply(ColumnChunkWriter columnChunkWriter) throws IOException;
+	ColumnChunkPages apply(ColumnChunkWriter columnChunkWriter);
 }

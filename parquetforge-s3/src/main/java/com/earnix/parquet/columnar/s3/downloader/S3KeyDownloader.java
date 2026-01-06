@@ -123,12 +123,11 @@ public class S3KeyDownloader
 	}
 
 	/**
-	 * Open an input stream for a specific byte range. Caller
-	 * is responsible for closing the returned stream.
+	 * Open an input stream for a specific byte range. Caller is responsible for closing the returned stream.
 	 *
 	 * @param startOffsetInclusive the first byte in the range (inclusive)
 	 * @param numBytesToRead       number of bytes to read starting at startOffsetInclusive
-	 * @return an {@link InputStream} positioned at the requested range
+	 * @return an {@link ResponseInputStream} positioned at the requested range
 	 */
 	public ResponseInputStream<GetObjectResponse> openRange(long startOffsetInclusive, long numBytesToRead)
 	{

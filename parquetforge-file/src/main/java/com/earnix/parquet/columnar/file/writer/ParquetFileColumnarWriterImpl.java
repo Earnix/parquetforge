@@ -22,13 +22,9 @@ import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
-import java.util.List;
 
 public class ParquetFileColumnarWriterImpl extends BaseParquetColumnarWriter implements ParquetColumnarWriter, Closeable
 {
-	private static final String TABLE_ROOT_NAME = "root";
-
 	private FileRowGroupWriterImpl lastWriter = null;
 	private final Path outputFile;
 	private final FileChannel fileChannel;
@@ -124,7 +120,7 @@ public class ParquetFileColumnarWriterImpl extends BaseParquetColumnarWriter imp
 				.map(ColumnChunkInfo::getDescriptor)//
 				.map(ColumnDescriptor::getPrimitiveType)//
 				.toArray(Type[]::new);
-		setMessageType(new MessageType(TABLE_ROOT_NAME, cols));
+		setMessageType(new MessageType(ParquetFileColumnarWriterFactory.TABLE_ROOT_NAME, cols));
 	}
 
 	@Override

@@ -1,7 +1,6 @@
 package com.earnix.parquet.columnar.s3.reader;
 
 import com.earnix.parquet.columnar.s3.S3MockService;
-import com.earnix.parquet.columnar.s3.buffering.S3KeyUploader;
 import com.earnix.parquet.columnar.s3.downloader.S3KeyDownloader;
 import org.apache.commons.io.IOUtils;
 import org.junit.Assert;
@@ -9,7 +8,6 @@ import org.junit.Test;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 

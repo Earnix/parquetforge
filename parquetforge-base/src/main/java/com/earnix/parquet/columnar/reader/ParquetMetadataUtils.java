@@ -1,6 +1,5 @@
 package com.earnix.parquet.columnar.reader;
 
-import com.earnix.parquet.columnar.utils.ParquetEnumUtils;
 import com.earnix.parquet.columnar.utils.ParquetMetadataConverterUtils;
 import org.apache.parquet.format.FieldRepetitionType;
 import org.apache.parquet.format.FileMetaData;

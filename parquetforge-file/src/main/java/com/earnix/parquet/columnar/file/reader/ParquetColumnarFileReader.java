@@ -143,7 +143,7 @@ public class ParquetColumnarFileReader implements ParquetColumnarReader
 	{
 		if (rowGroupProcessor != null)
 		{
-			if (!optionalInMemChunksForRowGroupProcessing.isPresent())
+			if (optionalInMemChunksForRowGroupProcessing.isEmpty())
 			{
 				throw new IllegalStateException("Chunk values list is empty in processing Row Group case");
 			}
@@ -267,7 +267,7 @@ public class ParquetColumnarFileReader implements ParquetColumnarReader
 			{
 				if (columnDescriptors == null)
 				{
-					columnDescriptors = Collections.unmodifiableList(new ArrayList<>(buildMessageType().getColumns()));
+					columnDescriptors = List.copyOf(buildMessageType().getColumns());
 				}
 			}
 		}

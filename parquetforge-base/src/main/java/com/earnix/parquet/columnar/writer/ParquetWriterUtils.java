@@ -8,22 +8,10 @@ import com.earnix.parquet.columnar.writer.rowgroup.RowGroupInfo;
 import org.apache.commons.io.output.CountingOutputStream;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.ColumnChunk;
-import org.apache.parquet.format.EdgeInterpolationAlgorithm;
 import org.apache.parquet.format.FileMetaData;
-import org.apache.parquet.format.GeographyType;
-import org.apache.parquet.format.GeometryType;
-import org.apache.parquet.format.IntType;
 import org.apache.parquet.format.KeyValue;
-import org.apache.parquet.format.LogicalType;
-import org.apache.parquet.format.LogicalTypes;
-import org.apache.parquet.format.MicroSeconds;
-import org.apache.parquet.format.MilliSeconds;
-import org.apache.parquet.format.NanoSeconds;
 import org.apache.parquet.format.RowGroup;
 import org.apache.parquet.format.SchemaElement;
-import org.apache.parquet.format.TimeType;
-import org.apache.parquet.format.TimeUnit;
-import org.apache.parquet.format.TimestampType;
 import org.apache.parquet.format.Util;
 import org.apache.parquet.schema.DecimalMetadata;
 import org.apache.parquet.schema.LogicalTypeAnnotation;
@@ -43,10 +31,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
-
-import static java.util.Optional.of;
 
 /**
  * Utility class for functions that assist in writing parquet files
@@ -147,7 +132,7 @@ public class ParquetWriterUtils
 		{
 			ret[schemaOrder.get(info.getDescriptor())] = info.buildChunkFromInfo();
 		}
-		return Collections.unmodifiableList(Arrays.asList(ret));
+		return List.of(ret);
 	}
 
 	public static void writeLittleEndianInt(OutputStream os, int byteCount) throws IOException

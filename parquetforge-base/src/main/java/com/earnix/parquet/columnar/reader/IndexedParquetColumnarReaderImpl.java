@@ -72,7 +72,7 @@ public class IndexedParquetColumnarReaderImpl implements IndexedParquetColumnarR
 		}
 
 		descriptorByPathMap = new HashMap<>();
-		this.columnDescriptors = Collections.unmodifiableList(new ArrayList<>(messageType.getColumns()));
+		this.columnDescriptors = List.copyOf(messageType.getColumns());
 		for (ColumnDescriptor descriptor : this.columnDescriptors)
 		{
 			descriptorByPathMap.put(Arrays.asList(descriptor.getPath()), descriptor);
@@ -149,19 +149,19 @@ public class IndexedParquetColumnarReaderImpl implements IndexedParquetColumnarR
 	}
 
 	@Override
-	public int getNumRowGroups() throws IOException
+	public int getNumRowGroups()
 	{
 		return fileMetaData.getRow_groupsSize();
 	}
 
 	@Override
-	public long getNumRowsInRowGroup(int rowGroup) throws IOException
+	public long getNumRowsInRowGroup(int rowGroup)
 	{
 		return fileMetaData.getRow_groups().get(rowGroup).getNum_rows();
 	}
 
 	@Override
-	public long getTotalNumRows() throws IOException
+	public long getTotalNumRows()
 	{
 		return fileMetaData.getNum_rows();
 	}

@@ -15,6 +15,8 @@ import java.util.List;
  */
 public class ParquetFileColumnarWriterFactory
 {
+	static final String TABLE_ROOT_NAME = "root";
+
 	/**
 	 * Create a parquet file writer
 	 *
