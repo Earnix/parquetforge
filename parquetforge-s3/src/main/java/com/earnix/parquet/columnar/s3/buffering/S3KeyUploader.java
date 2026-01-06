@@ -9,10 +9,13 @@ import shaded.parquet.it.unimi.dsi.fastutil.objects.ObjectIntImmutablePair;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.http.ContentStreamProvider;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
+import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
+import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.model.UploadPartResponse;
 
 import java.io.IOException;
@@ -139,8 +142,8 @@ public class S3KeyUploader implements AutoCloseable
 			}
 		}
 
-		UploadPartResponse resp = s3Client.uploadPart(
-				builder -> builder.bucket(bucket).key(key).uploadId(createdUploadId).partNumber(partNum), requestBody);
+		UploadPartResponse resp = s3Client.uploadPart(builder -> customizeUploadPartRequest(
+				builder.bucket(bucket).key(key).uploadId(createdUploadId).partNumber(partNum)), requestBody);
 		LOG.debug("Finished upload for {} uploadId: {} partNum: {} resp: {}", getS3UploadUri(), uploadId, partNum,
 				resp);
 
@@ -165,8 +168,7 @@ public class S3KeyUploader implements AutoCloseable
 				.map(resp -> CompletedPart.builder().partNumber(resp.rightInt()).eTag(resp.left().eTag()).build())
 				.toArray(CompletedPart[]::new);
 
-		LOG.debug("Found {} completed parts for {} uploadId: {}", completedParts.length, getS3UploadUri(),
-				uploadId);
+		LOG.debug("Found {} completed parts for {} uploadId: {}", completedParts.length, getS3UploadUri(), uploadId);
 		for (CompletedPart completedPart : completedParts)
 		{
 			LOG.trace("S3Object: {} CompletedPart {}", getS3UploadUri(), completedPart);
@@ -176,9 +178,9 @@ public class S3KeyUploader implements AutoCloseable
 				.build();
 
 		rateLimiter.acquire();
-		s3Client.completeMultipartUpload(
-				builder -> builder.bucket(bucket).key(key).uploadId(Objects.requireNonNull(uploadId))
-						.multipartUpload(completedMultipartUpload));
+		s3Client.completeMultipartUpload(builder -> customizeCompleteMultipartUploadRequest(
+				builder.bucket(bucket).key(key).uploadId(Objects.requireNonNull(uploadId))
+						.multipartUpload(completedMultipartUpload)));
 	}
 
 	/**
@@ -190,7 +192,8 @@ public class S3KeyUploader implements AutoCloseable
 		if (uploadId != null)
 		{
 			rateLimiter.acquire();
-			s3Client.abortMultipartUpload(builder -> builder.bucket(bucket).key(key).uploadId(uploadId));
+			s3Client.abortMultipartUpload(builder -> customizeAbortMultipartUploadRequest(
+					builder.bucket(bucket).key(key).uploadId(uploadId)));
 			uploadId = null;
 		}
 	}
@@ -214,7 +217,7 @@ public class S3KeyUploader implements AutoCloseable
 					// start new multipart upload.
 					rateLimiter.acquire();
 					CreateMultipartUploadResponse response = s3Client.createMultipartUpload(
-							builder -> builder.bucket(bucket).key(key));
+							builder -> customizeCreateMultipartUploadRequest(builder.bucket(bucket).key(key)));
 					uploadId = response.uploadId();
 				}
 			}
@@ -228,6 +231,59 @@ public class S3KeyUploader implements AutoCloseable
 	public String getS3UploadUri()
 	{
 		return "s3://" + bucket + "/" + key;
+	}
+
+	/**
+	 * Hook for customizing the create-multipart-upload request.
+	 * <p>
+	 * Default implementation is a no-op. Subclasses may override to mutate the provided builder before the request is
+	 * built.
+	 *
+	 * @param req the request builder to customize
+	 */
+	protected void customizeCreateMultipartUploadRequest(CreateMultipartUploadRequest.Builder req)
+	{
+		// do nothing - this is for a child class to customize
+	}
+
+
+	/**
+	 * Hook for customizing the upload-part request.
+	 * <p>
+	 * Default implementation is a no-op. Subclasses may override to mutate the provided builder before the request is
+	 * built.
+	 *
+	 * @param req the request builder to customize
+	 */
+	protected void customizeUploadPartRequest(UploadPartRequest.Builder req)
+	{
+		// do nothing - this is for a child class to customize
+	}
+
+	/**
+	 * Hook for customizing the complete-multipart-upload request.
+	 * <p>
+	 * Default implementation is a no-op. Subclasses may override to mutate the provided builder before the request is
+	 * built.
+	 *
+	 * @param req the request builder to customize
+	 */
+	protected void customizeCompleteMultipartUploadRequest(CompleteMultipartUploadRequest.Builder req)
+	{
+		// do nothing - this is for a child class to customize
+	}
+
+	/**
+	 * Hook for customizing the abort-multipart-upload request.
+	 * <p>
+	 * Default implementation is a no-op. Subclasses may override to mutate the provided builder before the request is
+	 * built.
+	 *
+	 * @param req the request builder to customize
+	 */
+	protected void customizeAbortMultipartUploadRequest(AbortMultipartUploadRequest.Builder req)
+	{
+		// do nothing - this is for a child class to customize
 	}
 
 	@Override
