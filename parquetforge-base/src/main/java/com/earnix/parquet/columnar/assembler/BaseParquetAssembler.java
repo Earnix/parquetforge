@@ -8,6 +8,7 @@ import com.earnix.parquet.columnar.writer.rowgroup.RowGroupInfo;
 import org.apache.commons.io.output.UnsynchronizedByteArrayOutputStream;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.FileMetaData;
+import org.apache.parquet.format.KeyValue;
 import org.apache.parquet.format.Util;
 import org.apache.parquet.schema.MessageType;
 
@@ -20,7 +21,7 @@ import java.util.stream.Collectors;
 public class BaseParquetAssembler
 {
 	public static UnsynchronizedByteArrayOutputStream buildSerializedMetadata(List<ColumnDescriptor> columnDescriptors,
-			List<ParquetRowGroupSupplier> rowGroupSuppliers)
+			List<ParquetRowGroupSupplier> rowGroupSuppliers, List<KeyValue> keyValuesMetadata)
 	{
 		List<RowGroupInfo> rowGroupInfos = new ArrayList<>(rowGroupSuppliers.size());
 
@@ -43,7 +44,8 @@ public class BaseParquetAssembler
 
 		MessageType messageType = new MessageType("root",
 				columnDescriptors.stream().map(ColumnDescriptor::getPrimitiveType).collect(Collectors.toList()));
-		FileMetaData parquetFooterMetadata = ParquetWriterUtils.getFileMetaData(messageType, rowGroupInfos);
+		FileMetaData parquetFooterMetadata = ParquetWriterUtils.getFileMetaData(messageType, rowGroupInfos,
+				keyValuesMetadata);
 		UnsynchronizedByteArrayOutputStream byteArrayOutputStream = UnsynchronizedByteArrayOutputStream.builder().get();
 
 		try

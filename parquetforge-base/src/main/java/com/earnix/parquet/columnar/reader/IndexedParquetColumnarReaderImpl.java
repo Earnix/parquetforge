@@ -8,6 +8,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.ColumnChunk;
 import org.apache.parquet.format.FileMetaData;
+import org.apache.parquet.format.KeyValue;
 import org.apache.parquet.format.RowGroup;
 import org.apache.parquet.schema.MessageType;
 
@@ -22,6 +23,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static com.earnix.parquet.columnar.reader.ParquetReaderUtils.getLen;
 import static com.earnix.parquet.columnar.reader.ParquetReaderUtils.getStartOffset;
@@ -188,5 +190,16 @@ public class IndexedParquetColumnarReaderImpl implements IndexedParquetColumnarR
 	public ColumnDescriptor getDescriptor(int colOffset)
 	{
 		return columnDescriptors.get(colOffset);
+	}
+
+	/**
+	 * @return a deep copy of the key value metadata in the FileMetaData
+	 */
+	public List<KeyValue> getKeyValueFileMetadata()
+	{
+		// deep copy
+		return fileMetaData.getKey_value_metadata().stream()//
+				.map(KeyValue::new)//
+				.collect(Collectors.toUnmodifiableList());
 	}
 }

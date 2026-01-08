@@ -1,5 +1,6 @@
 package com.earnix.parquet.columnar.writer;
 
+import com.earnix.parquet.columnar.reader.ParquetMetadataUtils;
 import com.earnix.parquet.columnar.utils.ParquetEnumUtils;
 import com.earnix.parquet.columnar.utils.ParquetMagicUtils;
 import com.earnix.parquet.columnar.utils.ParquetMetadataConverterUtils;
@@ -62,9 +63,11 @@ public class ParquetWriterUtils
 	 *
 	 * @param messageType   the schema info
 	 * @param rowGroupInfos the info on the row groups
+	 * @param keyValues list of additional metadata to store
 	 * @return the built file metadata
 	 */
-	public static FileMetaData getFileMetaData(MessageType messageType, List<RowGroupInfo> rowGroupInfos)
+	public static FileMetaData getFileMetaData(MessageType messageType, List<RowGroupInfo> rowGroupInfos,
+			List<KeyValue> keyValues)
 	{
 		List<SchemaElement> schemaElementList = ParquetWriterUtils.getSchemaElements(messageType);
 		// C++ parquet driver requires row group columns to be in the same order as the schema.
@@ -81,9 +84,12 @@ public class ParquetWriterUtils
 		fileMetaData.setNum_rows(totalNumRows);
 		// TODO: what version are we actually??
 		fileMetaData.setVersion(1);
-		fileMetaData.setKey_value_metadata(new ArrayList<>());
-		fileMetaData.getKey_value_metadata()
-				.add(new KeyValue("original.created.by").setValue("ColumnarParquetTool Alpha"));
+
+		List<KeyValue> keyValueMetadata = new ArrayList<>();
+		keyValueMetadata.add(new KeyValue("original.created.by").setValue("ColumnarParquetTool Alpha"));
+		if (keyValues != null)
+			keyValueMetadata.addAll(ParquetMetadataUtils.deepCopyKeyValueMetadata(keyValues));
+		fileMetaData.setKey_value_metadata(keyValueMetadata);
 
 		fileMetaData.setRow_groups(getRowGroupList(schemaOrder, rowGroupInfos));
 		return fileMetaData;

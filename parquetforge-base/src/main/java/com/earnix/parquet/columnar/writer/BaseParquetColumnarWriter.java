@@ -5,6 +5,7 @@ import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.format.FileMetaData;
+import org.apache.parquet.format.KeyValue;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.Type;
 
@@ -30,6 +31,7 @@ public abstract class BaseParquetColumnarWriter implements ParquetColumnarWriter
 	protected final ParquetProperties parquetProperties;
 	protected final CompressionCodec compressionCodec;
 	protected final List<RowGroupInfo> rowGroupInfos = new ArrayList<>();
+	private final List<KeyValue> keyValues = new ArrayList<>();
 
 	public BaseParquetColumnarWriter(MessageType messageType, ParquetProperties parquetProperties,
 			CompressionCodec compressionCodec)
@@ -76,6 +78,11 @@ public abstract class BaseParquetColumnarWriter implements ParquetColumnarWriter
 			throw new IllegalStateException("cannot build parquet file without row groups");
 		return ParquetWriterUtils.getFileMetaData(
 				requireNonNull(getMessageType(), "MessageType must be set before building FileMetaData"),
-				rowGroupInfos);
+				rowGroupInfos, keyValues);
+	}
+
+	public synchronized void addKeyValue(KeyValue keyValue)
+	{
+		this.keyValues.add(new KeyValue(keyValue));
 	}
 }

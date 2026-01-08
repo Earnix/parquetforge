@@ -3,12 +3,14 @@ package com.earnix.parquet.columnar.s3.assembler;
 import com.earnix.parquet.columnar.assembler.BaseParquetAssembler;
 import com.earnix.parquet.columnar.assembler.ParquetColumnChunkSupplier;
 import com.earnix.parquet.columnar.assembler.ParquetRowGroupSupplier;
+import com.earnix.parquet.columnar.reader.ParquetMetadataUtils;
 import com.earnix.parquet.columnar.s3.buffering.S3KeyUploader;
 import com.earnix.parquet.columnar.s3.buffering.UploadPartUtils;
 import com.earnix.parquet.columnar.utils.ParquetMagicUtils;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.commons.io.output.UnsynchronizedByteArrayOutputStream;
 import org.apache.parquet.column.ColumnDescriptor;
+import org.apache.parquet.format.KeyValue;
 import org.apache.parquet.schema.MessageType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +40,7 @@ public class S3ParquetAssembleAndUpload extends BaseParquetAssembler
 	private static final AtomicLong threadPoolIDNumber = new AtomicLong();
 
 	private final MessageType schema;
+	private final List<KeyValue> keyValueMetadata;
 	private final int targetNumParts;
 	private final int uploadThreads;
 
@@ -46,9 +49,11 @@ public class S3ParquetAssembleAndUpload extends BaseParquetAssembler
 	 * @param targetNumParts the target number of parts to use when uploading the file in parts onto S3
 	 * @param uploadThreads  the number of threads to use when uploading to s3
 	 */
-	public S3ParquetAssembleAndUpload(MessageType schema, int targetNumParts, int uploadThreads)
+	public S3ParquetAssembleAndUpload(MessageType schema, List<KeyValue> keyValuesMetadata, int targetNumParts,
+			int uploadThreads)
 	{
 		this.schema = schema;
+		this.keyValueMetadata = ParquetMetadataUtils.deepCopyKeyValueMetadata(keyValuesMetadata);
 		this.targetNumParts = targetNumParts;
 		this.uploadThreads = uploadThreads;
 	}
@@ -70,7 +75,7 @@ public class S3ParquetAssembleAndUpload extends BaseParquetAssembler
 
 		List<ColumnDescriptor> orderedDescriptors = schema.getColumns();
 		UnsynchronizedByteArrayOutputStream serializedMetadata = BaseParquetAssembler.buildSerializedMetadata(
-				orderedDescriptors, rowGroups);
+				orderedDescriptors, rowGroups, keyValueMetadata);
 
 		List<ParquetColumnChunkSupplier> orderedChunkSuppliers = orderChunkSuppliers(rowGroups, numColumns,
 				orderedDescriptors);
@@ -99,6 +104,7 @@ public class S3ParquetAssembleAndUpload extends BaseParquetAssembler
 				service.submit(() -> uploader.uploadPart(partNum, len, sequenceInputStream));
 			}
 
+			//TODO: need to validate all upload jobs completed correctly.
 			service.shutdown();
 			try
 			{

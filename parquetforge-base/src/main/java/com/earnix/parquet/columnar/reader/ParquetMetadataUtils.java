@@ -3,6 +3,7 @@ package com.earnix.parquet.columnar.reader;
 import com.earnix.parquet.columnar.utils.ParquetMetadataConverterUtils;
 import org.apache.parquet.format.FieldRepetitionType;
 import org.apache.parquet.format.FileMetaData;
+import org.apache.parquet.format.KeyValue;
 import org.apache.parquet.format.SchemaElement;
 import org.apache.parquet.schema.DecimalMetadata;
 import org.apache.parquet.schema.LogicalTypeAnnotation;
@@ -14,8 +15,10 @@ import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static com.earnix.parquet.columnar.utils.ParquetEnumUtils.convert;
+import static java.util.Objects.requireNonNullElse;
 
 /**
  * Utils for processing parquet metadata
@@ -86,5 +89,12 @@ public class ParquetMetadataUtils
 			primitiveTypeList.add(primitiveType);
 		}
 		return new MessageType(root.getName(), primitiveTypeList);
+	}
+
+	public static List<KeyValue> deepCopyKeyValueMetadata(List<KeyValue> keyValuesMetadata)
+	{
+		return requireNonNullElse(keyValuesMetadata, List.<KeyValue> of()).stream()//
+				.map(KeyValue::new)//
+				.collect(Collectors.toUnmodifiableList());
 	}
 }
