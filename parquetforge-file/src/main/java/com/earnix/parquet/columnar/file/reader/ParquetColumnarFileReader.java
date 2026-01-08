@@ -13,6 +13,7 @@ import org.apache.parquet.format.ColumnChunk;
 import org.apache.parquet.format.ColumnMetaData;
 import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.format.FileMetaData;
+import org.apache.parquet.format.KeyValue;
 import org.apache.parquet.format.RowGroup;
 import org.apache.parquet.schema.MessageType;
 
@@ -23,8 +24,6 @@ import java.io.UnsupportedEncodingException;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -257,6 +256,12 @@ public class ParquetColumnarFileReader implements ParquetColumnarReader
 	{
 		ensureDescriptorsInitialized();
 		return columnDescriptors.get(colOffset);
+	}
+
+	@Override
+	public List<KeyValue> getKeyValueFileMetadata() throws IOException
+	{
+		return ParquetMetadataUtils.deepCopyKeyValueMetadata(readMetaData().getKey_value_metadata());
 	}
 
 	protected void ensureDescriptorsInitialized() throws IOException

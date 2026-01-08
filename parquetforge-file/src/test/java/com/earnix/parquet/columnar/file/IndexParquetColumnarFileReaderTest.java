@@ -10,6 +10,7 @@ import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import org.apache.commons.io.FileUtils;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.CompressionCodec;
+import org.apache.parquet.format.KeyValue;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
@@ -24,6 +25,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Tests for reading arbitrary column chunks form a parquet file
@@ -73,6 +75,7 @@ public class IndexParquetColumnarFileReaderTest
 				writer.writeValues(colWriter -> colWriter.writeColumn(colDescriptors.get(1), new int[] { 3 }));
 			});
 
+			fileWriter.addKeyValue(new KeyValue().setKey("chicken").setValue("potato"));
 			fileWriter.finishAndWriteFooterMetadata();
 		}
 
@@ -82,6 +85,11 @@ public class IndexParquetColumnarFileReaderTest
 		assertExpected(fileReader, 1, 0, new int[] { 2 });
 		assertExpected(fileReader, 0, 1, new int[] { 1 });
 		assertExpected(fileReader, 1, 1, new int[] { 3 });
+		List<KeyValue> keyValues = fileReader.getKeyValueFileMetadata();
+		Optional<KeyValue> metadata = keyValues.stream().filter(k -> "chicken".equals(k.getKey())).findAny();
+		Assert.assertTrue(metadata.isPresent());
+		Assert.assertEquals("chicken", metadata.get().key);
+		Assert.assertEquals("potato", metadata.get().value);
 	}
 
 	private static void assertExpected(IndexedParquetColumnarReader fileReader, int rowGroup, int colOffset,

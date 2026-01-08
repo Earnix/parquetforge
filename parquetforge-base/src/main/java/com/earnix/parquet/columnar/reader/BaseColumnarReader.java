@@ -2,6 +2,7 @@ package com.earnix.parquet.columnar.reader;
 
 import com.earnix.parquet.columnar.RowGroupRowIndex;
 import org.apache.parquet.column.ColumnDescriptor;
+import org.apache.parquet.format.KeyValue;
 import org.apache.parquet.schema.MessageType;
 
 import java.io.IOException;
@@ -51,6 +52,11 @@ public interface BaseColumnarReader
 	 * @throws IOException on failure to read footer metadata
 	 */
 	ColumnDescriptor getDescriptor(int colOffset) throws IOException;
+
+	/**
+	 * @return a deep copy of the key value metadata in the FileMetaData
+	 */
+	List<KeyValue> getKeyValueFileMetadata() throws IOException;
 
 	/**
 	 * @return number of columns in this parquet file

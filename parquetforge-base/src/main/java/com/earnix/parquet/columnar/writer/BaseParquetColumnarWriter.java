@@ -81,6 +81,7 @@ public abstract class BaseParquetColumnarWriter implements ParquetColumnarWriter
 				rowGroupInfos, keyValues);
 	}
 
+	@Override
 	public synchronized void addKeyValue(KeyValue keyValue)
 	{
 		this.keyValues.add(new KeyValue(keyValue));

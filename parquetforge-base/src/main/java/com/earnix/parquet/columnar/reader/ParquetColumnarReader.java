@@ -5,6 +5,7 @@ import org.apache.parquet.format.FileMetaData;
 
 import java.io.IOException;
 
+
 public interface ParquetColumnarReader extends BaseColumnarReader
 {
 	/**

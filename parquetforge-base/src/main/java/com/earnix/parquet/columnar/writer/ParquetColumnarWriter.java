@@ -1,6 +1,7 @@
 package com.earnix.parquet.columnar.writer;
 
 import com.earnix.parquet.columnar.writer.rowgroup.RowGroupWriter;
+import org.apache.parquet.format.KeyValue;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -42,6 +43,12 @@ public interface ParquetColumnarWriter extends Closeable
 	 */
 	void finishRowGroup() throws IOException;
 
+	/**
+	 * Add a key value metadata to the parquet file
+	 *
+	 * @param keyValue the keyvalue to add
+	 */
+	void addKeyValue(KeyValue keyValue);
 
 	/**
 	 * Finish the parquet file. Writes the footer metadata. Note that {@link #close()} should still be called after.

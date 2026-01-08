@@ -192,14 +192,9 @@ public class IndexedParquetColumnarReaderImpl implements IndexedParquetColumnarR
 		return columnDescriptors.get(colOffset);
 	}
 
-	/**
-	 * @return a deep copy of the key value metadata in the FileMetaData
-	 */
+	@Override
 	public List<KeyValue> getKeyValueFileMetadata()
 	{
-		// deep copy
-		return fileMetaData.getKey_value_metadata().stream()//
-				.map(KeyValue::new)//
-				.collect(Collectors.toUnmodifiableList());
+		return ParquetMetadataUtils.deepCopyKeyValueMetadata(fileMetaData.getKey_value_metadata());
 	}
 }
