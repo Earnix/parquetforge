@@ -29,6 +29,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
+import java.util.List;
 
 public class CreateParquetOnS3Test
 {
@@ -95,7 +96,7 @@ public class CreateParquetOnS3Test
 		{
 			S3Client s3Client = service.getS3Client();
 			S3KeyUploader uploader = new S3KeyUploader(s3Client, service.testBucket(), keyOnS3);
-			S3ParquetAssembleAndUpload assembler = new S3ParquetAssembleAndUpload(messageType, 2, 1);
+			S3ParquetAssembleAndUpload assembler = new S3ParquetAssembleAndUpload(messageType, List.of(), 2, 1);
 
 			// read the blocks backward
 			ColumnDescriptor descriptor = localReader.getDescriptor(0);

@@ -3,6 +3,7 @@ package com.earnix.parquet.columnar.assembler;
 import com.earnix.parquet.columnar.utils.ParquetMagicUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.parquet.column.ColumnDescriptor;
+import org.apache.parquet.format.KeyValue;
 import org.apache.parquet.schema.MessageType;
 
 import java.io.ByteArrayOutputStream;
@@ -16,11 +17,9 @@ import java.util.List;
  */
 public class InMemoryParquetAssembler extends BaseParquetAssembler
 {
-	private final MessageType schema;
-
-	public InMemoryParquetAssembler(MessageType schema)
+	public InMemoryParquetAssembler(MessageType schema, List<KeyValue> keyValuesMetadata)
 	{
-		this.schema = schema;
+		super(schema, keyValuesMetadata);
 	}
 
 	public byte[] assemble(List<ParquetRowGroupSupplier> rowGroups)

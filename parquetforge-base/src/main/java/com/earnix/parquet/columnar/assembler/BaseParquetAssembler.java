@@ -1,5 +1,6 @@
 package com.earnix.parquet.columnar.assembler;
 
+import com.earnix.parquet.columnar.reader.ParquetMetadataUtils;
 import com.earnix.parquet.columnar.utils.ParquetMagicUtils;
 import com.earnix.parquet.columnar.writer.ParquetWriterUtils;
 import com.earnix.parquet.columnar.writer.rowgroup.ColumnChunkInfo;
@@ -18,10 +19,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class BaseParquetAssembler
+public abstract class BaseParquetAssembler
 {
-	public static UnsynchronizedByteArrayOutputStream buildSerializedMetadata(List<ColumnDescriptor> columnDescriptors,
-			List<ParquetRowGroupSupplier> rowGroupSuppliers, List<KeyValue> keyValuesMetadata)
+	protected final MessageType schema;
+	protected final List<KeyValue> keyValuesMetadata;
+
+	public BaseParquetAssembler(MessageType schema, List<KeyValue> keyValuesMetadata)
+	{
+		this.schema = schema;
+		this.keyValuesMetadata = ParquetMetadataUtils.deepCopyKeyValueMetadata(keyValuesMetadata);
+	}
+
+	protected UnsynchronizedByteArrayOutputStream buildSerializedMetadata(List<ColumnDescriptor> columnDescriptors,
+			List<ParquetRowGroupSupplier> rowGroupSuppliers)
 	{
 		List<RowGroupInfo> rowGroupInfos = new ArrayList<>(rowGroupSuppliers.size());
 

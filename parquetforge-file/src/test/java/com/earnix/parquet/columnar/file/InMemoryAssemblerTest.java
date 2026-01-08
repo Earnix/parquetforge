@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
+import java.util.List;
 
 public class InMemoryAssemblerTest
 {
@@ -30,7 +31,7 @@ public class InMemoryAssemblerTest
 
 			IndexedParquetColumnarReader reader = ParquetFileReaderFactory.createIndexedColumnarFileReader(tmp);
 			InMemoryParquetAssembler assembler = new InMemoryParquetAssembler(
-					new MessageType("root", reader.getDescriptor(0).getPrimitiveType()));
+					new MessageType("root", reader.getDescriptor(0).getPrimitiveType()), List.of());
 			byte[] parquetBytes = assembler.assemble(Arrays.asList(ParquetRowGroupSupplier.builder()
 					.addChunkSupplier(new ParquetFileChunkSupplier(reader, reader.getDescriptor(0), 0)).build()));
 

@@ -24,7 +24,9 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -39,8 +41,6 @@ public class S3ParquetAssembleAndUpload extends BaseParquetAssembler
 	private static final Logger LOG = LoggerFactory.getLogger(S3ParquetAssembleAndUpload.class);
 	private static final AtomicLong threadPoolIDNumber = new AtomicLong();
 
-	private final MessageType schema;
-	private final List<KeyValue> keyValueMetadata;
 	private final int targetNumParts;
 	private final int uploadThreads;
 
@@ -52,8 +52,7 @@ public class S3ParquetAssembleAndUpload extends BaseParquetAssembler
 	public S3ParquetAssembleAndUpload(MessageType schema, List<KeyValue> keyValuesMetadata, int targetNumParts,
 			int uploadThreads)
 	{
-		this.schema = schema;
-		this.keyValueMetadata = ParquetMetadataUtils.deepCopyKeyValueMetadata(keyValuesMetadata);
+		super(schema, keyValuesMetadata);
 		this.targetNumParts = targetNumParts;
 		this.uploadThreads = uploadThreads;
 	}
@@ -74,8 +73,7 @@ public class S3ParquetAssembleAndUpload extends BaseParquetAssembler
 		int numColumns = rowGroups.get(0).getNumColumns();
 
 		List<ColumnDescriptor> orderedDescriptors = schema.getColumns();
-		UnsynchronizedByteArrayOutputStream serializedMetadata = BaseParquetAssembler.buildSerializedMetadata(
-				orderedDescriptors, rowGroups, keyValueMetadata);
+		UnsynchronizedByteArrayOutputStream serializedMetadata = buildSerializedMetadata(orderedDescriptors, rowGroups);
 
 		List<ParquetColumnChunkSupplier> orderedChunkSuppliers = orderChunkSuppliers(rowGroups, numColumns,
 				orderedDescriptors);
@@ -95,17 +93,19 @@ public class S3ParquetAssembleAndUpload extends BaseParquetAssembler
 		boolean success = false;
 		try
 		{
+			List<Future<?>> uploadJobs = new ArrayList<>(grouped.size());
 			int lenIdx = 0;
 			for (List<Supplier<InputStream>> grp : grouped)
 			{
 				int partNum = uploader.getNextPartNum();
 				Supplier<InputStream> sequenceInputStream = createInputStreamSupplier(grp);
 				long len = lens[lenIdx++];
-				service.submit(() -> uploader.uploadPart(partNum, len, sequenceInputStream));
+				var fut = service.submit(() -> uploader.uploadPart(partNum, len, sequenceInputStream));
+				uploadJobs.add(fut);
 			}
 
-			//TODO: need to validate all upload jobs completed correctly.
 			service.shutdown();
+
 			try
 			{
 				boolean uploadsCompleted = service.awaitTermination(365, TimeUnit.DAYS);
@@ -117,6 +117,8 @@ public class S3ParquetAssembleAndUpload extends BaseParquetAssembler
 				Thread.currentThread().interrupt();
 				throw new IllegalStateException(ex);
 			}
+
+			assertAllUploadsWereSuccessful(uploader, uploadJobs);
 			uploader.finish();
 			success = true;
 		}
@@ -147,6 +149,28 @@ public class S3ParquetAssembleAndUpload extends BaseParquetAssembler
 				{
 					// exception in finally block, ignore.
 				}
+			}
+		}
+	}
+
+	private static void assertAllUploadsWereSuccessful(S3KeyUploader uploader, List<Future<?>> uploadJobs)
+	{
+		// all futures have completed because executor shutdown and await completes all pending jobs
+		for (Future<?> fut : uploadJobs)
+		{
+			try
+			{
+				fut.get();
+			}
+			catch (InterruptedException ex)
+			{
+				// should never happen as the shutdown ensured that the
+				Thread.currentThread().interrupt();
+				throw new IllegalStateException("Should never happen.");
+			}
+			catch (ExecutionException e)
+			{
+				throw new IllegalStateException("Failure in async upload job for " + uploader.getS3UploadUri(), e);
 			}
 		}
 	}
