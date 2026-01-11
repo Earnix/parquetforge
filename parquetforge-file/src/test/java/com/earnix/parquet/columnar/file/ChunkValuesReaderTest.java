@@ -8,6 +8,7 @@ import com.earnix.parquet.columnar.reader.chunk.internal.ChunkValuesReaderFactor
 import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
 import com.earnix.parquet.columnar.writer.columnchunk.NullableIterators;
+import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
@@ -18,6 +19,8 @@ import org.junit.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+
+import static org.junit.Assert.assertFalse;
 
 public class ChunkValuesReaderTest
 {
@@ -60,7 +63,7 @@ public class ChunkValuesReaderTest
 		{
 			MessageType messageType = new MessageType("root",
 					new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT32, colName));
-			writeValues(tmpFile, messageType, vals);
+			writeValues(tmpFile, messageType, ParquetProperties.builder().build(), vals);
 
 			IndexedParquetColumnarReader reader = ParquetFileReaderFactory.createIndexedColumnarFileReader(tmpFile);
 			Assert.assertEquals(1, reader.getNumRowGroups());
@@ -68,11 +71,12 @@ public class ChunkValuesReaderTest
 			ChunkValuesReader chunkValuesReader = ChunkValuesReaderFactory.createChunkReader(inMemChunk);
 			for (int i = 0; i < vals.length; i++)
 			{
-				Assert.assertEquals(vals[i] == null, chunkValuesReader.isNull());
-				if (vals[i] != null)
-					Assert.assertEquals((int) vals[i], chunkValuesReader.getInteger());
+				assertEquals(vals[i], chunkValuesReader);
 				Assert.assertEquals(i < vals.length - 1, chunkValuesReader.next());
 			}
+			chunkValuesReader = ChunkValuesReaderFactory.createChunkReader(inMemChunk, vals.length - 1);
+			assertEquals(vals[vals.length - 1], chunkValuesReader);
+			assertFalse(chunkValuesReader.next());
 		}
 		finally
 		{
@@ -80,10 +84,18 @@ public class ChunkValuesReaderTest
 		}
 	}
 
-	private static void writeValues(Path tmpFile, MessageType messageType, Integer[] vals) throws IOException
+	static void assertEquals(Integer expected, ChunkValuesReader chunkValuesReader)
+	{
+		Assert.assertEquals(expected == null, chunkValuesReader.isNull());
+		if (expected != null)
+			Assert.assertEquals((int) expected, chunkValuesReader.getInteger());
+	}
+
+	static void writeValues(Path tmpFile, MessageType messageType, ParquetProperties parquetProperties, Integer[] vals)
+			throws IOException
 	{
 		try (ParquetColumnarWriter parquetColumnarWriter = ParquetFileColumnarWriterFactory.createWriter(tmpFile,
-				messageType, CompressionCodec.ZSTD, true))
+				messageType, parquetProperties, CompressionCodec.ZSTD, true))
 		{
 			parquetColumnarWriter.writeRowGroup(vals.length, rgw -> {
 				rgw.writeValues(columnChunkWriter -> columnChunkWriter.writeColumn(

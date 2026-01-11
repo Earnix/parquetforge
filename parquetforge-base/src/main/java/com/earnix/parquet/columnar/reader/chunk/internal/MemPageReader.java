@@ -14,7 +14,7 @@ import org.apache.parquet.column.page.PageReader;
 
 /**
  * Inspired by MemPageReader in parquet test project. Store pages in memory to be consumed by
- * {@link ParquetExtendedColumnReader}
+ * {@link FlatParquetColumnReader}
  */
 public class MemPageReader implements PageReader
 {

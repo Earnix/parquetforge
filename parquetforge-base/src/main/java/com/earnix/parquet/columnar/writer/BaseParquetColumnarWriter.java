@@ -12,6 +12,8 @@ import org.apache.parquet.schema.Type;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
@@ -40,6 +42,12 @@ public abstract class BaseParquetColumnarWriter implements ParquetColumnarWriter
 			setMessageType(messageType);
 		this.parquetProperties = parquetProperties;
 		this.compressionCodec = compressionCodec;
+
+		for (var entry : Objects.requireNonNullElse(parquetProperties.getExtraMetaData(), Map.<String, String> of())
+				.entrySet())
+		{
+			keyValues.add(new KeyValue(entry.getKey()).setValue(entry.getValue()));
+		}
 	}
 
 	private static void validateMessageType(MessageType messageType)

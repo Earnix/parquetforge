@@ -11,28 +11,33 @@ import java.util.NoSuchElementException;
  */
 public class ChunkValuesReaderImpl implements ChunkValuesReader
 {
-	private final ParquetExtendedColumnReader columnReader;
+	private final FlatParquetColumnReader columnReader;
 	private final long numValues;
 	private long numValuesRead;
 
 	public ChunkValuesReaderImpl(InMemChunkPageStore inMemChunkPageStore)
 	{
-		columnReader = new ParquetExtendedColumnReader(inMemChunkPageStore);
+		columnReader = new FlatParquetColumnReader(inMemChunkPageStore);
 		numValues = inMemChunkPageStore.getTotalValues();
 		numValuesRead = 0;
 	}
 
 	public ChunkValuesReaderImpl(InMemChunk chunk)
 	{
-		columnReader = new ParquetExtendedColumnReader(chunk);
+		this(chunk, 0);
+	}
+
+	public ChunkValuesReaderImpl(InMemChunk chunk, int numRowsToSkip)
+	{
+		columnReader = FlatParquetColumnReader.createParquetExtendedColumnReader(chunk, numRowsToSkip);
 		numValues = chunk.getTotalValues();
-		numValuesRead = 0;
+		numValuesRead = numRowsToSkip;
 	}
 
 	@Override
 	public boolean isNull()
 	{
-		return columnReader.getCurrentDefinitionLevel() < columnReader.getDescriptor().getMaxDefinitionLevel();
+		return columnReader.isNull();
 	}
 
 	@Override
@@ -43,16 +48,7 @@ public class ChunkValuesReaderImpl implements ChunkValuesReader
 			return false;
 		}
 
-		// skip is a misleading name for this method in the parquet-java library
-		// What it actually does it check to see if we read a value in the data column yet, and if not, we skip over
-		// the next value in the data column. If a value was read, it is a noop.
-		// If the value is null, we shouldn't skip the value because no value is stored for null
-		if (!isNull())
-			columnReader.skip();
-
-		// consume is also misleading and the documentation is wrong. It consumes the Repetition and Definition level.
-		// It does NOT consume the data value, which sometimes should NOT be consumed if it is null.
-		columnReader.consume();
+		columnReader.next();
 		return true;
 	}
 
@@ -62,6 +58,7 @@ public class ChunkValuesReaderImpl implements ChunkValuesReader
 		if (rowsToSkip < 0)
 			throw new IllegalArgumentException("rowsToSkip " + rowsToSkip + " must be greater than or equal to 0");
 
+		// how do we make this more efficient?
 		for (int i = 0; i < rowsToSkip; i++)
 		{
 			if (!next())

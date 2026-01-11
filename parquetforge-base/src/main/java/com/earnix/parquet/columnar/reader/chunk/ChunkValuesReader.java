@@ -4,7 +4,7 @@ import org.apache.parquet.column.Dictionary;
 import org.apache.parquet.io.api.Binary;
 
 /**
- * A reader for chunk values. Note that te
+ * A reader for chunk values.
  */
 public interface ChunkValuesReader
 {

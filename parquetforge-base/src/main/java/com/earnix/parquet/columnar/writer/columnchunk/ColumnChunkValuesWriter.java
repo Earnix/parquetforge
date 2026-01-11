@@ -82,7 +82,7 @@ public class ColumnChunkValuesWriter implements AutoCloseable
 				{
 					if (numVals == 0)
 					{
-						throw new IllegalArgumentException("A page cannot contain zero values " + columnDescriptor);
+						throw new IllegalArgumentException("A column chunk cannot contain zero values " + columnDescriptor);
 					}
 
 					writeStore.flush();

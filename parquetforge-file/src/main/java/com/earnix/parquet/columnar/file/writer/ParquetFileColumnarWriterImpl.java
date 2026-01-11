@@ -30,10 +30,10 @@ public class ParquetFileColumnarWriterImpl extends BaseParquetColumnarWriter imp
 	private final FileChannel fileChannel;
 	private long offsetInFile;
 
-	ParquetFileColumnarWriterImpl(Path outputFile, MessageType messageType, CompressionCodec compressionCodec,
-			boolean cacheFileChannel) throws IOException
+	ParquetFileColumnarWriterImpl(Path outputFile, MessageType messageType, ParquetProperties parquetProperties,
+			CompressionCodec compressionCodec, boolean cacheFileChannel) throws IOException
 	{
-		super(messageType, ParquetProperties.builder().build(), compressionCodec);
+		super(messageType, parquetProperties, compressionCodec);
 
 		this.outputFile = outputFile;
 		// need to configure whether we want to hold the open channel

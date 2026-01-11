@@ -73,22 +73,17 @@ public class InMemChunk implements Serializable
 
 	public MemPageReader getDataPages()
 	{
-		return new MemPageReader(dictionary, new DataPageIterator(this.dataPages.iterator()), getTotalValues());
+		return new MemPageReader(dictionary, dataPageIterator(), getTotalValues());
+	}
+
+	DataPageIterator dataPageIterator()
+	{
+		return new DataPageIterator(this.dataPages.iterator());
 	}
 
 	public long getTotalValues()
 	{
 		return totalValues;
-	}
-
-	/**
-	 * A rough estimate of the memory footprint of this column chunk
-	 *
-	 * @return a rough estimate of the memory footprint of this column chunk
-	 */
-	public long estimatedMemoryFootprint()
-	{
-		return 100L + 100L * dataPages.size() + this.totalPageBytes;
 	}
 
 	private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException
