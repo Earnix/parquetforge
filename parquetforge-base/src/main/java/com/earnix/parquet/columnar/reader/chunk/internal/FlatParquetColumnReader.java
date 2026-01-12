@@ -4,8 +4,15 @@ import org.apache.parquet.VersionParser;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.Dictionary;
 import org.apache.parquet.column.impl.ColumnReaderImpl;
+import org.apache.parquet.column.page.DataPage;
 import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.io.api.PrimitiveConverter;
+import shaded.parquet.it.unimi.dsi.fastutil.objects.ObjectIterator;
+import shaded.parquet.it.unimi.dsi.fastutil.objects.ObjectIterators;
+import shaded.parquet.it.unimi.dsi.fastutil.objects.ObjectLists;
+
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * This class is a great example of how *not* to handle encapsulation. However, the alternative would be copy/pasting a
@@ -28,50 +35,65 @@ public class FlatParquetColumnReader extends ColumnReaderImpl
 	private final MemPageReader memPageReader;
 
 
-	static FlatParquetColumnReader createParquetExtendedColumnReader(InMemChunk inMemChunk,
-			final int rowsToSkip)
+	static FlatParquetColumnReader createParquetExtendedColumnReader(InMemChunk inMemChunk, final long rowsToSkip)
 	{
-		if (rowsToSkip >= inMemChunk.getTotalValues())
-			throw new IllegalArgumentException(
-					"rowsToSkip invalid " + rowsToSkip + " total rows: " + inMemChunk.getTotalValues());
+		sanityCheckRowsToSkip(inMemChunk, rowsToSkip);
 
-
-		DataPageIterator dataPageIterator = inMemChunk.dataPageIterator();
-		int skippedRows = 0;
-		int pagesToSkip;
-		for (pagesToSkip = 0; skippedRows < rowsToSkip; pagesToSkip++)
+		ObjectIterator<DataPage> dataPageIterator = inMemChunk.dataPageIterator();
+		long skippedRows = 0;
+		DataPage lastDataPage = null;
+		while (skippedRows < rowsToSkip)
 		{
-			int valueCount = dataPageIterator.next().getValueCount();
+			assertNextPageExists(inMemChunk, rowsToSkip, dataPageIterator, skippedRows);
+			lastDataPage = dataPageIterator.next();
+			int valueCount = lastDataPage.getValueCount();
 			if (valueCount <= 0)
 				throw new IllegalStateException("Page must have at least one value");
 
-			skippedRows += valueCount;
+			skippedRows = Math.addExact(skippedRows, valueCount);
 		}
 
-		// unless we get lucky and we start on a page boundary, we need to rewind, which the iterator does not support.
-		// so start from the beginning and iterate right before it. This should be relatively lightweight.
+		// unless we get lucky, and we start on a page boundary, we need to rewind, which the iterator does not support.
+		// so instead concat our current page to the rest of the pages
 		if (skippedRows > rowsToSkip)
 		{
-			pagesToSkip--;
-			dataPageIterator = inMemChunk.dataPageIterator();
-			skippedRows = 0;
-			for (int i = 0; i < pagesToSkip; i++)
-			{
-				skippedRows += dataPageIterator.next().getValueCount();
-			}
+			if (null == lastDataPage)
+				throw new IllegalStateException();
+			dataPageIterator = ObjectIterators.concat(ObjectIterators.singleton(lastDataPage), dataPageIterator);
+			skippedRows -= lastDataPage.getValueCount();
 		}
 
 		MemPageReader newMemPageReader = new MemPageReader(inMemChunk.getDataPages().getDictionary(), dataPageIterator,
 				inMemChunk.getTotalValues() - skippedRows);
 		var ret = new FlatParquetColumnReader(inMemChunk.getDescriptor(), newMemPageReader, dummyParsedVersion);
 
-
-		for (int i = skippedRows; i < rowsToSkip; i++)
+		for (long i = skippedRows; i < rowsToSkip; i++)
 		{
 			ret.next();
 		}
 
 		return ret;
+	}
+
+	private static void sanityCheckRowsToSkip(InMemChunk inMemChunk, long rowsToSkip)
+	{
+		if (rowsToSkip >= inMemChunk.getTotalValues())
+		{
+			throw new IllegalArgumentException(
+					"rowsToSkip invalid " + inMemChunk.getDescriptor() + " " + rowsToSkip + " total rows: "
+							+ inMemChunk.getTotalValues());
+		}
+	}
+
+	private static void assertNextPageExists(InMemChunk inMemChunk, long rowsToSkip,
+			ObjectIterator<DataPage> dataPageIterator, long skippedRows)
+	{
+		if (!dataPageIterator.hasNext())
+		{
+			throw new IllegalStateException(
+					"More pages expected. " + inMemChunk.getDescriptor() + " skippedRows: " + skippedRows
+							+ " rowsToSkip:" + rowsToSkip);
+		}
 	}
 
 	FlatParquetColumnReader(InMemChunkPageStore inMemChunkPageStore)

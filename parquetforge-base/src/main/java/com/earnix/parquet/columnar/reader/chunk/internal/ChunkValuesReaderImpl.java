@@ -27,11 +27,11 @@ public class ChunkValuesReaderImpl implements ChunkValuesReader
 		this(chunk, 0);
 	}
 
-	public ChunkValuesReaderImpl(InMemChunk chunk, int numRowsToSkip)
+	public ChunkValuesReaderImpl(InMemChunk chunk, long numValuesToSkip)
 	{
-		columnReader = FlatParquetColumnReader.createParquetExtendedColumnReader(chunk, numRowsToSkip);
+		columnReader = FlatParquetColumnReader.createParquetExtendedColumnReader(chunk, numValuesToSkip);
 		numValues = chunk.getTotalValues();
-		numValuesRead = numRowsToSkip;
+		numValuesRead = numValuesToSkip;
 	}
 
 	@Override
@@ -58,7 +58,6 @@ public class ChunkValuesReaderImpl implements ChunkValuesReader
 		if (rowsToSkip < 0)
 			throw new IllegalArgumentException("rowsToSkip " + rowsToSkip + " must be greater than or equal to 0");
 
-		// how do we make this more efficient?
 		for (int i = 0; i < rowsToSkip; i++)
 		{
 			if (!next())

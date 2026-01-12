@@ -19,10 +19,11 @@ public class ChunkValuesReaderFactory
 	 * Create a chunk reader for the in mem chunk
 	 *
 	 * @param chunk the chunk data to read
+	 * @param valuesToSkip the number of rows to skip from the beginning of the chunk
 	 * @return the chunk reader
 	 */
-	public static ChunkValuesReader createChunkReader(InMemChunk chunk, int rowsToSkip)
+	public static ChunkValuesReader createChunkReader(InMemChunk chunk, int valuesToSkip)
 	{
-		return new ChunkValuesReaderImpl(chunk, rowsToSkip);
+		return new ChunkValuesReaderImpl(chunk, valuesToSkip);
 	}
 }
