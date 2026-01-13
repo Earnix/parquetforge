@@ -37,7 +37,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <parquet.version>1.16.0</parquet.version>
+        <parquet.version>1.17.0</parquet.version>
         <mvn.jar.plugin.version>3.5.0</mvn.jar.plugin.version>
         <createChecksum>true</createChecksum>
     </properties>
