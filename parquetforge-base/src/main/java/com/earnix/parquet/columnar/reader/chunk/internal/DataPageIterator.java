@@ -1,12 +1,11 @@
 package com.earnix.parquet.columnar.reader.chunk.internal;
 
 import org.apache.parquet.column.page.DataPage;
-import shaded.parquet.it.unimi.dsi.fastutil.objects.ObjectIterator;
 
 import java.util.Iterator;
 import java.util.function.Supplier;
 
-class DataPageIterator implements Iterator<DataPage>, ObjectIterator<DataPage>
+class DataPageIterator implements Iterator<DataPage>
 {
 	private final Iterator<Supplier<DataPage>> dataPageIterator;
 

@@ -7,12 +7,8 @@ import org.apache.parquet.column.impl.ColumnReaderImpl;
 import org.apache.parquet.column.page.DataPage;
 import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.io.api.PrimitiveConverter;
-import shaded.parquet.it.unimi.dsi.fastutil.objects.ObjectIterator;
-import shaded.parquet.it.unimi.dsi.fastutil.objects.ObjectIterators;
-import shaded.parquet.it.unimi.dsi.fastutil.objects.ObjectLists;
 
 import java.util.Iterator;
-import java.util.List;
 
 /**
  * This class is a great example of how *not* to handle encapsulation. However, the alternative would be copy/pasting a
@@ -39,7 +35,7 @@ public class FlatParquetColumnReader extends ColumnReaderImpl
 	{
 		sanityCheckRowsToSkip(inMemChunk, rowsToSkip);
 
-		ObjectIterator<DataPage> dataPageIterator = inMemChunk.dataPageIterator();
+		Iterator<DataPage> dataPageIterator = inMemChunk.dataPageIterator();
 		long skippedRows = 0;
 		DataPage lastDataPage = null;
 		while (skippedRows < rowsToSkip)
@@ -59,7 +55,7 @@ public class FlatParquetColumnReader extends ColumnReaderImpl
 		{
 			if (null == lastDataPage)
 				throw new IllegalStateException();
-			dataPageIterator = ObjectIterators.concat(ObjectIterators.singleton(lastDataPage), dataPageIterator);
+			dataPageIterator = prependLastDataPage(dataPageIterator, lastDataPage);
 			skippedRows -= lastDataPage.getValueCount();
 		}
 
@@ -75,6 +71,33 @@ public class FlatParquetColumnReader extends ColumnReaderImpl
 		return ret;
 	}
 
+	private static Iterator<DataPage> prependLastDataPage(final Iterator<DataPage> dataPageIterator,
+			DataPage lastDataPage)
+	{
+		return new Iterator<>()
+		{
+			private DataPage dataPage = lastDataPage;
+
+			@Override
+			public boolean hasNext()
+			{
+				return lastDataPage != null || dataPageIterator.hasNext();
+			}
+
+			@Override
+			public DataPage next()
+			{
+				if (dataPage != null)
+				{
+					var ret = dataPage;
+					dataPage = null;
+					return ret;
+				}
+				return dataPageIterator.next();
+			}
+		};
+	}
+
 	private static void sanityCheckRowsToSkip(InMemChunk inMemChunk, long rowsToSkip)
 	{
 		if (rowsToSkip >= inMemChunk.getTotalValues())
@@ -86,7 +109,7 @@ public class FlatParquetColumnReader extends ColumnReaderImpl
 	}
 
 	private static void assertNextPageExists(InMemChunk inMemChunk, long rowsToSkip,
-			ObjectIterator<DataPage> dataPageIterator, long skippedRows)
+			Iterator<DataPage> dataPageIterator, long skippedRows)
 	{
 		if (!dataPageIterator.hasNext())
 		{
