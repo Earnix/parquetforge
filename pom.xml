@@ -3,7 +3,7 @@
     <groupId>com.earnix</groupId>
     <name>parquetforge-parent</name>
     <artifactId>parquetforge-parent</artifactId>
-    <version>0.0.3-SNAPSHOT</version>
+    <version>0.0.3</version>
     <packaging>pom</packaging>
 
     <licenses>
@@ -32,7 +32,7 @@
         <connection>scm:git:ssh://git@github.com/Earnix/parquetforge.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/Earnix/parquetforge.git</developerConnection>
         <url>https://github.com/Earnix/parquetforge</url>
-      <tag>HEAD</tag>
+      <tag>parquetforge-parent-0.0.3</tag>
   </scm>
 
     <properties>
