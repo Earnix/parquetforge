@@ -49,8 +49,8 @@ public class S3KeyUploader implements AutoCloseable
 
 	// lazily populated.
 	private volatile String uploadId = null;
-	private boolean isCancelled;
-	private boolean isDone;
+	private boolean isAborted;
+	private boolean isCompleted;
 
 	private int partNum = 1;
 
@@ -156,12 +156,10 @@ public class S3KeyUploader implements AutoCloseable
 	 */
 	public synchronized void finish()
 	{
-		if (this.isDone)
-			throw new IllegalStateException("Already Done");
-		if (this.isCancelled)
+		if (this.isCompleted)
+			throw new IllegalStateException("Already Completed");
+		if (this.isAborted)
 			throw new IllegalStateException("Already Cancelled.");
-
-		this.isDone = true;
 
 		CompletedPart[] completedParts = this.uploadPartResponseList.stream()//
 				.sorted(Comparator.comparingInt(ObjectIntImmutablePair::rightInt))//sort by part number
@@ -181,6 +179,8 @@ public class S3KeyUploader implements AutoCloseable
 		s3Client.completeMultipartUpload(builder -> customizeCompleteMultipartUploadRequest(
 				builder.bucket(bucket).key(key).uploadId(Objects.requireNonNull(uploadId))
 						.multipartUpload(completedMultipartUpload)));
+
+		this.isCompleted = true;
 	}
 
 	/**
@@ -188,7 +188,7 @@ public class S3KeyUploader implements AutoCloseable
 	 */
 	public synchronized void abortUpload()
 	{
-		isCancelled = true;
+		isAborted = true;
 		if (uploadId != null)
 		{
 			rateLimiter.acquire();
@@ -211,7 +211,7 @@ public class S3KeyUploader implements AutoCloseable
 			{
 				if (uploadId == null)
 				{
-					if (isCancelled)
+					if (isAborted)
 						throw new IllegalStateException("Upload was cancelled");
 
 					// start new multipart upload.
@@ -286,13 +286,37 @@ public class S3KeyUploader implements AutoCloseable
 		// do nothing - this is for a child class to customize
 	}
 
+	/**
+	 * @return whether this upload was aborted
+	 */
+	public boolean isAborted()
+	{
+		return isAborted;
+	}
+
+	/**
+	 * @return whether the upload has been completed
+	 */
+	public boolean isCompleted()
+	{
+		return isCompleted;
+	}
+
 	@Override
 	public synchronized void close()
 	{
-		if (!this.isCancelled && !this.isDone)
+		if (!this.isAborted && !this.isCompleted)
 		{
 			// if we haven't finished the upload, we better abort it.
 			abortUpload();
 		}
+	}
+
+	@Override
+	public String toString()
+	{
+		return "S3KeyUploader{" + "bucket='" + bucket + '\'' + ", key='" + key + '\'' + ", isDone=" + isCompleted
+				+ ", isCancelled=" + isAborted + ", uploadId='" + uploadId + '\'' + ", numPartsUploaded='"
+				+ this.uploadPartResponseList.size() + '\'' + '}';
 	}
 }

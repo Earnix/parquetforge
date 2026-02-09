@@ -220,8 +220,7 @@ public class ParquetS3ObjectWriterImpl extends BaseParquetColumnarWriter impleme
 				}
 				catch (ExecutionException e)
 				{
-					throw new IOException(
-							"Failure in async upload job for " + this.s3KeyUploader.getS3UploadUri(), e);
+					throw new IOException("Failure in async upload job for " + this.s3KeyUploader.getS3UploadUri(), e);
 				}
 			}
 		}
@@ -237,6 +236,15 @@ public class ParquetS3ObjectWriterImpl extends BaseParquetColumnarWriter impleme
 	@Override
 	public synchronized void close() throws IOException
 	{
+		// close s3 key uploader - if key was not written and upload was started, abort upload
+		try
+		{
+			s3KeyUploader.close();
+		}
+		catch (Exception ex)
+		{
+			LOG.warn("Exception closing s3uploader", ex);
+		}
 		if (buffer != null)
 		{
 			try
@@ -245,7 +253,7 @@ public class ParquetS3ObjectWriterImpl extends BaseParquetColumnarWriter impleme
 			}
 			catch (Exception ex)
 			{
-				// ignore
+				LOG.warn("Exception closing buffer", ex);
 			}
 		}
 		if (deleteTmpFolder && Files.exists(tmpFolder))
