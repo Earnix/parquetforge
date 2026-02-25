@@ -218,7 +218,7 @@ public class S3KeyUploader implements AutoCloseable
 					rateLimiter.acquire();
 					CreateMultipartUploadResponse response = s3Client.createMultipartUpload(
 							builder -> customizeCreateMultipartUploadRequest(builder.bucket(bucket).key(key)));
-					uploadId = response.uploadId();
+					uploadId = Objects.requireNonNull(response.uploadId());
 				}
 			}
 		}
