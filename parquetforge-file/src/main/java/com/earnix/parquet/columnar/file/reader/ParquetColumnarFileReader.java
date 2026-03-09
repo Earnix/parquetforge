@@ -25,6 +25,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -39,6 +40,7 @@ public class ParquetColumnarFileReader implements ParquetColumnarReader
 {
 	private final Path parquetFilePath;
 	private volatile FileMetaData metaData;
+	private volatile Map<String, String> metadataMap;
 	private volatile MessageType messageType;
 	private volatile List<ColumnDescriptor> columnDescriptors;
 	private volatile RowGroupRowIndex rowGroupRowIndex;
@@ -311,5 +313,22 @@ public class ParquetColumnarFileReader implements ParquetColumnarReader
 			ParquetColumnarProcessors.ProcessRawChunkBytes chunkBytesProcessor)
 	{
 		return chunkProcessor == null && chunkBytesProcessor == null;
+	}
+
+	@Override
+	public String getCustomMetadata(String key) throws IOException
+	{
+		if (metadataMap == null)
+		{
+			synchronized (this)
+			{
+				if (metadataMap == null)
+				{
+					readMetaData();
+					metadataMap = ParquetMetadataUtils.buildMetadataMap(metaData.getKey_value_metadata());
+				}
+			}
+		}
+		return metadataMap.get(key);
 	}
 }

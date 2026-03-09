@@ -10,11 +10,15 @@ import org.apache.parquet.schema.LogicalTypeAnnotation;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static com.earnix.parquet.columnar.utils.ParquetEnumUtils.convert;
@@ -25,6 +29,7 @@ import static java.util.Objects.requireNonNullElse;
  */
 public class ParquetMetadataUtils
 {
+	private static final Logger LOG = LoggerFactory.getLogger(ParquetMetadataUtils.class);
 	private static final String STRUCTURED_FILES_UNSUPPORTED = "Structured files are not yet supported";
 
 	/**
@@ -96,5 +101,19 @@ public class ParquetMetadataUtils
 		return requireNonNullElse(keyValuesMetadata, List.<KeyValue> of()).stream()//
 				.map(KeyValue::new)//
 				.collect(Collectors.toUnmodifiableList());
+	}
+
+	public static Map<String, String> buildMetadataMap(List<KeyValue> keyValuesMetadata)
+	{
+		Map<String, String> ret = new HashMap<>();
+		for (KeyValue kv : keyValuesMetadata)
+		{
+			String prev = ret.putIfAbsent(kv.getKey(), kv.getValue());
+			if (prev != null)
+			{
+				LOG.warn("Duplicate key {} value1: {} value2: {}", kv.getKey(), kv.getValue(), prev);
+			}
+		}
+		return Map.copyOf(ret);
 	}
 }

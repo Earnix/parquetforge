@@ -59,6 +59,14 @@ public interface BaseColumnarReader
 	List<KeyValue> getKeyValueFileMetadata() throws IOException;
 
 	/**
+	 * Get the value of the custom metadata key
+	 *
+	 * @param key the key
+	 * @return the value in the metadata or null if it does not exist
+	 */
+	String getCustomMetadata(String key) throws IOException;
+
+	/**
 	 * @return number of columns in this parquet file
 	 * @throws IOException on failure to read footer metadata
 	 */

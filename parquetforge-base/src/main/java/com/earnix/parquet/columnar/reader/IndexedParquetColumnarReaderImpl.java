@@ -17,13 +17,11 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 import static com.earnix.parquet.columnar.reader.ParquetReaderUtils.getLen;
 import static com.earnix.parquet.columnar.reader.ParquetReaderUtils.getStartOffset;
@@ -39,6 +37,7 @@ public class IndexedParquetColumnarReaderImpl implements IndexedParquetColumnarR
 	private final FileMetaData fileMetaData;
 	private final RowGroupRowIndex rowGroupRowIndex;
 	private final List<ColumnDescriptor> columnDescriptors;
+	private final Map<String, String> metadataMap;
 	Map<List<String>, ColumnDescriptor> descriptorByPathMap;
 	List<Map<ColumnDescriptor, ColumnChunk>> rowGroupToIndexedMetadata;
 
@@ -53,6 +52,7 @@ public class IndexedParquetColumnarReaderImpl implements IndexedParquetColumnarR
 	{
 		this.inputStreamSupplier = inputStreamSupplier;
 		this.fileMetaData = inputStreamSupplier.readMetaData();
+		this.metadataMap = ParquetMetadataUtils.buildMetadataMap(fileMetaData.getKey_value_metadata());
 		this.rowGroupRowIndex = new RowGroupRowIndex(fileMetaData);
 		this.messageType = ParquetMetadataUtils.buildMessageType(fileMetaData);
 
@@ -196,5 +196,11 @@ public class IndexedParquetColumnarReaderImpl implements IndexedParquetColumnarR
 	public List<KeyValue> getKeyValueFileMetadata()
 	{
 		return ParquetMetadataUtils.deepCopyKeyValueMetadata(fileMetaData.getKey_value_metadata());
+	}
+
+	@Override
+	public String getCustomMetadata(String key)
+	{
+		return metadataMap.get(key);
 	}
 }

@@ -90,6 +90,8 @@ public class IndexParquetColumnarFileReaderTest
 		Assert.assertTrue(metadata.isPresent());
 		Assert.assertEquals("chicken", metadata.get().key);
 		Assert.assertEquals("potato", metadata.get().value);
+		Assert.assertNull(fileReader.getCustomMetadata("chicke"));
+		Assert.assertEquals("potato", fileReader.getCustomMetadata("chicken"));
 	}
 
 	private static void assertExpected(IndexedParquetColumnarReader fileReader, int rowGroup, int colOffset,
