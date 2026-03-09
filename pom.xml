@@ -3,7 +3,7 @@
     <groupId>com.earnix</groupId>
     <name>parquetforge-parent</name>
     <artifactId>parquetforge-parent</artifactId>
-    <version>0.0.4</version>
+    <version>0.0.5-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <licenses>
