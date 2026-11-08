@@ -34,8 +34,8 @@ public class ColumnChunkValuesWriter implements AutoCloseable
 
 	private volatile ColumnChunkPages pages = null;
 
-	// counter for number of values written
-	private long numVals = 0;
+	// counter for number of rows written
+	private long numRowsWritten = 0;
 
 	public ColumnChunkValuesWriter(ColumnDescriptor columnDescriptor, ParquetProperties parquetProperties,
 			CompressionCodec compressionCodec)
@@ -80,7 +80,7 @@ public class ColumnChunkValuesWriter implements AutoCloseable
 			{
 				if (pages == null)
 				{
-					if (numVals == 0)
+					if (numRowsWritten == 0)
 					{
 						throw new IllegalArgumentException("A column chunk cannot contain zero values " + columnDescriptor);
 					}
@@ -96,14 +96,19 @@ public class ColumnChunkValuesWriter implements AutoCloseable
 		return pages;
 	}
 
-	public boolean isFinished()
+	public boolean pagesGenerated()
 	{
 		return pages != null;
 	}
 
+	public boolean pagesGeneratedOrClosed()
+	{
+		return columnWriter == null || pages != null;
+	}
+
 	private void assertNotFinished()
 	{
-		if (isFinished())
+		if (pagesGenerated())
 		{
 			throw new IllegalStateException("Already finished writing column " + columnDescriptor);
 		}
@@ -235,7 +240,7 @@ public class ColumnChunkValuesWriter implements AutoCloseable
 	private void wroteValue()
 	{
 		writeStore.endRecord();
-		++numVals;
+		++numRowsWritten;
 	}
 
 	public ColumnDescriptor getColumnDescriptor()

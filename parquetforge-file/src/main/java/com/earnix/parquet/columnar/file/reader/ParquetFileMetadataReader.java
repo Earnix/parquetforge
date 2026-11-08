@@ -1,5 +1,6 @@
 package com.earnix.parquet.columnar.file.reader;
 
+import com.earnix.parquet.columnar.reader.ParquetMetadataReaderUtils;
 import com.earnix.parquet.columnar.utils.ParquetMagicUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.parquet.format.ColumnChunk;
@@ -16,7 +17,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -25,9 +25,6 @@ import java.util.List;
  */
 public class ParquetFileMetadataReader
 {
-	private static final Logger LOG = LoggerFactory.getLogger(ParquetFileMetadataReader.class);
-	static final byte[] magicBytes = "PAR1".getBytes(StandardCharsets.US_ASCII);
-
 	/**
 	 * Print the parquet metadata for the specified path
 	 *
@@ -86,40 +83,25 @@ public class ParquetFileMetadataReader
 	 */
 	public static long validateMagicAndFindFooterStartOffset(FileChannel fc) throws IOException
 	{
-		// we want to read the integer length of the footer, and then the magic bytes.
-		int numBytesToRead = Integer.BYTES + magicBytes.length;
-
-		ByteBuffer buf = ByteBuffer.allocate(numBytesToRead);
+		ByteBuffer buf = ByteBuffer.allocate(ParquetMetadataReaderUtils.FOOTER_LEN_AND_MAGIC);
 		buf.order(ByteOrder.LITTLE_ENDIAN);// little endian according to spec.
 
 		// position right before the end of the file
-		fc.position(fc.size() - numBytesToRead);
+		fc.position(fc.size() - ParquetMetadataReaderUtils.FOOTER_LEN_AND_MAGIC);
 		IOUtils.readFully(fc, buf);
 		buf.flip();
-		if (buf.remaining() != numBytesToRead)
-			throw new IllegalStateException();
-		int numBytesInFooters = buf.getInt();
-		LOG.debug("Footers are {} bytes", numBytesInFooters);
-
-		// validate magic at footer
-		assertMagic(buf);
+		int numBytesInFooters = ParquetMetadataReaderUtils.readFooterLenAndMagic(buf);
 
 		buf.clear();
-		buf.limit(magicBytes.length);
+		buf.limit(ParquetMagicUtils.PARQUET_MAGIC.length());
 		fc.position(0L);
 		IOUtils.readFully(fc, buf);
 		fc.read(buf, 0L);
 		buf.flip();
-		assertMagic(buf);
+		ParquetMetadataReaderUtils.assertMagic(buf);
 
-		long startPos = fc.size() - numBytesInFooters - 8;
+		long startPos = fc.size() - numBytesInFooters - ParquetMetadataReaderUtils.FOOTER_LEN_AND_MAGIC;
 		return startPos;
-	}
-
-	private static void assertMagic(ByteBuffer buf)
-	{
-		if (!ParquetMagicUtils.expectMagic(buf))
-			throw new IllegalStateException("Parquet file did not contain expected magic");
 	}
 
 	/**

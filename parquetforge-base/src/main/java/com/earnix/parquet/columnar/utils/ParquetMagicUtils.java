@@ -1,8 +1,11 @@
 package com.earnix.parquet.columnar.utils;
 
+import org.apache.commons.io.IOUtils;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.WritableByteChannel;
@@ -40,6 +43,11 @@ public class ParquetMagicUtils
 	public static InputStream newMagicBytesInputStream()
 	{
 		return new ByteArrayInputStream(PARQUET_MAGIC_BYTES);
+	}
+
+	public static void writeMagicBytes(OutputStream os) throws IOException
+	{
+		IOUtils.write(PARQUET_MAGIC_BYTES, os);
 	}
 
 	public static void writeMagicBytes(WritableByteChannel fileChannel) throws IOException

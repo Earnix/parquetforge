@@ -38,8 +38,9 @@ public class InMemoryParquetAssembler extends BaseParquetAssembler
 		try (ByteArrayOutputStream parquetData = new ByteArrayOutputStream(parquetBytesLen))
 		{
 			// write magic
-			IOUtils.copyLarge(ParquetMagicUtils.newMagicBytesInputStream(), parquetData);
+			ParquetMagicUtils.writeMagicBytes(parquetData);
 
+			byte[] buf = new byte[IOUtils.DEFAULT_BUFFER_SIZE];
 			for (ParquetRowGroupSupplier parquetRowGroupSupplier : rowGroups)
 			{
 				for (ColumnDescriptor columnDescriptor : columns)
@@ -47,7 +48,7 @@ public class InMemoryParquetAssembler extends BaseParquetAssembler
 					ParquetColumnChunkSupplier chunkSupplier = parquetRowGroupSupplier.getSupplier(columnDescriptor);
 					try (InputStream inputStream = chunkSupplier.openInputStream())
 					{
-						IOUtils.copyLarge(inputStream, parquetData);
+						IOUtils.copyLarge(inputStream, parquetData, buf);
 					}
 				}
 			}
