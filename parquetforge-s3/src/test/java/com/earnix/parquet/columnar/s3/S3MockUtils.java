@@ -4,6 +4,7 @@ import com.adobe.testing.s3mock.S3MockApplication;
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
 import software.amazon.awssdk.core.checksums.RequestChecksumCalculation;
 import software.amazon.awssdk.core.checksums.ResponseChecksumValidation;
+import software.amazon.awssdk.http.apache5.Apache5HttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
@@ -33,8 +34,7 @@ public class S3MockUtils {
     static S3Client getS3Client(S3MockApplication s3MockApplication) {
 
         S3ClientBuilder builder = S3Client.builder()//
-                .httpClientBuilder(software.amazon.awssdk.http.apache.ApacheHttpClient.builder()
-                        .maxConnections(100));
+                .httpClientBuilder(Apache5HttpClient.builder().maxConnections(100));
         URI endpointURI;
         try {
             endpointURI = new URI(getS3Endpoint(s3MockApplication));
