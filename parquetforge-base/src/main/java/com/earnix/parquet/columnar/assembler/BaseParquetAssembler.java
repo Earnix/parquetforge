@@ -39,6 +39,7 @@ public abstract class BaseParquetAssembler
 		for (ParquetRowGroupSupplier prgs : rowGroupSuppliers)
 		{
 			List<ColumnChunkInfo> chunkInfoList = new ArrayList<>(columnDescriptors.size());
+			long rgStartOffset =  currOffsetInFile;
 			for (ColumnDescriptor columnDescriptor : columnDescriptors)
 			{
 				ParquetColumnChunkSupplier parquetColumnChunkSupplier = prgs.getSupplier(columnDescriptor);
@@ -48,7 +49,7 @@ public abstract class BaseParquetAssembler
 				currOffsetInFile += parquetColumnChunkSupplier.getCompressedLength();
 			}
 
-			RowGroupInfo rowGroupInfo = new RowGroupInfo(currOffsetInFile, prgs.getNumRows(), chunkInfoList);
+			RowGroupInfo rowGroupInfo = new RowGroupInfo(rgStartOffset, prgs.getNumRows(), chunkInfoList);
 			rowGroupInfos.add(rowGroupInfo);
 		}
 

@@ -259,6 +259,7 @@ public class S3ParquetFilePartDownloader
 
 			// this is the only row group
 			newFooterMetadata.setRow_groups(Collections.singletonList(rg));
+			newFooterMetadata.setNum_rows(rg.getNum_rows());
 			try (FileChannel fc = FileChannel.open(rowGroupPath[rowGrpNum], StandardOpenOption.WRITE))
 			{
 				fc.position(fc.size());

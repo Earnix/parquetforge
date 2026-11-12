@@ -16,8 +16,6 @@ import java.io.InputStream;
  */
 public final class S3ParquetReaderFactory
 {
-	
-
 	public static IndexedParquetColumnarReader createIndexedColumnarS3Reader(S3KeyDownloader s3KeyDownloader)
 			throws IOException
 	{
