@@ -120,7 +120,7 @@ public class ParquetFileColumnarWriterImpl extends BaseParquetColumnarWriter imp
 				.map(ColumnChunkInfo::getDescriptor)//
 				.map(ColumnDescriptor::getPrimitiveType)//
 				.toArray(Type[]::new);
-		setMessageType(new MessageType(ParquetFileColumnarWriterFactory.TABLE_ROOT_NAME, cols));
+		setMessageType(new MessageType(ParquetWriterUtils.ROOT_SCHEMA_NAME, cols));
 	}
 
 	@Override

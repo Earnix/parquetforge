@@ -82,7 +82,7 @@ public class ColumnChunkValuesWriter implements AutoCloseable
 				{
 					if (numRowsWritten == 0)
 					{
-						throw new IllegalArgumentException("A column chunk cannot contain zero values " + columnDescriptor);
+						throw new IllegalArgumentException("A column chunk cannot contain zero rows " + columnDescriptor);
 					}
 
 					writeStore.flush();
@@ -180,42 +180,42 @@ public class ColumnChunkValuesWriter implements AutoCloseable
 	{
 		assertNotFinished();
 		columnWriter.write(value, maxRepetitionLevel(), maxDefinitionLevel());
-		wroteValue();
+		wroteValueOrNull();
 	}
 
 	public void write(long value)
 	{
 		assertNotFinished();
 		columnWriter.write(value, maxRepetitionLevel(), maxDefinitionLevel());
-		wroteValue();
+		wroteValueOrNull();
 	}
 
 	public void write(boolean value)
 	{
 		assertNotFinished();
 		columnWriter.write(value, maxRepetitionLevel(), maxDefinitionLevel());
-		wroteValue();
+		wroteValueOrNull();
 	}
 
 	public void write(Binary value)
 	{
 		assertNotFinished();
 		columnWriter.write(value, maxRepetitionLevel(), maxDefinitionLevel());
-		wroteValue();
+		wroteValueOrNull();
 	}
 
 	public void write(float value)
 	{
 		assertNotFinished();
 		columnWriter.write(value, maxRepetitionLevel(), maxDefinitionLevel());
-		wroteValue();
+		wroteValueOrNull();
 	}
 
 	public void write(double value)
 	{
 		assertNotFinished();
 		columnWriter.write(value, maxRepetitionLevel(), maxDefinitionLevel());
-		wroteValue();
+		wroteValueOrNull();
 	}
 
 	private int maxRepetitionLevel()
@@ -234,10 +234,10 @@ public class ColumnChunkValuesWriter implements AutoCloseable
 			throw new IllegalStateException("Field is required!");
 		assertNotFinished();
 		columnWriter.writeNull(0, 0);
-		wroteValue();
+		wroteValueOrNull();
 	}
 
-	private void wroteValue()
+	private void wroteValueOrNull()
 	{
 		writeStore.endRecord();
 		++numRowsWritten;

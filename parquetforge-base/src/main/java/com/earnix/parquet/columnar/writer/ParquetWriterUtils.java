@@ -39,6 +39,8 @@ import java.util.stream.Collectors;
  */
 public class ParquetWriterUtils
 {
+	public static final String ROOT_SCHEMA_NAME = "root";
+
 	/**
 	 * Write the footer metadata to the file channel
 	 *
@@ -67,15 +69,19 @@ public class ParquetWriterUtils
 	 * @return the built file metadata
 	 */
 	public static FileMetaData getFileMetaData(MessageType messageType, List<RowGroupInfo> rowGroupInfos,
+			List<KeyValue> keyValues) {
+		if (rowGroupInfos.isEmpty())
+			throw new IllegalStateException("No groups written");
+		return getFileMetaDataAllowEmpty(messageType, rowGroupInfos, keyValues);
+	}
+
+	public static FileMetaData getFileMetaDataAllowEmpty(MessageType messageType,
+			List<RowGroupInfo> rowGroupInfos,
 			List<KeyValue> keyValues)
 	{
 		List<SchemaElement> schemaElementList = ParquetWriterUtils.getSchemaElements(messageType);
 		// C++ parquet driver requires row group columns to be in the same order as the schema.
 		Map<ColumnDescriptor, Integer> schemaOrder = computeOrderingFromSchema(messageType);
-
-
-		if (rowGroupInfos.isEmpty())
-			throw new IllegalStateException("No groups written");
 
 		FileMetaData fileMetaData = new FileMetaData();
 		fileMetaData.setSchema(schemaElementList);
@@ -153,7 +159,7 @@ public class ParquetWriterUtils
 		List<SchemaElement> schemaElementList = new ArrayList<>(1 + messageType.getColumns().size());
 
 		SchemaElement root = new SchemaElement();
-		root.setName("root");
+		root.setName(ROOT_SCHEMA_NAME);
 		root.setType(null);
 		root.setNum_children(messageType.getColumns().size());
 		schemaElementList.add(root);

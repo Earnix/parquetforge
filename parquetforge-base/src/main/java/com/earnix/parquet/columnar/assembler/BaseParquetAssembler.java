@@ -39,7 +39,7 @@ public abstract class BaseParquetAssembler
 		for (ParquetRowGroupSupplier prgs : rowGroupSuppliers)
 		{
 			List<ColumnChunkInfo> chunkInfoList = new ArrayList<>(columnDescriptors.size());
-			long rgStartOffset =  currOffsetInFile;
+			final long rgStartOffset =  currOffsetInFile;
 			for (ColumnDescriptor columnDescriptor : columnDescriptors)
 			{
 				ParquetColumnChunkSupplier parquetColumnChunkSupplier = prgs.getSupplier(columnDescriptor);
@@ -53,7 +53,7 @@ public abstract class BaseParquetAssembler
 			rowGroupInfos.add(rowGroupInfo);
 		}
 
-		MessageType messageType = new MessageType("root",
+		MessageType messageType = new MessageType(ParquetWriterUtils.ROOT_SCHEMA_NAME,
 				columnDescriptors.stream().map(ColumnDescriptor::getPrimitiveType).collect(Collectors.toList()));
 		FileMetaData parquetFooterMetadata = ParquetWriterUtils.getFileMetaData(messageType, rowGroupInfos,
 				keyValuesMetadata);

@@ -1,6 +1,7 @@
 package com.earnix.parquet.columnar.file.writer;
 
 import com.earnix.parquet.columnar.writer.ParquetColumnarWriter;
+import com.earnix.parquet.columnar.writer.ParquetWriterUtils;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.schema.MessageType;
@@ -16,8 +17,6 @@ import java.util.List;
  */
 public class ParquetFileColumnarWriterFactory
 {
-	static final String TABLE_ROOT_NAME = "root";
-
 	public static ParquetColumnarWriter createWriter(Path outputFile, MessageType messageType,
 			CompressionCodec compressionCodec, boolean cacheFileHandle) throws IOException
 	{
@@ -66,7 +65,8 @@ public class ParquetFileColumnarWriterFactory
 	public static ParquetColumnarWriter createWriter(Path outputFile, List<PrimitiveType> primitiveTypeList,
 			CompressionCodec compressionCodec, boolean cacheFileHandle) throws IOException
 	{
-		return createWriter(outputFile, new MessageType("root", primitiveTypeList.toArray(new Type[0])),
+		return createWriter(outputFile,
+				new MessageType(ParquetWriterUtils.ROOT_SCHEMA_NAME, primitiveTypeList.toArray(new Type[0])),
 				compressionCodec, cacheFileHandle);
 	}
 

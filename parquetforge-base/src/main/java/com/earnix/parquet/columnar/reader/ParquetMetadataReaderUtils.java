@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 
 public class ParquetMetadataReaderUtils
@@ -17,6 +18,7 @@ public class ParquetMetadataReaderUtils
 
 	public static int readFooterLenAndMagic(ByteBuffer buf)
 	{
+		buf = buf.asReadOnlyBuffer().order(ByteOrder.LITTLE_ENDIAN);
 		if (buf.remaining() != FOOTER_LEN_AND_MAGIC)
 			throw new IllegalStateException();
 		int numBytesInFooters = buf.getInt();

@@ -7,6 +7,7 @@ import com.earnix.parquet.columnar.reader.chunk.internal.InMemChunk;
 import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkPages;
 import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkWriter;
 import com.earnix.parquet.columnar.writer.columnchunk.ColumnChunkWriterImpl;
+import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.schema.MessageType;
@@ -125,12 +126,7 @@ public class ColumnChunkWriterReaderTest
 		MessageType messageType = new MessageType("root",
 				new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.DOUBLE, "testDouble"));
 
-		// Parquet writing properties - default is fine for this case.
-		ParquetProperties properties = ParquetProperties.builder().build();
-
-		ColumnChunkWriter writer = new ColumnChunkWriterImpl(codec, properties);
-		ColumnChunkPages pages = writer.writeColumn(messageType.getColumnDescription(new String[] { "testDouble" }),
-				vals);
+		ColumnChunkPages pages = doublePage(vals, codec, messageType.getColumnDescription(new String[] { "testDouble" }));
 		System.out.println("Bytes to write: " + pages.totalBytesForStorage());
 
 		ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream((int) pages.totalBytesForStorage());
@@ -142,5 +138,16 @@ public class ColumnChunkWriterReaderTest
 
 		ChunkValuesReader reader = ChunkValuesReaderFactory.createChunkReader(chunk);
 		return reader;
+	}
+
+	static ColumnChunkPages doublePage(double[] vals, CompressionCodec codec,
+			ColumnDescriptor descriptor)
+	{
+		// Parquet writing properties - default is fine for this case.
+		ParquetProperties properties = ParquetProperties.builder().build();
+
+		ColumnChunkWriter writer = new ColumnChunkWriterImpl(codec, properties);
+		ColumnChunkPages pages = writer.writeColumn(descriptor, vals);
+		return pages;
 	}
 }
